@@ -86,34 +86,34 @@ Explizit ausgeschlossen. Dokumentiert, um Scope Creep zu verhindern.
 
 ## Traceability
 
-Wird während der Roadmap-Erstellung befüllt.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PUSH-01 | — | Pending |
-| PUSH-02 | — | Pending |
-| PUSH-03 | — | Pending |
-| PUSH-04 | — | Pending |
-| CALL-01 | — | Pending |
-| CALL-02 | — | Pending |
-| CALL-03 | — | Pending |
-| CALL-04 | — | Pending |
-| CALL-05 | — | Pending |
-| PROV-01 | — | Pending |
-| PROV-02 | — | Pending |
-| PROV-03 | — | Pending |
-| PROV-04 | — | Pending |
-| DOOR-01 | — | Pending |
-| DOOR-02 | — | Pending |
-| OPS-01 | — | Pending |
-| OPS-02 | — | Pending |
-| OPS-03 | — | Pending |
+| PUSH-01 | Phase 1 | Pending |
+| PUSH-02 | Phase 1 | Pending |
+| PUSH-03 | Phase 1 | Pending |
+| PUSH-04 | Phase 1 | Pending |
+| CALL-01 | Phase 2 | Pending |
+| CALL-02 | Phase 2 | Pending |
+| CALL-03 | Phase 2 | Pending |
+| CALL-04 | Phase 2 | Pending |
+| CALL-05 | Phase 2 | Pending |
+| PROV-01 | Phase 3 | Pending |
+| PROV-02 | Phase 3 | Pending |
+| PROV-03 | Phase 3 | Pending |
+| PROV-04 | Phase 4 | Pending |
+| OPS-01 | Phase 4 | Pending |
+| OPS-03 | Phase 5 | Pending |
+| OPS-02 | Phase 6 | Pending |
+| DOOR-01 | Phase 7 | Pending |
+| DOOR-02 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️ (wird vom Roadmapper aufgelöst)
+- Mapped to phases: 18
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-31*
-*Last updated: 2026-07-31 after initial definition*
+*Last updated: 2026-08-01 after roadmap creation (7 phases, 100% coverage)*
+</content>
+</invoke>
