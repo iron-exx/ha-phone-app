@@ -502,22 +502,25 @@ def send_test_fcm_push(fcm_token: str, envelope: dict):
 
 **If this table is empty:** N/A — see entries above; all should be confirmed by the developer before/at the start of Phase 1 execution.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Is a Mac with the physical iPhone available for the iOS half of this phase?**
    - What we know: This research session ran in a Linux sandbox with no Xcode/macOS detected at all.
    - What's unclear: Whether the developer has separate Apple hardware to build/run/debug the iOS app — CONTEXT.md confirms a real iPhone is the test device (D-01), but says nothing about the build machine.
    - Recommendation: Planner should add an explicit Wave 0 checklist item confirming Mac + Xcode + Apple Developer Program membership availability before scheduling any iOS tasks.
+   - RESOLVED: All iOS build/test is routed through Plan 04's GitHub Actions macOS runner (Fastlane + TestFlight), removing the need for a local Mac; the developer only needs the physical iPhone for real-device manual testing in Plan 06.
 
 2. **Exact Play Console full-screen-intent declaration UI wording/click-path**
    - What we know: The declaration lives on the "App content" page (Monitor and improve > App content), became mandatory May 2024, and Google enforces default-deny for non-declared apps since January 22, 2025 on Android 14+ targets.
    - What's unclear: Sources disagree on the exact click-path/labels (one thread references selecting "Other" under "About your app", which doesn't obviously match a "calling app" declaration — likely describes a different, adjacent declaration flow that got conflated in search results).
    - Recommendation: Do not trust the exact UI copy from this research; have the developer navigate Play Console directly at execution time and screenshot the actual flow for the plan's verification step.
+   - RESOLVED: Modeled as a human-verified checkpoint task in Plan 05 Task 1 -- the developer navigates the live Play Console UI directly rather than relying on this research's (uncertain) click-path description.
 
 3. **Non-Pixel Android OEM coverage (already flagged as D-03)**
    - What we know: No non-Pixel device is currently available; ROADMAP.md's success criterion #3 explicitly requires OEM diversity.
    - What's unclear: Whether to formally descope criterion #3 to "Pixel only" for Phase 1's Definition of Done, or mark it "blocked, pending device."
    - Recommendation: Planner should make an explicit choice here (not leave it ambiguous) — recommend scoping down to Pixel-only for Phase 1 sign-off, with a tracked backlog item for OEM coverage revisited at Phase 6 hardening (per PITFALLS.md's own phase mapping).
+   - RESOLVED: CONTEXT.md D-03 explicitly scopes Phase 1 to Pixel-only device coverage; non-Pixel OEM verification is deferred to Phase 6 hardening. This is reflected in Plans 01, 05, and 06 (Plan 06 Task 3's sign-off note names the deferral explicitly).
 
 ## Environment Availability
 
