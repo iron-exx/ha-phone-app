@@ -31,6 +31,7 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 - [ ] Türstations-Erkennung (Akuvox): Vorschaubild/Snapshot wird angezeigt, bevor der Anruf angenommen wird
 - [ ] Türöffner-Funktion aus der App heraus (mit optionaler Biometrie-Bestätigung)
 - [ ] Diagnose-Statusseite in der App (Push-Registrierung, SIP-Status, Berechtigungen, letzter Test)
+- [ ] Tailscale-Integration als Medien-Transportschicht: Nutzer trägt seinen Tailscale-Account einmal in App und HA-Phone ein, Verbindung für SIP/RTP wird dann automatisch aufgebaut (ephemer bei Bedarf, nicht dauerhaft im Hintergrund) — ersetzt manuelle STUN/TURN-Konfiguration für die Erreichbarkeit unterwegs
 
 ### Out of Scope
 
@@ -38,7 +39,7 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 - Reine Web-/PWA-Umsetzung — kann VoIP-Push, CallKit und zuverlässiges Hintergrund-Klingeln technisch nicht leisten
 - WebRTC/SBC/Cloud-PBX-Szenarien — folgt HA-Phones eigener Roadmap-Priorität, dort bewusst zurückgestellt
 - Mehrere Admin-Rollen, Mandantenfähigkeit — kein Bedarf für die Zielgruppe (kleine Installationen)
-- Reine Abhängigkeit von Tailscale/VPN für Erreichbarkeit — widerspricht dem Grundprinzip (Push statt Dauerverbindung), Tailscale bleibt optional für SIP/Media selbst
+- Tailscale als Wake-up-Mechanismus (dauerhaft laufender Hintergrund-Tunnel, der die App weckt) — widerspricht dem Grundprinzip (Push statt Dauerverbindung); Tailscale wird ausschließlich als Transportschicht für SIP/Media genutzt, ephemer nach dem Push-Wecken aufgebaut, nicht als Ersatz für APNs/FCM
 
 ## Context
 
@@ -57,6 +58,7 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 - **Push-Architektur**: Zentraler, vom Projekt selbst betriebener Relay-Dienst hält die APNs-/FCM-App-Credentials; jede HA-Phone-Box sendet signierte Call-Events an diesen Relay. Kein Rückgriff auf Nabu Casa (an offizielle HA-App-Identität gebunden) oder Tailscale (löst Netzwerk-, nicht Push-Credential-Problem)
 - **Budget**: Kostenlos im Betrieb angestrebt — FCM ist kostenlos, APNs-Versand ist kostenlos (nur die für die App-Veröffentlichung ohnehin nötige Apple Developer Membership, 99 $/Jahr, fällt an)
 - **Zielgruppe**: Von Anfang an auch für fremde HA-Phone-Installationen gedacht (nicht nur eigener Haushalt) — beeinflusst Provisionierung, Gerätesicherheit und Relay-Design
+- **Transport für SIP/Media**: Tailscale statt eigenem STUN/TURN-Aufbau — Nutzer hinterlegt seinen Tailscale-Account einmal in App und HA-Phone, Verbindung wird bei Bedarf automatisch (nicht dauerhaft) aufgebaut. Erfordert vermutlich eingebettete `tsnet`-Anbindung oder OAuth-Client/Auth-Key-basierte automatische Node-Registrierung statt der separaten Tailscale-App — technischer Ansatz wird in Architektur-Recherche vertieft
 
 ## Key Decisions
 
@@ -67,6 +69,7 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 | Nativ getrennte Apps (Swift/Kotlin) statt Cross-Platform-Framework | Zuverlässigkeit bei Push-Wakeup/CallKit/Telecom hat Priorität vor gemeinsamer UI-Codebasis | — Pending |
 | Zentraler eigener Push-Relay-Dienst statt Nabu Casa/Tailscale | Push-Credentials sind an App-Identität gebunden, nicht an Netzwerk-Erreichbarkeit — Nabu Casa/Tailscale lösen das falsche Problem | — Pending |
 | Phase-1-Priorität: Push-Wakeup vor QR-Provisionierung vor Video | Reihenfolge aus dem ursprünglichen Entwicklungsplan — Erreichbarkeit ist das Kernproblem, das zuerst bewiesen werden muss | — Pending |
+| Tailscale als Medien-Transportschicht statt eigenem STUN/TURN | Nutzer will Erreichbarkeit unterwegs ohne eigenen TURN-Server; Tailscale übernimmt NAT-Traversal. Push bleibt strikt getrennt als Wake-up-Mechanismus, Tailscale wird nur ephemer für die SIP/Media-Verbindung genutzt | — Pending |
 
 ## Evolution
 
