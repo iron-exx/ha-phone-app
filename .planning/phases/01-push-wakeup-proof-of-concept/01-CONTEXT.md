@@ -30,6 +30,10 @@ Prove that a platform push (APNs on iOS, FCM on Android) reliably wakes the app 
 - **D-08:** No retry/timeout logic in Phase 1. Failed or late push delivery is logged (sent timestamp vs. received/reported timestamp) in the test script, not automatically retried. Retry/hardening is explicitly deferred to Phase 4/5.
 - **D-09:** Acceptance is judged informally ("feels reliable" after manual test calls across app states: open, backgrounded, locked, overnight standby) — no fixed numeric test-count/success-rate target for Phase 1's Definition of Done.
 
+### iOS Build Environment (no local Mac available)
+- **D-10:** The user has no Mac/Xcode available locally. iOS is built via a **GitHub Actions macOS runner** (Fastlane or plain `xcodebuild`), signed with an Apple Developer account (already planned per PROJECT.md), and distributed via **TestFlight** for on-device testing. The user installs/updates the build through the TestFlight app on their own iPhone — there is no local Xcode debug-install loop. Planner must include CI pipeline setup (GitHub Actions workflow, code signing/provisioning profile, TestFlight upload) as an explicit Phase 1 task, not an assumed prerequisite. Iteration speed will be CI-round-trip-bound (minutes per build), not instant — factor this into task sequencing and expectations.
+- **Consequence for testing:** Since VoIP push cannot be tested in the iOS Simulator under any circumstance (confirmed in RESEARCH.md), and there is no local device debugging via Xcode, all iOS push/CallKit verification happens via TestFlight builds installed on the user's physical iPhone. Console log inspection for debugging will rely on either TestFlight crash/feedback reports or a remote-logging approach (e.g., the app posting debug events to a simple endpoint) rather than a live Xcode console — planner/researcher should account for this when designing the test-trigger script's feedback loop.
+
 </decisions>
 
 <canonical_refs>
