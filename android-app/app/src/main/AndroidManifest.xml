@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".HAPhoneTestApplication"
         android:allowBackup="true"
         android:label="HA-Phone Test"
         android:theme="@style/Theme.HAPhoneTest">
@@ -18,6 +19,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".IncomingCallActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
 
         <service android:name=".TestFcmService" android:exported="false">
             <intent-filter>
