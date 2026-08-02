@@ -450,7 +450,7 @@ async def send_test_voip_push(device_token: str, envelope: dict):
         auth_key = f.read()
     client = APNs(
         key=auth_key, key_id="<KEY_ID>", team_id="<TEAM_ID>",
-        topic="de.systemwerk.haphone",   # bare bundle id; aioapns appends nothing —
+        topic="de.haphone.app",   # bare bundle id; aioapns appends nothing —
         use_sandbox=True,                 # set apns_topic explicitly to "<bundle>.voip" below
     )
     request = NotificationRequest(
@@ -458,7 +458,7 @@ async def send_test_voip_push(device_token: str, envelope: dict):
         message=envelope,
         push_type=PushType.VOIP,
         priority=PRIORITY_HIGH,
-        apns_topic="de.systemwerk.haphone.voip",
+        apns_topic="de.haphone.app.voip",
     )
     result = await client.send_notification(request)
     print(result.status, result.is_successful)

@@ -204,7 +204,7 @@ ha-phone-app-android/ (Kotlin/Compose, PJSUA2, Telecom, FCM)
   "installationId": "inst_7f3c1a2b",
   "sentAt": "2026-07-31T14:32:00Z",
   "devices": [
-    { "platform": "ios", "pushToken": "abcd...", "appId": "de.systemwerk.haphone.voip" }
+    { "platform": "ios", "pushToken": "abcd...", "appId": "de.haphone.app.voip" }
   ],
   "event": {
     "callId": "c-2f9a3e",

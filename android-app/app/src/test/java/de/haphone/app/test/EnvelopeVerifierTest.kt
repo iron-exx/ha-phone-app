@@ -1,4 +1,4 @@
-package de.systemwerk.haphone.test
+package de.haphone.app.test
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

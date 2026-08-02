@@ -1,4 +1,4 @@
-package de.systemwerk.haphone.test
+package de.haphone.app.test
 
 import com.google.crypto.tink.subtle.Ed25519Verify
 import java.util.Base64

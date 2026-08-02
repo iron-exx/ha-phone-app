@@ -1,4 +1,4 @@
-package de.systemwerk.haphone.test
+package de.haphone.app.test
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

@@ -1,4 +1,4 @@
-package de.systemwerk.haphone.test
+package de.haphone.app.test
 
 import android.content.Context
 import android.net.Uri

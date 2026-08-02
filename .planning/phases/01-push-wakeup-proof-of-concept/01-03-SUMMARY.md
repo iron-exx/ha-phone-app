@@ -36,14 +36,14 @@ key-files:
     - android-app/gradlew.bat
     - android-app/app/build.gradle.kts
     - android-app/app/src/main/AndroidManifest.xml
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/EnvelopeVerifier.kt
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/TestFcmService.kt
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/CallRegistration.kt
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/CallNotificationBuilder.kt
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/IncomingCallActivity.kt
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/HAPhoneTestApplication.kt
-    - android-app/app/src/main/java/de/systemwerk/haphone/test/MainActivity.kt
-    - android-app/app/src/test/java/de/systemwerk/haphone/test/EnvelopeVerifierTest.kt
+    - android-app/app/src/main/java/de/haphone/app/test/EnvelopeVerifier.kt
+    - android-app/app/src/main/java/de/haphone/app/test/TestFcmService.kt
+    - android-app/app/src/main/java/de/haphone/app/test/CallRegistration.kt
+    - android-app/app/src/main/java/de/haphone/app/test/CallNotificationBuilder.kt
+    - android-app/app/src/main/java/de/haphone/app/test/IncomingCallActivity.kt
+    - android-app/app/src/main/java/de/haphone/app/test/HAPhoneTestApplication.kt
+    - android-app/app/src/main/java/de/haphone/app/test/MainActivity.kt
+    - android-app/app/src/test/java/de/haphone/app/test/EnvelopeVerifierTest.kt
   modified:
     - .gitignore
     - android-app/local.properties (gitignored, not committed)
@@ -101,14 +101,14 @@ Each task was committed atomically:
 - `android-app/settings.gradle.kts`, `android-app/build.gradle.kts`, `android-app/gradle.properties` - Root project config, plugin versions (AGP 8.5.2, Kotlin 2.0.20, Compose Compiler plugin, google-services)
 - `android-app/app/build.gradle.kts` - App module: compileSdk 35, minSdk 26, core-telecom/firebase-messaging-ktx/tink-android/Compose dependencies
 - `android-app/app/src/main/AndroidManifest.xml` - MANAGE_OWN_CALLS/USE_FULL_SCREEN_INTENT/POST_NOTIFICATIONS permissions, MainActivity/IncomingCallActivity/TestFcmService declarations, HAPhoneTestApplication
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/EnvelopeVerifier.kt` - Pure-JVM Ed25519 verify + canonical JSON builder matching tools/envelope.py
-- `android-app/app/src/test/java/de/systemwerk/haphone/test/EnvelopeVerifierTest.kt` - 5 golden-fixture JUnit tests
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/TestFcmService.kt` - FirebaseMessagingService, always registers call + shows notification
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/CallRegistration.kt` - CallsManager self-managed registration wrapper
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/CallNotificationBuilder.kt` - CallStyle + full-screen-intent notification builder
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/IncomingCallActivity.kt` - Placeholder incoming-call screen
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/HAPhoneTestApplication.kt` - Notification channel registration at startup
-- `android-app/app/src/main/java/de/systemwerk/haphone/test/MainActivity.kt` - Minimal launcher activity stub
+- `android-app/app/src/main/java/de/haphone/app/test/EnvelopeVerifier.kt` - Pure-JVM Ed25519 verify + canonical JSON builder matching tools/envelope.py
+- `android-app/app/src/test/java/de/haphone/app/test/EnvelopeVerifierTest.kt` - 5 golden-fixture JUnit tests
+- `android-app/app/src/main/java/de/haphone/app/test/TestFcmService.kt` - FirebaseMessagingService, always registers call + shows notification
+- `android-app/app/src/main/java/de/haphone/app/test/CallRegistration.kt` - CallsManager self-managed registration wrapper
+- `android-app/app/src/main/java/de/haphone/app/test/CallNotificationBuilder.kt` - CallStyle + full-screen-intent notification builder
+- `android-app/app/src/main/java/de/haphone/app/test/IncomingCallActivity.kt` - Placeholder incoming-call screen
+- `android-app/app/src/main/java/de/haphone/app/test/HAPhoneTestApplication.kt` - Notification channel registration at startup
+- `android-app/app/src/main/java/de/haphone/app/test/MainActivity.kt` - Minimal launcher activity stub
 - `.gitignore` - added `android-app/local.properties`, `android-app/.gradle/`, `android-app/build/`, `android-app/app/build/`, `android-app/.kotlin/`, `*.iml`, `.idea/`
 
 ## Decisions Made
@@ -135,7 +135,7 @@ Each task was committed atomically:
 - **Found during:** Task 3, first `./gradlew assembleDebug` invocation
 - **Issue:** `CallNotificationBuilder.kt` imported `android.app.Person` (the plan's own sample code) instead of `androidx.core.app.Person`. `NotificationCompat.CallStyle.forIncomingCall(caller, ...)` and `Builder.addPerson(...)` both require the AndroidX `Person` type; passing the framework type is a type mismatch that fails `compileDebugKotlin` with 4 separate cascading errors (`addPerson`, `setFullScreenIntent`, `.build()` all unresolved as a result).
 - **Fix:** Changed the import to `androidx.core.app.Person`.
-- **Files modified:** android-app/app/src/main/java/de/systemwerk/haphone/test/CallNotificationBuilder.kt
+- **Files modified:** android-app/app/src/main/java/de/haphone/app/test/CallNotificationBuilder.kt
 - **Verification:** `./gradlew assembleDebug` re-run, reached `BUILD SUCCESSFUL`, produced `app-debug.apk`.
 - **Committed in:** 1e94333 (Task 3 commit)
 
@@ -143,7 +143,7 @@ Each task was committed atomically:
 - **Found during:** Task 3, acceptance-criteria verification pass (before the Gradle build attempt)
 - **Issue:** The plan's suggested comment text for `CallNotificationBuilder.show()` contained the literal substrings `"isValid == false"` and `"skip"`, both of which the plan's own acceptance criterion `grep -c "isValid == false\|skip\|return@show"` (expected: 0) matches against -- even though the actual code has no branch that skips `notify()`.
 - **Fix:** Reworded the comment to describe the same unconditional-`notify()` guarantee without using those literal substrings.
-- **Files modified:** android-app/app/src/main/java/de/systemwerk/haphone/test/CallNotificationBuilder.kt
+- **Files modified:** android-app/app/src/main/java/de/haphone/app/test/CallNotificationBuilder.kt
 - **Verification:** Re-ran the exact acceptance-criteria grep command, now returns 0.
 - **Committed in:** 1e94333 (Task 3 commit)
 
@@ -177,7 +177,7 @@ None - no external service configuration required. (Real Firebase project creden
 
 ## Self-Check: PASSED
 
-- `test -f android-app/app/src/main/java/de/systemwerk/haphone/test/EnvelopeVerifier.kt` etc. -- all key artifacts exist on disk (verified via Write/Read tool confirmations during execution).
+- `test -f android-app/app/src/main/java/de/haphone/app/test/EnvelopeVerifier.kt` etc. -- all key artifacts exist on disk (verified via Write/Read tool confirmations during execution).
 - `git log --oneline --all --grep="01-03"` returns 3 task commits (5ce0f93, cafeaa6, 1e94333).
 - All `<acceptance_criteria>` from every task re-verified: Task 1 (gradlew executable, 3 dependencies present, 0 android.util.Base64, 2 manifest permissions, 5/5 tests pass), Task 2 (class exists, both call sites present, manifest intent-filter present, compileDebugKotlin succeeds), Task 3 (CallStyle present, canUseFullScreenIntent present, 2 lock-screen manifest attributes, 0 skip-pattern matches after reword, assembleDebug succeeds) -- all PASS.
 - Plan-level `<verification>` commands (`./gradlew testDebugUnitTest`, `./gradlew assembleDebug`) both re-run at the end of Task 3 and show `BUILD SUCCESSFUL`.

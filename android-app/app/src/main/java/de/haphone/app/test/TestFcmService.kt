@@ -1,4 +1,4 @@
-package de.systemwerk.haphone.test
+package de.haphone.app.test
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage

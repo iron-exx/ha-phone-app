@@ -1,6 +1,6 @@
 name: HAPhoneTestApp
 options:
-  bundleIdPrefix: de.systemwerk.haphone
+  bundleIdPrefix: de.haphone.app
   deploymentTarget:
     iOS: "17.0"
 targets:
@@ -18,7 +18,7 @@ targets:
         aps-environment: development
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.systemwerk.haphone.test
+        PRODUCT_BUNDLE_IDENTIFIER: de.haphone.app.test
         CODE_SIGN_STYLE: Automatic
     scheme:
       testTargets: [HAPhoneTestAppTests]

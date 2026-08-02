@@ -11,7 +11,7 @@ protocol DiagnosticsLogging {
 
 final class FileDiagnosticsLog: DiagnosticsLogging {
     private let fileURL: URL
-    private let queue = DispatchQueue(label: "de.systemwerk.haphone.test.diagnostics", qos: .utility)
+    private let queue = DispatchQueue(label: "de.haphone.app.test.diagnostics", qos: .utility)
 
     init(fileURL: URL = FileDiagnosticsLog.defaultURL()) {
         self.fileURL = fileURL
