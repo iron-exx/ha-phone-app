@@ -174,6 +174,7 @@ None - no external service configuration required. (Real Firebase project creden
 - `EnvelopeVerifier.kt` is confirmed byte-for-byte compatible with Plan 01's Python golden fixture, so the Kotlin verifier can be trusted against real signed envelopes once Plan 01's `tools/push_trigger.py` sends real FCM pushes to a physical device.
 - Not yet exercised on a real device (no Firebase project/`google-services.json`, no physical Pixel test in this sandbox) -- that manual verification pass, per `tools/docs/MANUAL_TEST_PROCEDURE.md` (Plan 01), still needs to happen once Plan 05 provisions real Firebase credentials and the Play Console declaration.
 - No blockers identified for Plan 05 (Play Console "calling app" declaration) -- the code-side `CallsManager` self-managed registration this plan built is exactly the capability that declaration depends on.
+- **ERRATA (added after D-12):** Plan 05 was later revised to skip the Play Console declaration entirely (user rejected the $25 Google Play Developer account for Phase 1). This plan's `CallsManager` self-managed registration is instead tested empirically via direct `adb install` sideload -- whether the full-screen-intent auto-grant works without the declaration is now an open empirical finding, not an assumed dependency.
 
 ## Self-Check: PASSED
 

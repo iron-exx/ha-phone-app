@@ -45,7 +45,7 @@ created: 2026-08-01
 | 01-02-02 | 02 | 1 | PUSH-01 | — | iOS VoIP push wakes app across app states | manual-only | N/A — manual test procedure below | ❌ W0 | ⬜ pending |
 | 01-03-01 | 03 | 1 | PUSH-04 | T-01-02 | CallStyle/notification + envelope verification logic (Android) | unit | `./gradlew testDebugUnitTest --tests EnvelopeVerifierTest` | ❌ W0 | ⬜ pending |
 | 01-03-02 | 03 | 1 | PUSH-03 | — | Android high-priority FCM wakes app while backgrounded/locked | manual-only | N/A — manual test procedure below | ❌ W0 | ⬜ pending |
-| 01-04-01 | 04 | 2 | PUSH-04 | — | Play Console "calling app" declaration completed | administrative | N/A — Play Console screenshot/confirmation | ❌ W0 | ⬜ pending |
+| 01-04-01 | 04 | 2 | PUSH-01, PUSH-02 | — | **ERRATA (superseded by D-11):** Plan 04 no longer touches Android/Play Console — it is now an iOS-only Simulator build/test CI pipeline (unsigned, no Apple Developer Program). See row below for the actual verification. | automated | `xcodebuild build -sdk iphonesimulator` + `xcodebuild test` in CI | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -65,10 +65,10 @@ created: 2026-08-01
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| VoIP push wakes app across app states (open/background/locked/terminated/overnight standby), iOS | PUSH-01 | PushKit is not simulator-testable under any circumstance (`xcrun simctl push` explicitly excludes VoIP); requires real iPhone via TestFlight (D-10) | See Manual Test Procedure below |
+| VoIP push wakes app across app states (open/background/locked/terminated/overnight standby), iOS | PUSH-01 | **ERRATA (superseded by D-11):** PushKit is not simulator-testable under any circumstance (`xcrun simctl push` explicitly excludes VoIP), and real-device testing requires a paid Apple Developer Program membership ($99/yr) which the user has explicitly declined to purchase for Phase 1. **This behavior is UNVERIFIED and remains an accepted, open gap** — only Simulator build/unit-test-level verification exists (Plan 04). No TestFlight, no real-device row in the manual test log. | Not performed in Phase 1 — documented as an open gap in 01-PHASE-SIGNOFF.md, not a completed manual test |
 | High-priority FCM wakes app while backgrounded/locked, Android | PUSH-03 | Locked-screen/backgrounded state cannot be meaningfully unit-tested; requires real Pixel device | See Manual Test Procedure below |
 | Full-screen incoming-call UI display, Android | PUSH-04 | Full-screen intent rendering over lock screen requires a real device, not an emulator assertion | See Manual Test Procedure below |
-| Play Console "calling app" declaration | PUSH-04 | Administrative action in Play Console UI, not a code artifact | Complete the declaration in Play Console → App content; screenshot as evidence |
+| Play Console "calling app" declaration | PUSH-04 | **ERRATA (superseded by D-12):** Skipped entirely — requires a $25 Google Play Developer account the user has explicitly declined to purchase for Phase 1. Instead, Plan 05 empirically tests whether the Android 14+ full-screen-intent auto-grant works for a sideloaded, self-managed-ConnectionService app WITHOUT any Play Console declaration, and records the actual observed result (works/doesn't work) as a Phase 1 finding. | Sideload via `adb install`; observe and record actual full-screen-intent behavior on the real Pixel — no Play Console step |
 
 ### Manual Test Procedure (PUSH-01, PUSH-03 — not automatable)
 

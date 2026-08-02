@@ -27,10 +27,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Nothing (first phase)
 **Requirements**: PUSH-01, PUSH-02, PUSH-03, PUSH-04
 **Success Criteria** (what must be TRUE):
-  1. On iOS, a VoIP push wakes the app and CallKit shows the incoming call screen even when the app was fully terminated.
-  2. On iOS, every VoIP push is reported to CallKit synchronously with no missed, delayed, or skipped reports across repeated real-device test calls.
+  1. On iOS, a VoIP push wakes the app and CallKit shows the incoming call screen even when the app was fully terminated. **Per CONTEXT.md D-11 (zero-budget constraint, no paid Apple Developer Program membership), this is verified only structurally via GitHub Actions Simulator CI + unit tests (Plan 04) for Phase 1 — real physical-device verification is an accepted, unresolved gap; see `01-PHASE-SIGNOFF.md`.**
+  2. On iOS, every VoIP push is reported to CallKit synchronously with no missed, delayed, or skipped reports across repeated real-device test calls. **Same D-11 scoping as criterion #1 applies — verified at the code-path/unit-test level (PushHandlerTests), not on real hardware; see `01-PHASE-SIGNOFF.md`.**
   3. On Android, a high-priority FCM message wakes the app and shows a full-screen incoming-call UI while backgrounded or the device is locked. **Scoped to Pixel-only for Phase 1 sign-off (per CONTEXT.md D-03): no non-Pixel OEM device (Samsung/Xiaomi/etc.) is currently available to the developer. Non-Pixel OEM coverage is explicitly deferred and tracked as a Phase 6 hardening backlog item — this criterion is NOT silently claimed satisfied by Pixel testing alone; see `01-PHASE-SIGNOFF.md` for the explicit resolution.**
-  4. The Android app has completed the Play Console "calling app" declaration required for the Android 14+ full-screen-intent auto-grant.
+  4. The Android app has completed the Play Console "calling app" declaration required for the Android 14+ full-screen-intent auto-grant. **Per CONTEXT.md D-12 (zero-budget constraint, no paid Google Play Developer account), this declaration is explicitly skipped for Phase 1 — the debug APK is sideloaded via `adb install` instead, and whether the full-screen-intent auto-grant still works without the declaration is recorded as an empirical finding in `01-PHASE-SIGNOFF.md`, not assumed either way.**
 **Plans**: 6 plans across 4 waves
 Plans:
 **Wave 1**
@@ -39,11 +39,11 @@ Plans:
 - [x] 01-03-PLAN.md — Android throwaway app: FCM data-only handling, CallsManager/Telecom registration, CallStyle + full-screen intent (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-04-PLAN.md — GitHub Actions macOS CI pipeline + Fastlane TestFlight distribution (no local Mac, per D-10) (Wave 2)
-- [ ] 01-05-PLAN.md — Firebase project wiring + Play Console "calling app" declaration + Android manual test execution (Wave 2)
+- [ ] 01-04-PLAN.md — GitHub Actions macOS CI: XcodeGen + unsigned iOS Simulator build/test only, no Fastlane/TestFlight/paid Apple account (per D-11) (Wave 2)
+- [ ] 01-05-PLAN.md — Firebase project wiring (free) + adb-sideload Android manual test execution, empirically testing full-screen-intent without Play Console (per D-12) (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-06-PLAN.md — iOS manual test execution via TestFlight + Phase 1 sign-off note (Wave 3)
+- [ ] 01-06-PLAN.md — Confirm iOS Simulator CI green + Phase 1 sign-off note documenting the D-11 iOS real-device gap and D-12 Android empirical finding (Wave 3)
 
 ### Phase 2: PJSIP Audio/Media Core
 **Goal**: Users can carry a stable two-way call, in and out, with core telephony controls, over a SIP session that only exists for the duration of a call.
