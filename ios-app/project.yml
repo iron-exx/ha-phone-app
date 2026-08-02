@@ -1,0 +1,30 @@
+name: HAPhoneTestApp
+options:
+  bundleIdPrefix: de.systemwerk.haphone
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  HAPhoneTestApp:
+    type: application
+    platform: iOS
+    sources: [HAPhoneTestApp]
+    info:
+      path: HAPhoneTestApp/Info.plist
+      properties:
+        UIBackgroundModes: [voip]
+    entitlements:
+      path: HAPhoneTestApp/HAPhoneTestApp.entitlements
+      properties:
+        aps-environment: development
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.systemwerk.haphone.test
+        CODE_SIGN_STYLE: Automatic
+    scheme:
+      testTargets: [HAPhoneTestAppTests]
+  HAPhoneTestAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [HAPhoneTestAppTests]
+    dependencies:
+      - target: HAPhoneTestApp
