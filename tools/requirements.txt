@@ -1,0 +1,4 @@
+cryptography>=41.0.7
+aioapns>=4.0
+firebase-admin>=7.5.0
+pytest>=9.1.1
