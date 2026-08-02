@@ -1,0 +1,54 @@
+name: iOS CI (Simulator build + unit tests)
+
+on:
+  push:
+    branches: [main]
+    paths: ["ios-app/**"]
+  workflow_dispatch: {}
+
+jobs:
+  build-test:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: ios-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+
+      # Unsigned Simulator build -- requires NO Apple ID, no Developer
+      # Program membership, no provisioning profile at all. This is the
+      # zero-budget replacement for the previously-planned code-signed
+      # device build (see D-11 in 01-CONTEXT.md: the user will not pay
+      # for an Apple Developer Program membership in Phase 1).
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          xcodebuild build \
+            -project HAPhoneTestApp.xcodeproj \
+            -scheme HAPhoneTestApp \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests on iOS Simulator
+        run: |
+          xcodebuild test \
+            -project HAPhoneTestApp.xcodeproj \
+            -scheme HAPhoneTestApp \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO
+
+      # NOTE (D-11): This CI pipeline proves ONLY that the app builds and
+      # that EnvelopeVerifierTests / PushHandlerTests / DiagnosticsLogTests
+      # pass on the iOS Simulator. It explicitly CANNOT prove real VoIP
+      # push delivery on a physical device -- PushKit/CallKit VoIP push
+      # has zero iOS Simulator support (01-RESEARCH.md Pitfall 4: `xcrun
+      # simctl push` does not support the VoIP push type). Real
+      # physical-device push verification remains an accepted, open
+      # Phase 1 gap (see 01-PHASE-SIGNOFF.md) until the user chooses to
+      # pay for an Apple Developer Program membership.
