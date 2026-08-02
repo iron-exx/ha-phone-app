@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 6 plans across 4 waves
 Plans:
 **Wave 1**
-- [ ] 01-01-PLAN.md — Signed push-event envelope contract (Ed25519) + standalone test-trigger CLI + manual test procedure doc (Wave 0)
+- [x] 01-01-PLAN.md — Signed push-event envelope contract (Ed25519) + standalone test-trigger CLI + manual test procedure doc (Wave 0)
 - [ ] 01-02-PLAN.md — iOS throwaway app: PushKit/CallKit unconditional-report handling, on-device diagnostics log (Wave 1)
 - [ ] 01-03-PLAN.md — Android throwaway app: FCM data-only handling, CallsManager/Telecom registration, CallStyle + full-screen intent (Wave 1)
 
@@ -118,7 +118,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Push-Wakeup Proof of Concept | 0/6 | Not started | - |
+| 1. Push-Wakeup Proof of Concept | 1/6 | In Progress|  |
 | 2. PJSIP Audio/Media Core | 0/TBD | Not started | - |
 | 3. QR Provisioning & Device Management | 0/TBD | Not started | - |
 | 4. Call-State Orchestration, Multi-Device Race & Diagnostics | 0/TBD | Not started | - |
