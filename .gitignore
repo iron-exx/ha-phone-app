@@ -1,1 +1,10 @@
 no-git/
+
+# Push-envelope signing keys and secrets (tools/ -- Phase 1 push-wakeup PoC)
+tools/keys/*
+!tools/keys/.gitkeep
+tools/logs/*.csv
+tools/.env
+__pycache__/
+*.pyc
+.pytest_cache/
