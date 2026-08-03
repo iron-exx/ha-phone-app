@@ -11,6 +11,7 @@ __pycache__/
 .venv/
 
 # Android (android-app/ -- Phase 1 push-wakeup PoC)
+android-app/app/google-services.json
 android-app/local.properties
 android-app/.gradle/
 android-app/build/
