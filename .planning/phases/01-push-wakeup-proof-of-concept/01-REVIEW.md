@@ -41,10 +41,12 @@ files_reviewed_list:
   - .github/workflows/ios-ci.yml
 findings:
   critical: 1
+  critical_resolved: 1
   warning: 5
   info: 4
   total: 10
 status: issues_found
+note: "CR-01 (the only critical finding) was fixed in commit a9898d0 and empirically re-verified; 5 warnings + 4 info items remain open, tracked as Phase 1 carried-forward items in 01-PHASE-SIGNOFF.md rather than blockers.
 ---
 
 # Phase 1: Code Review Report
@@ -67,7 +69,17 @@ Also found: a stale bundle-ID default in `push_trigger.py` left behind by an inc
 
 ## Critical Issues
 
-### CR-01: Android push handler computes envelope validity/expiry but never enforces it
+### CR-01: Android push handler computes envelope validity/expiry but never enforces it — FIXED (commit `a9898d0`)
+
+**Fix actually applied (differs from the suggested snippet below in two ways, both required for correctness):**
+
+1. `CallRegistration.reportIncomingCall`'s trailing lambda became `CallControlScope.() -> Unit` — **not** `suspend CallControlScope.() -> Unit` as suggested below. `androidx.core.telecom.CallsManager.addCall`'s trailing block parameter is a plain (non-suspend) `Function1<CallControlScope, Unit>` per the compiled API (confirmed via `javap`); declaring it `suspend` fails to compile ("Suspension functions can only be called within coroutine body"). Since `CallControlScope` itself extends `CoroutineScope`, the caller wraps the actual `disconnect()` call in `launch { }` instead.
+2. `notify()` still runs **unconditionally** for every push (kept, not skipped, per Pitfall 2 — a push must never be silently dropped from the user's view). The fix adds disconnect-and-cancel *after* showing the notification, rather than branching around `CallNotificationBuilder.show(...)` as the snippet below suggested — skipping the notify() call on invalid envelopes would itself violate Pitfall 2. `CallNotificationBuilder.cancel()` was added since Telecom's `disconnect()` ends the call session but does not, by itself, remove a notification the app posted manually.
+
+**Verified empirically** on the API 35 emulator: a push signed with the real dev key, then tampered (`caller` field mutated after signing) via a one-off script, now results in the call disconnecting and notification 1001 being fully removed (`dumpsys notification` shows 0 records for the package immediately after). A subsequent valid push was re-sent as a regression check and still notifies/rings normally (1 record, unaffected).
+
+<details>
+<summary>Original finding (superseded by the fix above)</summary>
 
 **File:** `android-app/app/src/main/java/de/haphone/app/test/TestFcmService.kt:13-24` (also `android-app/app/src/main/java/de/haphone/app/test/CallNotificationBuilder.kt:43-48`)
 
@@ -88,6 +100,8 @@ registration.reportIncomingCall(callId) {
 }
 ```
 This requires changing `CallRegistration.reportIncomingCall`'s trailing lambda from `onRegistered: () -> Unit` to a `suspend CallControlScope.() -> Unit` (the type `androidx.core.telecom`'s `addCall` already exposes on its own trailing block) so the caller can invoke `disconnect(...)`.
+
+</details>
 
 ## Warnings
 
