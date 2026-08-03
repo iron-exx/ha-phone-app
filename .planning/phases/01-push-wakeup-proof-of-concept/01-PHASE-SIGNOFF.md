@@ -56,6 +56,10 @@ The following are known, explicitly accepted as still-open items going into Phas
 6. **No retry/timeout logic exists yet** for missed or late pushes (per D-08) — explicitly deferred to Phase 4/5 hardening.
 7. **The Android full-screen-intent grant without a Play Console declaration (D-12)** is empirically known-good for the sideload case tested here, but has not been (and cannot yet be) re-verified against a Play-Console-distributed build; that re-verification is only relevant if/when the project is ever distributed through the Play Store.
 
+## 7. Post-Sign-off Code Review Fix
+
+`/gsd-code-review` (run after this sign-off's initial draft) found one CRITICAL issue: `TestFcmService.kt` computed the envelope's `isValid`/`isExpired` result but never acted on it, so a forged or expired push would ring indefinitely on Android — unlike iOS's `PushHandler.swift`, which ends the call after an invalid report. Fixed in commit `a9898d0`: `CallRegistration.reportIncomingCall`'s callback now runs with a `CallControlScope` receiver so it can call `disconnect()`, and `CallNotificationBuilder.cancel()` was added since Telecom disconnecting a call does not by itself remove a notification the app posted manually. Re-verified empirically on the API 35 emulator both ways (tampered envelope → call disconnected + notification removed; valid envelope → unaffected, still rings). See `01-REVIEW.md` CR-01 for full detail. The 5 warnings and 4 info findings from that same review remain open and are absorbed into the "Carried Forward" list above where they overlap (items 3, 5, 6) or are new lower-priority notes not requiring a phase-blocking fix (stale bundle-id default in a CLI flag's help text, a dead `--use-sandbox` flag, dev-key file permissions, and non-ASCII canonical-JSON drift risk between Python/Swift/Kotlin).
+
 ---
 *Phase: 01-push-wakeup-proof-of-concept*
 *Sign-off written: 2026-08-03*
