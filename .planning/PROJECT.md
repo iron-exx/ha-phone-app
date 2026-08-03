@@ -12,14 +12,14 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Android: High-Priority-FCM weckt die App zuverlässig, auch im Hintergrund/bei gesperrtem Gerät (inkl. echtem PIN-Sperrbildschirm und Doze) — Phase 1, verifiziert auf API-35-Emulator mit echtem Firebase-Projekt, 5 Gerätezustände, <2s Latenz
+- ✓ Android: eingehender Anruf wird über Telecom-Framework / CallStyle-Notification + Full-Screen-Intent signalisiert — Phase 1, funktioniert nachweislich auch **ohne** Play-Console-Deklaration bei Sideload (D-12-Befund)
+- ✓ Nativ getrennte Apps (Swift/Kotlin) sind der richtige Ansatz für Push-Wakeup/CallKit/Telecom — Phase 1, beide Wegwerf-Apps bauten und funktionierten wie erwartet, keine Cross-Platform-Kompromisse nötig
 
 ### Active
 
-- [ ] iOS: VoIP-Push via PushKit weckt die App zuverlässig, auch wenn sie vollständig beendet ist
-- [ ] iOS: eingehender Anruf wird sofort nativ über CallKit signalisiert
-- [ ] Android: High-Priority-FCM weckt die App zuverlässig, auch im Hintergrund/bei gesperrtem Gerät
-- [ ] Android: eingehender Anruf wird über Telecom-Framework / CallStyle-Notification + Full-Screen-Intent signalisiert
+- [ ] iOS: VoIP-Push via PushKit weckt die App zuverlässig, auch wenn sie vollständig beendet ist — Phase 1 hat dies nur auf Simulator-/Unit-Test-Ebene verifiziert (`.github/workflows/ios-ci.yml`), echtes Gerät noch ungetestet; blockiert auf Entscheidung zur Apple-Developer-Program-Mitgliedschaft (99$/Jahr, D-11)
+- [ ] iOS: eingehender Anruf wird sofort nativ über CallKit signalisiert — dito, Code korrekt (report-first-then-verify bestätigt), aber nur Simulator-verifiziert
 - [ ] Nach Annahme baut die App im Hintergrund automatisch die SIP-Verbindung zu HA-Phone auf (kein dauerhaftes Halten der Registrierung)
 - [ ] Audioanruf funktioniert stabil (Opus/G.722/G.711, Mikrofon, Lautsprecher, Bluetooth, DTMF)
 - [ ] Einrichtung der App erfolgt ausschließlich per QR-Code-Scan — keine manuelle Eingabe von SIP-Server/Port/User/Passwort
@@ -47,7 +47,8 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 - HA-Phones eigene Roadmap (Stand Juli 2026) hat WebRTC und Videotelefonie explizit als "nicht in die nächste Phase ziehen" zurückgestellt (Stabilität/Betriebsreife hat Vorrang). Die Push-Gateway- und QR-Provisionierungs-Erweiterungen für diese App entstehen daher als **neue, zusätzliche Backend-Teile in HA-Phone**, parallel zur bestehenden HA-Phone-Roadmap, nicht als Ersetzung.
 - Vollständiger ursprünglicher Entwicklungsplan liegt in `ENTWICKLUNGSPLAN.md` im Projektroot — sehr detailliert (18 Kapitel: Architektur, QR-Flow, Sicherheit, Testmatrix, Phasenplan). Dient als Referenz für Roadmap und spätere Phasenplanung.
 - Akuvox-Türstation ist bereits vorhanden und kann früh als Testgerät für die Video-Vorschau-Funktion genutzt werden.
-- Apple Developer Account und Firebase-Projekt existieren noch nicht — müssen als erste konkrete Schritte angelegt werden (App-ID, VoIP-Push-Zertifikat, Firebase-Projekt für FCM).
+- Firebase-Projekt existiert seit Phase 1 (`haphone-e30ca`, kostenloser Spark-Tarif, App-ID `de.haphone.app.test`). Apple Developer Account existiert weiterhin nicht — Nutzer will erst den kostenlosen Nachweis abschließen, bevor investiert wird (99$/Jahr für Push-Notification-Entitlement, siehe Zero-Budget-Entscheidung unten). Bis dahin bleibt echtes iOS-Push-Testen ein offener Punkt.
+- Bundle-/Package-ID ist `de.haphone.app` (nicht firmengebunden) — eine erste Version hatte fälschlich die Domain einer unrelated Firma (`systemwerk`) verwendet, wurde in Phase 1 komplett korrigiert.
 - Repo für die App: https://github.com/iron-exx/ha-phone-app.git (lokal `~/projects/ha-phone-app`, Remote bereits gesetzt). Zugangstoken liegt lokal in `no-git/token.txt` (git-ignored) — Push erfolgt durch den Nutzer selbst, da die Sandbox hier keinen direkten Push zu externen Remotes erlaubt.
 
 ## Constraints
@@ -66,10 +67,12 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 |----------|-----------|---------|
 | Volle Integration in HA-Phone statt separater PBX/Dienst | Nur so lassen sich QR-Provisionierung, Gerätesperrung, Push und Anrufsteuerung sauber zentral verwalten | — Pending |
 | App für fremde HA-Phone-Nutzer gedacht, nicht nur Eigenbedarf | Größere Zielgruppe von Anfang an mitdenken, spart spätere Migration | — Pending |
-| Nativ getrennte Apps (Swift/Kotlin) statt Cross-Platform-Framework | Zuverlässigkeit bei Push-Wakeup/CallKit/Telecom hat Priorität vor gemeinsamer UI-Codebasis | — Pending |
-| Zentraler eigener Push-Relay-Dienst statt Nabu Casa/Tailscale | Push-Credentials sind an App-Identität gebunden, nicht an Netzwerk-Erreichbarkeit — Nabu Casa/Tailscale lösen das falsche Problem | — Pending |
-| Phase-1-Priorität: Push-Wakeup vor QR-Provisionierung vor Video | Reihenfolge aus dem ursprünglichen Entwicklungsplan — Erreichbarkeit ist das Kernproblem, das zuerst bewiesen werden muss | — Pending |
-| Tailscale als Medien-Transportschicht statt eigenem STUN/TURN | Nutzer will Erreichbarkeit unterwegs ohne eigenen TURN-Server; Tailscale übernimmt NAT-Traversal. Push bleibt strikt getrennt als Wake-up-Mechanismus, Tailscale wird nur ephemer für die SIP/Media-Verbindung genutzt | — Pending |
+| Nativ getrennte Apps (Swift/Kotlin) statt Cross-Platform-Framework | Zuverlässigkeit bei Push-Wakeup/CallKit/Telecom hat Priorität vor gemeinsamer UI-Codebasis | ✓ Good — Phase 1 bestätigt: beide Wegwerf-Apps bauten und funktionierten unabhängig voneinander |
+| Zentraler eigener Push-Relay-Dienst statt Nabu Casa/Tailscale | Push-Credentials sind an App-Identität gebunden, nicht an Netzwerk-Erreichbarkeit — Nabu Casa/Tailscale lösen das falsche Problem | — Pending (Relay kommt erst Phase 6) |
+| Phase-1-Priorität: Push-Wakeup vor QR-Provisionierung vor Video | Reihenfolge aus dem ursprünglichen Entwicklungsplan — Erreichbarkeit ist das Kernproblem, das zuerst bewiesen werden muss | ✓ Good — Phase 1 hat genau das bewiesen (Android vollständig, iOS strukturell) |
+| Tailscale als Medien-Transportschicht statt eigenem STUN/TURN | Nutzer will Erreichbarkeit unterwegs ohne eigenen TURN-Server; Tailscale übernimmt NAT-Traversal. Push bleibt strikt getrennt als Wake-up-Mechanismus, Tailscale wird nur ephemer für die SIP/Media-Verbindung genutzt | — Pending (erst Phase 5) |
+| Zero-Budget-Teststrategie für Phase 1 (kein Apple Developer Program, kein Google Play Developer Account) | Nutzer will den Nachweis "funktioniert" kostenlos erbringen, bevor Geld investiert wird | ✓ Good — Android vollständig kostenlos bewiesen (Emulator + Firebase-Free-Tier); iOS-Lücke (echtes Gerät) ist explizit dokumentiert, kein Blocker für Phase 2 |
+| KVM-Android-Emulator statt physischem Pixel für den Gerätetest | Nutzer wollte kein Telefon anschließen; Emulator mit Google-APIs-Image liefert echte FCM-Tokens/echte Zustellung, OEM-Stromsparverhalten bleibt separat als Lücke dokumentiert (D-03) | ✓ Good — alle 5 Gerätezustände inkl. echter PIN-Sperre erfolgreich getestet |
 
 ## Evolution
 
@@ -89,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-31 after initialization*
+*Last updated: 2026-08-03 after Phase 1 (Push-Wakeup Proof of Concept) completion*
