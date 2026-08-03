@@ -12,6 +12,19 @@ the push directly.
 - **iOS test device:** the developer's own current-generation iPhone,
   running current iOS (D-01).
 - **Android test device:** a Pixel, stock Android, only (D-02).
+- **Actually used for the 2026-08-03 run:** a headless Android Emulator
+  AVD (`haphone_test_api35`, Pixel 6 profile, API 35 `google_apis`
+  x86_64 image with Google Play Services, KVM-accelerated) instead of
+  the physical Pixel, at the developer's request. This is a defensible
+  substitution for *this* device class specifically: the AVD runs the
+  same stock AOSP/Google-APIs build as a Pixel, registers a real FCM
+  token against the real Firebase project, and receives real
+  Google-delivered FCM messages -- so nothing about the Pixel-vs-emulator
+  difference is load-bearing for PUSH-03/PUSH-04. What the emulator does
+  NOT substitute for is OEM-specific power management (Samsung/Xiaomi
+  etc.), which was already deferred above, and real-world multi-hour
+  battery/standby behavior, which was approximated via forced Doze
+  (`dumpsys deviceidle force-idle`) rather than an actual overnight idle.
 - **Non-Pixel OEM coverage (Samsung, Xiaomi, and other aggressive-OEM
   Android devices) is explicitly deferred, not silently dropped.**
   ROADMAP.md's Phase 1 success criterion #3 ("verified on at least one
@@ -76,9 +89,13 @@ exercised across manual test runs:
 
 | Date | Platform | State | sentAt | receivedAt | reportedAt | Latency (rough) | Pass/Fail | Notes |
 |------|----------|-------|--------|------------|------------|------------------|-----------|-------|
-| 2026-08-02 | ios | foreground | 09:00:00 | 09:00:01 | 09:00:01 | ~1s | Pass | Example row -- CallKit UI appeared immediately |
-| 2026-08-02 | android | locked | 09:05:00 | 09:05:03 | 09:05:04 | ~3-4s | Pass | Example row -- screen woke, incoming-call UI shown |
-| 2026-08-03 | ios | overnight | 23:30:00 | 07:12:00 | 07:12:01 | (next morning) | Fail | Example row -- push did not arrive until manual app open; investigate iOS background delivery |
+| 2026-08-03 | android (emulator, API 35) | foreground | 07:53:38.996 | 07:53:39.273 | 07:53:39.273 | ~0.3s | Pass | Notification shown, `isValid=true isExpired=false`; FSI fired -> IncomingCallActivity resumed |
+| 2026-08-03 | android (emulator, API 35) | backgrounded | 07:58:22.960 | 07:58:23.233 | 07:58:23.233 | ~0.3s | Pass | Notification shown; FSI correctly did NOT take over screen (device unlocked + in use -> heads-up), launcher stayed top activity |
+| 2026-08-03 | android (emulator, API 35) | killed + screen off (no PIN) | 07:57:00.612 | 07:57:02.221 | 07:57:02.221 | ~1.6s | Pass | App process was 0 before push; woke, screen turned on, IncomingCallActivity became top activity. Screenshot: `tools/logs/screenshots/killed_locked_incoming_call.png` |
+| 2026-08-03 | android (emulator, API 35) | killed + deep Doze (overnight sim) | 08:01:18.167 | 08:01:19.613 | 08:01:19.613 | ~1.4s | Pass | `deviceidle get deep` = IDLE before AND after; high-priority FCM punched through Doze, screen woke |
+| 2026-08-03 | android (emulator, API 35) | killed + secure PIN keyguard | 08:02:29.791 | 08:02:31.552 | 08:02:31.552 | ~1.8s | Pass | `isKeyguardShowing=true` (real PIN set); IncomingCallActivity displayed OVER the secure lock screen. Screenshot: `tools/logs/screenshots/secure_locked_killed_incoming_call.png` |
+| 2026-08-03 | android (emulator, API 35) | force-stopped (`am force-stop`) | 07:55:27.172 | (never) | (never) | n/a | Expected no-delivery | NOT a defect: `am force-stop` sets Android's `stopped=true` package flag, which by design suppresses all FCM/broadcast delivery until the user manually relaunches the app. Verified via `dumpsys package ... stopped=true`. This is more aggressive than a user swiping the app from Recents -- use `am kill` to simulate that instead. |
+| — | ios | all states | — | — | — | — | Not performed | Blocked per D-11: real-device VoIP push requires a paid Apple Developer Program membership, which is explicitly out of scope for Phase 1. iOS verification is Simulator build/unit-test level only (Plan 04 CI). Documented as an accepted open gap in 01-PHASE-SIGNOFF.md -- deliberately NOT recorded as a pass. |
 
 ## D-09 Acceptance
 
@@ -95,3 +112,61 @@ test cannot surface.
 If a state repeatedly fails (push never wakes the app), that is a real
 Phase 1 blocker to investigate before proceeding -- it should not be
 silently averaged away by successes in other states.
+
+## D-12 Empirical Finding: Full-Screen Intent WITHOUT a Play Console Declaration
+
+**Question (from CONTEXT.md D-12):** the Play Console "calling app"
+declaration was skipped entirely (it requires a paid Google Play
+Developer account, out of scope per the zero-budget constraint). Does
+the Android 14+/15 full-screen-intent auto-grant still work for a
+*sideloaded* app that registers a self-managed `ConnectionService` /
+`PhoneAccount`, with no declaration anywhere?
+
+**Answer: YES — it works, fully, with no declaration.** Measured on
+2026-08-03 against API 35 (`targetSdk = 35`, i.e. above the API 34
+threshold where the restriction applies):
+
+| Evidence | Observed value |
+|----------|----------------|
+| `dumpsys package de.haphone.app.test` | `android.permission.USE_FULL_SCREEN_INTENT: granted=true` |
+| `cmd appops get ... USE_FULL_SCREEN_INTENT` | `No operations. Default mode: default` (never denied) |
+| `dumpsys notification --noredact` | `fullscreenIntent=PendingIntent{...}` present, and allowlisted by NotificationManagerService for +30s |
+| Notification template | `android.template=android.app.Notification$CallStyle`, `category=call`, `importance=4` |
+| Behaviour, screen off / app killed | `IncomingCallActivity` became `topResumedActivity`, `mWakefulness` went `Asleep` -> `Awake` |
+| Behaviour, secure PIN keyguard | `isKeyguardShowing=true` AND `IncomingCallActivity` displayed on top of it |
+
+**Interpretation and its limits.** The Play Console declaration governs
+*Play-Store-distributed* apps: Google can revoke the permission for apps
+it does not consider calling/alarm apps. A sideloaded install never goes
+through that review path, so the permission stays granted and the
+platform honours the full-screen intent purely on the strength of the
+self-managed `ConnectionService` registration. This confirms the
+project's architectural choice (registering as a real calling app rather
+than relying on notifications alone) is what actually carries the
+behaviour.
+
+**What this does NOT prove:** that the app would keep the grant once
+distributed through the Play Store. If the project ever ships via Play,
+the declaration becomes necessary again and must be re-tested there.
+Recorded here so a future phase does not mistake this result for a
+blanket "the declaration is never needed".
+
+## Additional Finding: `POST_NOTIFICATIONS` Is Never Requested at Runtime
+
+On a fresh install the app had
+`android.permission.POST_NOTIFICATIONS: granted=false`. Since API 33
+this is a runtime permission, and without it **no notification of any
+kind is displayed** — meaning the entire push-wake path would silently
+appear broken to a real user, even though FCM delivery and the app's own
+handler work perfectly.
+
+For this test run the permission was granted manually
+(`adb shell pm grant de.haphone.app.test android.permission.POST_NOTIFICATIONS`)
+so that the rest of the matrix could be measured. The app itself does
+not yet ask for it.
+
+This is a real gap in the Phase 1 Android app (built in Plan 03), not a
+test artifact. It is not a Phase 1 blocker — Phase 1's goal is proving
+the push-wake mechanism, which is proven — but a runtime permission
+request must be added before any real user installs the app. Carried
+forward as a known gap.
