@@ -47,4 +47,17 @@ object CallNotificationBuilder {
         android.util.Log.i("HAPhoneTest", "notification shown callId=$callId isValid=$isValid isExpired=$isExpired")
         notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
+
+    /**
+     * Dismiss the incoming-call notification. Telecom's own `disconnect()`
+     * (see [CallRegistration.reportIncomingCall]) ends the call at the
+     * platform/Telecom layer but does NOT remove a notification this app
+     * posted itself -- CallStyle notifications built manually (as opposed to
+     * a Telecom-managed one) require an explicit cancel(). Without this, an
+     * invalid/expired push's ringing UI would linger even though the call
+     * session underneath is already gone (code review CR-01 follow-up).
+     */
+    fun cancel(context: Context) {
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+    }
 }
