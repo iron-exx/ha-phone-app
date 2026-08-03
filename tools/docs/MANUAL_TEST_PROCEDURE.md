@@ -97,6 +97,32 @@ exercised across manual test runs:
 | 2026-08-03 | android (emulator, API 35) | force-stopped (`am force-stop`) | 07:55:27.172 | (never) | (never) | n/a | Expected no-delivery | NOT a defect: `am force-stop` sets Android's `stopped=true` package flag, which by design suppresses all FCM/broadcast delivery until the user manually relaunches the app. Verified via `dumpsys package ... stopped=true`. This is more aggressive than a user swiping the app from Recents -- use `am kill` to simulate that instead. |
 | — | ios | all states | — | — | — | — | Not performed | Blocked per D-11: real-device VoIP push requires a paid Apple Developer Program membership, which is explicitly out of scope for Phase 1. iOS verification is Simulator build/unit-test level only (Plan 04 CI). Documented as an accepted open gap in 01-PHASE-SIGNOFF.md -- deliberately NOT recorded as a pass. |
 
+## iOS Status (Phase 1)
+
+iOS is verified for Phase 1 **ONLY** via `.github/workflows/ios-ci.yml`
+(Plan 04): the app builds unsigned for the iOS Simulator and its unit
+test suite (`EnvelopeVerifierTests`, `PushHandlerTests`,
+`DiagnosticsLogTests`) passes. `gh` is not installed in this sandbox
+and this sandbox cannot push to GitHub (see Plan 04's SUMMARY), so the
+live "conclusion: success" run on GitHub Actions has not been directly
+re-confirmed from here; Plan 04's own Task 2 verification (structural
+YAML/grep checks, since `xcodebuild` cannot run in this sandbox either)
+is relied on instead.
+
+**Real physical-device push delivery is NOT TESTED for iOS in Phase
+1.** Foreground/backgrounded/locked/terminated/overnight-standby
+behavior on an actual iPhone has not been exercised at all. This is a
+deliberate, accepted gap per **D-11** (a free "Personal Team" Apple ID
+cannot receive the Push Notifications entitlement under any
+circumstance, and the user will not pay for an Apple Developer Program
+membership in Phase 1) -- not an oversight, and not silently skipped.
+
+This gap closes whenever the user chooses to enroll in the Apple
+Developer Program. At that point, Plan 02's app code and the
+Simulator-verified test suite are expected to carry over largely
+unchanged -- only signing/distribution infrastructure (a superset of
+Plan 04's current unsigned CI) would need to be added.
+
 ## D-09 Acceptance
 
 Per decision D-09, Phase 1's Definition of Done does **not** use a fixed
