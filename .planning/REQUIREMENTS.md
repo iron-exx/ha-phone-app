@@ -9,10 +9,10 @@ Requirements für die erste Version. Jede wird auf Roadmap-Phasen abgebildet.
 
 ### Erreichbarkeit & Call-UI (PUSH)
 
-- [ ] **PUSH-01**: iOS-VoIP-Push (PushKit) weckt die App zuverlässig, auch wenn sie vollständig beendet ist
-- [ ] **PUSH-02**: iOS CallKit meldet den eingehenden Anruf sofort nativ (innerhalb der Apple-Frist, jeder VoIP-Push wird gemeldet)
-- [ ] **PUSH-03**: Android High-Priority-FCM weckt die App zuverlässig, auch im Hintergrund oder bei gesperrtem Gerät
-- [ ] **PUSH-04**: Android zeigt den eingehenden Anruf über ein selbstverwaltetes ConnectionService/PhoneAccount mit CallStyle-Notification und Full-Screen-Intent (inkl. Play-Console-"Calling App"-Deklaration)
+- [x] **PUSH-01**: iOS-VoIP-Push (PushKit) weckt die App zuverlässig, auch wenn sie vollständig beendet ist
+- [x] **PUSH-02**: iOS CallKit meldet den eingehenden Anruf sofort nativ (innerhalb der Apple-Frist, jeder VoIP-Push wird gemeldet)
+- [x] **PUSH-03**: Android High-Priority-FCM weckt die App zuverlässig, auch im Hintergrund oder bei gesperrtem Gerät
+- [x] **PUSH-04**: Android zeigt den eingehenden Anruf über ein selbstverwaltetes ConnectionService/PhoneAccount mit CallStyle-Notification und Full-Screen-Intent (inkl. Play-Console-"Calling App"-Deklaration)
 
 ### Telefonie (CALL)
 
@@ -88,10 +88,10 @@ Explizit ausgeschlossen. Dokumentiert, um Scope Creep zu verhindern.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PUSH-01 | Phase 1 | Pending |
-| PUSH-02 | Phase 1 | Pending |
-| PUSH-03 | Phase 1 | Pending |
-| PUSH-04 | Phase 1 | Pending |
+| PUSH-01 | Phase 1 | Complete |
+| PUSH-02 | Phase 1 | Complete |
+| PUSH-03 | Phase 1 | Complete |
+| PUSH-04 | Phase 1 | Complete |
 | CALL-01 | Phase 2 | Pending |
 | CALL-02 | Phase 2 | Pending |
 | CALL-03 | Phase 2 | Pending |
