@@ -12,7 +12,7 @@ The journey starts by proving the one thing the whole project depends on — tha
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Push-Wakeup Proof of Concept** - Prove push→native-call-UI wake works reliably on real iOS and Android devices before building anything else
+- [x] **Phase 1: Push-Wakeup Proof of Concept** - Prove push→native-call-UI wake works reliably on real iOS and Android devices before building anything else (completed 2026-08-03)
 - [ ] **Phase 2: PJSIP Audio/Media Core** - Stable two-way calls (in/out, hold, transfer, DTMF) over a transient SIP session
 - [ ] **Phase 3: QR Provisioning & Device Management** - Zero-touch device setup by QR scan, managed from the HA-Phone dashboard
 - [ ] **Phase 4: Call-State Orchestration, Multi-Device Race & Diagnostics** - PBX-authoritative call state powers multi-device ringing and an in-app diagnostics page
@@ -43,7 +43,7 @@ Plans:
 - [x] 01-05-PLAN.md — Firebase project wiring (free) + adb-sideload Android manual test execution, empirically testing full-screen-intent without Play Console (per D-12) (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-06-PLAN.md — Confirm iOS Simulator CI green + Phase 1 sign-off note documenting the D-11 iOS real-device gap and D-12 Android empirical finding (Wave 3)
+- [x] 01-06-PLAN.md — Confirm iOS Simulator CI green + Phase 1 sign-off note documenting the D-11 iOS real-device gap and D-12 Android empirical finding (Wave 3)
 
 ### Phase 2: PJSIP Audio/Media Core
 **Goal**: Users can carry a stable two-way call, in and out, with core telephony controls, over a SIP session that only exists for the duration of a call.
@@ -118,7 +118,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Push-Wakeup Proof of Concept | 5/6 | In Progress|  |
+| 1. Push-Wakeup Proof of Concept | 6/6 | Complete   | 2026-08-03 |
 | 2. PJSIP Audio/Media Core | 0/TBD | Not started | - |
 | 3. QR Provisioning & Device Management | 0/TBD | Not started | - |
 | 4. Call-State Orchestration, Multi-Device Race & Diagnostics | 0/TBD | Not started | - |
