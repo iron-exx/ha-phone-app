@@ -55,7 +55,23 @@ Plans:
   3. User can place an outgoing call to any extension.
   4. User can put an active call on hold and perform a blind transfer to another extension.
   5. The app's SIP registration is established only after answering or placing a call and torn down afterward — no persistent background registration.
-**Plans**: TBD
+**Plans**: 8 plans across 4 waves
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Cross-repo HA-Phone TLS/SRTP test-extension provisioning (Wave 1)
+- [ ] 02-02-PLAN.md — Android PJSIP 2.17 native build (Opus, JNI/SWIG) (Wave 1)
+- [ ] 02-03-PLAN.md — iOS PJSIP 2.17 build via GitHub Actions macOS runner (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-04-PLAN.md — Android SIP call controller (codec/DTMF/hold/xfer/transient registration) (Wave 2)
+- [ ] 02-05-PLAN.md — iOS SIP call controller (PjsuaBridge, AudioSessionCoordinator) (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-06-PLAN.md — Android UI (dialpad, outgoing call, active call screen) (Wave 3)
+- [ ] 02-07-PLAN.md — iOS UI (dialpad, outgoing call, active call screen) (Wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-08-PLAN.md — Manual test procedure + Phase 2 sign-off (Wave 4)
 
 ### Phase 3: QR Provisioning & Device Management
 **Goal**: New devices are set up purely by scanning a QR code, and the HA-Phone admin can manage which devices are attached to each extension.
@@ -119,7 +135,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Push-Wakeup Proof of Concept | 6/6 | Complete    | 2026-08-03 |
-| 2. PJSIP Audio/Media Core | 0/TBD | Not started | - |
+| 2. PJSIP Audio/Media Core | 0/8 | Not started | - |
 | 3. QR Provisioning & Device Management | 0/TBD | Not started | - |
 | 4. Call-State Orchestration, Multi-Device Race & Diagnostics | 0/TBD | Not started | - |
 | 5. Tailscale Transport Hardening | 0/TBD | Not started | - |
