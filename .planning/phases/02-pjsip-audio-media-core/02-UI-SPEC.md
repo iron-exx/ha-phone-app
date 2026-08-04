@@ -1,7 +1,8 @@
 ---
 phase: 2
 slug: pjsip-audio-media-core
-status: draft
+status: approved
+reviewed_at: 2026-08-04
 shadcn_initialized: false
 preset: none
 created: 2026-08-04
@@ -43,6 +44,8 @@ Two new custom screens plus one shared, reused component — nothing else gets n
 2. Control row (3 toggle/selection controls): **Mute**, **Hold**, **Audio Routing** (routing shown as a horizontal list/segmented control of available endpoints)
 3. Secondary control row (2 actions that open the shared Dialpad in an overlay/sheet): **Keypad** (DTMF), **Transfer**
 4. **End Call** button (destructive-styled, full width, bottom of screen)
+
+**Visual anchor:** the call status header is the primary visual focal point (largest text on screen, Display 28/600 — see Typography) — everything below it is secondary controls, with End Call as the sole destructive action at the bottom.
 
 ### Audio routing — hard constraint (from 02-RESEARCH.md)
 
@@ -108,7 +111,7 @@ Accent reserved for: Mute (active state), Hold (active state), selected audio-ro
 
 | Element | Copy |
 |---------|------|
-| Primary CTA | "Call" (Outgoing Call screen, initiates `makeCall` to the dialed extension) |
+| Primary CTA | "Call" (Outgoing Call screen, initiates `makeCall` to the dialed extension) — deliberately a single verb, not "Call extension" or similar: domain-conventional for phone dialers (matches native iOS/Android Phone app CTA style), and the dialed-number display directly above it already shows what's being called |
 | Empty state heading | n/a — no list/data screens this phase |
 | Empty state body | "Enter extension" — placeholder text in the dialed-number display before any digit is entered (Outgoing Call and Transfer-target screens); rendered in secondary/muted text color, not Body/primary text color |
 | Error state | "Call failed. Check the extension and try again." (SIP INVITE/negotiation failure) — "Lost connection to HA-Phone. Check your network and retry." (registration/network failure, ties to CALL-05's transient-registration behavior) |
@@ -128,11 +131,11 @@ Not applicable — no shadcn or any other component registry is used in this nat
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking — "Call" CTA reviewed, kept as deliberate domain convention)
+- [x] Dimension 2 Visuals: FLAG (non-blocking — visual anchor now stated explicitly, see Active Call screen layout)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-08-04
