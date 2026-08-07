@@ -386,22 +386,25 @@ media_encryption = sdes
 
 **If this table is empty:** N/A — see entries above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does Asterisk 22's default chan_pjsip hold/blind-transfer behavior need any dialplan change, or does it work out of the box against a plain endpoint?**
    - What we know: `chan_pjsip` supports re-INVITE-based hold and REFER-based blind transfer natively for any endpoint by default; no dialplan feature code was found in the existing `extensions_routing.conf.j2`/`extensions.conf` that would block either.
    - What's unclear: whether any existing dialplan context (`from-internal`, `from-internal-restricted`) that the test extension will use has transfer explicitly disabled or redirected somewhere.
    - Recommendation: Verify empirically during the first real test call rather than assuming; if blocked, the fix is a dialplan/context tweak, not an app-side change.
+   - RESOLVED: No preemptive dialplan change was adopted. Plan 04/05 implement `setHold`/`xfer` against the test extension's default context exactly as the recommendation suggested, and Plan 08's manual test matrix exercises hold + blind transfer for real against the live Asterisk box (CALL-04 rows in the Result Log Table). Any dialplan/context fix is deferred reactively and tracked as a Carried Forward item in `02-PHASE-SIGNOFF.md` only if that manual test surfaces a blocker -- it was not needed preemptively.
 
 2. **Does DTLS-SRTP interoperate cleanly with PJSUA2 over a classic (non-WebRTC) TLS transport on this Asterisk version, as a potential alternative to SDES?**
    - What we know: Both are documented as supported by Asterisk; SDES is the safer default given D-06 already provides TLS signaling.
    - What's unclear: whether DTLS-SRTP would actually work with zero extra Asterisk config (it's more commonly documented paired with `webrtc=yes` shortcuts).
    - Recommendation: Ship with SDES (A1 above); revisit only if a specific reason to prefer DTLS-SRTP emerges later (e.g., Phase 5's Tailscale/production hardening).
+   - RESOLVED: Shipped with SDES per the recommendation. Plan 01 Task 1's `media_encryption = sdes` conf-template line and Plan 05's `PjsuaBridge.mm` (`accCfg.mediaConfig.srtpUse = PJMEDIA_SRTP_MANDATORY` alongside SDES) both lock this in for Phase 2. DTLS-SRTP was not implemented and remains a Carried Forward item only if a specific future reason emerges (e.g., Phase 5's transport hardening) -- no code in this phase attempts DTLS-SRTP.
 
 3. **What SWIG version does PJSIP 2.17's Android binding generation actually require, and does it need to be built from source or is a packaged version sufficient?**
    - What we know: the official docs reference `pjsip-apps/src/swig && make` with no version pin found during this research pass.
    - What's unclear: whether Ubuntu 24.04's packaged `swig` (not currently installed) is new/old enough.
    - Recommendation: Install `swig` from the distro package first (`apt-get install swig`); only build SWIG from source if the packaged version demonstrably fails against pjproject's `.i` interface files.
+   - RESOLVED: Plan 02 (Android PJSIP build) installs `swig` from the Ubuntu 24.04 distro package (`apt-get install -y --no-install-recommends libopus-dev swig`) exactly per the recommendation, with a documented fallback in Plan 02's build task to inspect `pjsip-apps/src/swig/java/` directly and adjust the copy step if the actual generated output layout differs -- a source build of SWIG itself was not required.
 
 ## Environment Availability
 
