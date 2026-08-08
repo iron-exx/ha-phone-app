@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-08-04T06:38:04.411Z"
-last_activity: 2026-08-03
+status: executing
+stopped_at: Phase 2 Plan 02 (PJSIP Android build) completed
+last_updated: "2026-08-08T10:25:00.000Z"
+last_activity: 2026-08-08 -- Phase 02 Plan 02 executed (PJSIP Android build + sip-core Gradle module)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 14
+  completed_plans: 7
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-31)
 
 **Core value:** Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, egal ob die App geschlossen oder das Gerät gesperrt ist — ohne dauerhaft laufende SIP-Verbindung oder VPN-Tunnel im Hintergrund.
-**Current focus:** Phase 1 — Push-Wakeup Proof of Concept
+**Current focus:** Phase 02 — pjsip-audio-media-core
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-03
+Phase: 02 (pjsip-audio-media-core) — EXECUTING
+Plan: 02 of 8 complete (wave 1: 02-01 cross-repo HA-Phone TLS extension still pending -- no dependency between 02-01/02-02)
+Status: Executing Phase 02
+Last activity: 2026-08-08 -- Plan 02-02 (PJSIP Android build) executed
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
@@ -63,6 +63,8 @@ Recent decisions affecting current work:
 - Roadmap: Push-wake proven first (Phase 1) because every other capability is worthless if calls don't ring reliably.
 - Roadmap: SIP/media core and QR provisioning split into two phases (2 and 3) that can be built in parallel — neither has a functional dependency on the other.
 - Roadmap: Multi-tenant push-relay deliberately sequenced last among core phases (Phase 6) — its contract must be derived from real payload iteration, not designed speculatively.
+- Phase 02 Plan 02: Cross-compiled libopus 1.5.2 from source per-ABI (arm64-v8a, x86_64) using the NDK's per-API-level clang wrapper, instead of the sandbox's system libopus-dev, which only ships a host x86_64 library unusable for Android cross-compilation.
+- Phase 02 Plan 02: SWIG's Java/JNI binding generation must run inside the per-ABI build loop (not once after it) -- it links against whichever ABI's static libs the currently-active build.mak/TARGET_ARCH describes.
 
 ### Pending Todos
 
@@ -87,8 +89,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-04T06:38:04.396Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-pjsip-audio-media-core/02-CONTEXT.md
+Last session: 2026-08-08T10:25:00.000Z
+Stopped at: Completed 02-02-PLAN.md (PJSIP Android build + sip-core Gradle module)
+Resume file: None
 </content>
 </invoke>
