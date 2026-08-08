@@ -25,3 +25,7 @@ android-app/gradle/wrapper/gradle-wrapper.jar.bak
 # iOS (ios-app/ -- Phase 2 PJSIP build, vendored source + build output)
 ios-app/third_party/
 ios-app/Frameworks/
+
+# graphify knowledge-graph cache (project CLAUDE.md post-edit rebuild step) --
+# generated, large (includes vendored third_party source node counts), never committed
+graphify-out/
