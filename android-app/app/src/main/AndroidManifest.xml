@@ -28,6 +28,12 @@
 
         <activity android:name=".OutgoingCallActivity" android:exported="false" />
 
+        <activity
+            android:name=".ActiveCallActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
         <service android:name=".TestFcmService" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

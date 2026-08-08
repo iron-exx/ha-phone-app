@@ -1,5 +1,6 @@
 package de.haphone.app.test
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,7 +33,10 @@ class IncomingCallActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     IncomingCallScreen(
                         callId = callId,
-                        onAnswer = { finish() },
+                        onAnswer = {
+                            startActivity(Intent(this, ActiveCallActivity::class.java))
+                            finish()
+                        },
                         onDecline = { finish() },
                     )
                 }
