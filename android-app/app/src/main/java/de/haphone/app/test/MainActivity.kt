@@ -1,5 +1,6 @@
 package de.haphone.app.test
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,6 +50,9 @@ class MainActivity : ComponentActivity() {
                         Text("HA-Phone Test")
                         SelectionContainer {
                             Text(fcmToken)
+                        }
+                        Button(onClick = { startActivity(Intent(this@MainActivity, OutgoingCallActivity::class.java)) }) {
+                            Text("Dial")
                         }
                     }
                 }
