@@ -68,7 +68,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 02-06-PLAN.md — Android UI (dialpad, outgoing call, active call screen) (Wave 3)
-- [ ] 02-07-PLAN.md — iOS UI (dialpad, outgoing call, active call screen) (Wave 3)
+- [x] 02-07-PLAN.md — iOS UI (dialpad, outgoing call, active call screen) (Wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 02-08-PLAN.md — Manual test procedure + Phase 2 sign-off (Wave 4)
