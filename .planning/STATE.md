@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md (Android SIP call controller -- SipCallController, PjsuaEndpointHolder, CallRegistration incoming+outgoing wiring)
-last_updated: "2026-08-08T13:01:25.718Z"
+stopped_at: Completed 02-05-PLAN.md (iOS SIP call controller -- PjsuaBridge, SipCallController, AudioSessionCoordinator, NetworkChangeMonitor, CallProvider wiring)
+last_updated: "2026-08-08T13:13:44.740Z"
 last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 14
-  completed_plans: 8
-  percent: 57
+  completed_plans: 9
+  percent: 64
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-31)
 ## Current Position
 
 Phase: 02 (pjsip-audio-media-core) — EXECUTING
-Plan: 4 of 8 complete (wave 1: 02-01 cross-repo HA-Phone TLS extension still pending -- no dependency between 02-01/02-02)
+Plan: 5 of 8 complete (wave 1: 02-01 cross-repo HA-Phone TLS extension still pending -- no dependency between 02-01/02-02)
 Status: Ready to execute
 Last activity: 2026-08-08
 
-Progress: [██████░░░░] 57%
+Progress: [██████░░░░] 64%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██████░░░░] 57%
 
 *Updated after each plan completion*
 | Phase 02 P04 | 30min | 3 tasks | 17 files |
+| Phase 02 P05 | 20min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - Phase 02 Plan 02: SWIG's Java/JNI binding generation must run inside the per-ABI build loop (not once after it) -- it links against whichever ABI's static libs the currently-active build.mak/TARGET_ARCH describes.
 - [Phase 02]: Phase 02 Plan 04: Real HA-Phone test-extension credentials wired via local.properties -> BuildConfig fields, not hardcoded Kotlin literals, to avoid committing a live LAN PBX password to the public GitHub repo (kotlin/security.md).
 - [Phase 02]: Phase 02 Plan 04: PJSUA2 SWIG 4.2.0 bindings generate plain int constants (no enum types/.swigValue()) and androidx.core.telecom's CallControlScope.disconnect() requires a DisconnectCause argument -- both discovered by compiling against real bindings, not assumed from illustrative plan snippets.
+- [Phase 02]: Phase 02 Plan 05: Real HA-Phone test-extension credentials wired via Secrets.xcconfig -> Info.plist $(SIP_TEST_*) substitution -> Bundle.main, not hardcoded Swift literals, mirroring Plan 04's Android local.properties -> BuildConfig pattern (avoids committing a live LAN PBX password to the public repo).
+- [Phase 02]: Phase 02 Plan 05: Added NS_SWIFT_NAME to every PjsuaBridge.h method to pin exact Swift call-site names, since this sandbox has no Swift compiler to verify Clang's default Objective-C-to-Swift name-mangling for VerbWithNoun: selectors.
 
 ### Pending Todos
 
@@ -94,8 +97,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-08T13:01:25.703Z
-Stopped at: Completed 02-04-PLAN.md (Android SIP call controller -- SipCallController, PjsuaEndpointHolder, CallRegistration incoming+outgoing wiring)
+Last session: 2026-08-08T13:13:44.726Z
+Stopped at: Completed 02-05-PLAN.md (iOS SIP call controller -- PjsuaBridge, SipCallController, AudioSessionCoordinator, NetworkChangeMonitor, CallProvider wiring)
 Resume file: None
 </content>
 </invoke>
