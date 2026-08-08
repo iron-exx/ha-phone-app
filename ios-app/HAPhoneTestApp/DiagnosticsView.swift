@@ -47,6 +47,9 @@ struct DiagnosticsView: View {
             }
             .navigationTitle("Diagnostics")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink("Dial", destination: OutgoingCallView())
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ShareLink(item: FileDiagnosticsLog.defaultURL()) {
                         Label("Share Log", systemImage: "square.and.arrow.up")

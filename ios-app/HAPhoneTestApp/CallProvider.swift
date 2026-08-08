@@ -61,6 +61,23 @@ final class CallProviderDelegate: NSObject, CXProviderDelegate {
         action.fulfill()
     }
 
+    // CALL-03: outgoing calls must be reported to CallKit via
+    // CXStartCallAction (Plan 05 only wired incoming-call actions).
+    // reportOutgoingCall(startedConnectingAt:) followed by makeCall then
+    // reportOutgoingCall(connectedAt:) is what triggers didActivate for
+    // outgoing calls -- the same audio-session activation path incoming
+    // calls already get.
+    func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
+        provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
+        do {
+            try sipCallController.makeCall(action.handle.value)
+            action.fulfill()
+            provider.reportOutgoingCall(with: action.callUUID, connectedAt: Date())
+        } catch {
+            action.fail()
+        }
+    }
+
     func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
         AudioSessionCoordinator.activate(audioSession)
     }

@@ -23,6 +23,8 @@ enum SipTestConfiguration {
 /// golden fixture EnvelopeVerifier.swift is verified against) -- replace via
 /// `keygen.py`'s real generated key before real-device testing.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    static private(set) var shared: AppDelegate?
+
     private let devFixturePublicKeyHex = "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
 
     private var pushRegistry: PKPushRegistry?
@@ -31,10 +33,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private var pushHandler: PushHandler?
 
     private let pjsuaBridge = PjsuaBridge()
-    private var sipCallController: SipCallController?
+    private(set) var sipCallController: SipCallController?
     private var networkChangeMonitor: NetworkChangeMonitor?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Self.shared = self
         pjsuaBridge.start()
 
         let sipDomain = "\(SipTestConfiguration.host):\(SipTestConfiguration.port)"
