@@ -18,6 +18,11 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Build PJSIP 2.17 for iOS (device + simulator)
+        run: |
+          chmod +x scripts/build_pjsip_ios.sh
+          ./scripts/build_pjsip_ios.sh
+
       - name: Generate Xcode project
         run: xcodegen generate --spec project.yml
 

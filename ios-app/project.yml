@@ -20,6 +20,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.haphone.app.test
         CODE_SIGN_STYLE: Automatic
+        HEADER_SEARCH_PATHS: "$(SRCROOT)/third_party/pjproject/pjsip/include $(SRCROOT)/third_party/pjproject/pjlib/include $(SRCROOT)/third_party/pjproject/pjmedia/include $(SRCROOT)/third_party/pjproject/pjnath/include $(SRCROOT)/third_party/pjproject/pjlib-util/include $(SRCROOT)/third_party/pjproject/pjsip-apps/src/pjsua2/include"
+        CLANG_CXX_LANGUAGE_STANDARD: "gnu++17"
+        CLANG_ENABLE_MODULES: NO
+    dependencies:
+      - framework: Frameworks/pjsua2.xcframework
+        embed: false
     scheme:
       testTargets: [HAPhoneTestAppTests]
   HAPhoneTestAppTests:
