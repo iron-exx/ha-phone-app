@@ -67,7 +67,7 @@ Plans:
 - [x] 02-05-PLAN.md — iOS SIP call controller (PjsuaBridge, AudioSessionCoordinator) (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-06-PLAN.md — Android UI (dialpad, outgoing call, active call screen) (Wave 3)
+- [x] 02-06-PLAN.md — Android UI (dialpad, outgoing call, active call screen) (Wave 3)
 - [ ] 02-07-PLAN.md — iOS UI (dialpad, outgoing call, active call screen) (Wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
