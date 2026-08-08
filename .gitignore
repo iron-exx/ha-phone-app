@@ -21,3 +21,7 @@ android-app/.kotlin/
 android-app/gradle/wrapper/gradle-wrapper.jar.bak
 *.iml
 .idea/
+
+# iOS (ios-app/ -- Phase 2 PJSIP build, vendored source + build output)
+ios-app/third_party/
+ios-app/Frameworks/
