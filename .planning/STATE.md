@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 Plan 02 (PJSIP Android build) completed
-last_updated: "2026-08-08T10:25:00.000Z"
-last_activity: 2026-08-08 -- Phase 02 Plan 02 executed (PJSIP Android build + sip-core Gradle module)
+stopped_at: Completed 02-04-PLAN.md (Android SIP call controller -- SipCallController, PjsuaEndpointHolder, CallRegistration incoming+outgoing wiring)
+last_updated: "2026-08-08T13:01:25.718Z"
+last_activity: 2026-08-08
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 14
-  completed_plans: 7
-  percent: 50
+  completed_plans: 8
+  percent: 57
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-31)
 ## Current Position
 
 Phase: 02 (pjsip-audio-media-core) — EXECUTING
-Plan: 02 of 8 complete (wave 1: 02-01 cross-repo HA-Phone TLS extension still pending -- no dependency between 02-01/02-02)
-Status: Executing Phase 02
-Last activity: 2026-08-08 -- Plan 02-02 (PJSIP Android build) executed
+Plan: 4 of 8 complete (wave 1: 02-01 cross-repo HA-Phone TLS extension still pending -- no dependency between 02-01/02-02)
+Status: Ready to execute
+Last activity: 2026-08-08
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [█░░░░░░░░░] 12%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 02 P04 | 30min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - Roadmap: Multi-tenant push-relay deliberately sequenced last among core phases (Phase 6) — its contract must be derived from real payload iteration, not designed speculatively.
 - Phase 02 Plan 02: Cross-compiled libopus 1.5.2 from source per-ABI (arm64-v8a, x86_64) using the NDK's per-API-level clang wrapper, instead of the sandbox's system libopus-dev, which only ships a host x86_64 library unusable for Android cross-compilation.
 - Phase 02 Plan 02: SWIG's Java/JNI binding generation must run inside the per-ABI build loop (not once after it) -- it links against whichever ABI's static libs the currently-active build.mak/TARGET_ARCH describes.
+- [Phase 02]: Phase 02 Plan 04: Real HA-Phone test-extension credentials wired via local.properties -> BuildConfig fields, not hardcoded Kotlin literals, to avoid committing a live LAN PBX password to the public GitHub repo (kotlin/security.md).
+- [Phase 02]: Phase 02 Plan 04: PJSUA2 SWIG 4.2.0 bindings generate plain int constants (no enum types/.swigValue()) and androidx.core.telecom's CallControlScope.disconnect() requires a DisconnectCause argument -- both discovered by compiling against real bindings, not assumed from illustrative plan snippets.
 
 ### Pending Todos
 
@@ -75,6 +78,8 @@ None yet.
 - Phase 5 (Tailscale Transport Hardening) has no prior research coverage — the Tailscale-as-transport decision (tsnet vs. auth-key/OAuth node registration, ICE interaction, ephemeral lifecycle) postdates ARCHITECTURE.md. `/gsd-plan-phase 5` must trigger a dedicated research pass before producing a detailed plan.
 - Phase 7 (Door-Station): RTSP→app video bridging and H.264 profile compatibility is hardware-specific; an early technical spike against the real Akuvox hardware is recommended before committing to a gateway architecture, and can start in parallel with earlier phases.
 - Android PUSH-04 has a hard external dependency: Google Play requires an explicit "calling app" declaration in Play Console for full-screen-intent apps (since Jan 2025) — tracked as a Phase 1 success criterion, not to be silently assumed done.
+- Plan 01's live TLS transport deploy on the real HA-Phone box is still pending (git push to the box not yet done by the user) -- Plan 04's SIP config code is complete and compiles against the real test-extension credentials, but no end-to-end call has been verified live yet. Also: Plan 01 specified the test extension should come from the 80-99 sub-range (D-04), but the extension actually supplied/used is 13 (inside the active 10-99 household range) -- needs reconciliation before Plan 08's manual test.
+- 02-03-SUMMARY.md is missing even though Plan 02-03's commits (5551283, 9a5c12b) already exist in git log -- Plan 03's summary/state-update step appears to have been skipped in an earlier session. Worth a follow-up to backfill 02-03-SUMMARY.md for the dependency-graph/context-assembly tooling.
 
 ## Deferred Items
 
@@ -89,8 +94,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-08T10:25:00.000Z
-Stopped at: Completed 02-02-PLAN.md (PJSIP Android build + sip-core Gradle module)
+Last session: 2026-08-08T13:01:25.703Z
+Stopped at: Completed 02-04-PLAN.md (Android SIP call controller -- SipCallController, PjsuaEndpointHolder, CallRegistration incoming+outgoing wiring)
 Resume file: None
 </content>
 </invoke>

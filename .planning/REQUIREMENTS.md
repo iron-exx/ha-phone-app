@@ -16,11 +16,11 @@ Requirements für die erste Version. Jede wird auf Roadmap-Phasen abgebildet.
 
 ### Telefonie (CALL)
 
-- [ ] **CALL-01**: Audioanruf funktioniert stabil (Opus/G.722/G.711, Mikrofon, Lautsprecher, Bluetooth-Routing)
-- [ ] **CALL-02**: DTMF im laufenden Gespräch (RFC 2833/4733)
-- [ ] **CALL-03**: Ausgehende Anrufe sind möglich
-- [ ] **CALL-04**: Anruf halten und blinde Weiterverbindung
-- [ ] **CALL-05**: Nach Annahme baut die App die SIP-Verbindung transient auf (kein dauerhaftes Halten der Registrierung im Hintergrund)
+- [x] **CALL-01**: Audioanruf funktioniert stabil (Opus/G.722/G.711, Mikrofon, Lautsprecher, Bluetooth-Routing)
+- [x] **CALL-02**: DTMF im laufenden Gespräch (RFC 2833/4733)
+- [x] **CALL-03**: Ausgehende Anrufe sind möglich
+- [x] **CALL-04**: Anruf halten und blinde Weiterverbindung
+- [x] **CALL-05**: Nach Annahme baut die App die SIP-Verbindung transient auf (kein dauerhaftes Halten der Registrierung im Hintergrund)
 
 ### Provisionierung & Geräteverwaltung (PROV)
 
@@ -92,11 +92,11 @@ Explizit ausgeschlossen. Dokumentiert, um Scope Creep zu verhindern.
 | PUSH-02 | Phase 1 | Complete |
 | PUSH-03 | Phase 1 | Complete |
 | PUSH-04 | Phase 1 | Complete |
-| CALL-01 | Phase 2 | Pending |
-| CALL-02 | Phase 2 | Pending |
-| CALL-03 | Phase 2 | Pending |
-| CALL-04 | Phase 2 | Pending |
-| CALL-05 | Phase 2 | Pending |
+| CALL-01 | Phase 2 | Complete |
+| CALL-02 | Phase 2 | Complete |
+| CALL-03 | Phase 2 | Complete |
+| CALL-04 | Phase 2 | Complete |
+| CALL-05 | Phase 2 | Complete |
 | PROV-01 | Phase 3 | Pending |
 | PROV-02 | Phase 3 | Pending |
 | PROV-03 | Phase 3 | Pending |

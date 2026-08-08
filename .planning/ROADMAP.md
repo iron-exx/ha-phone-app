@@ -63,7 +63,7 @@ Plans:
 - [ ] 02-03-PLAN.md — iOS PJSIP 2.17 build via GitHub Actions macOS runner (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-04-PLAN.md — Android SIP call controller (codec/DTMF/hold/xfer/transient registration) (Wave 2)
+- [x] 02-04-PLAN.md — Android SIP call controller (codec/DTMF/hold/xfer/transient registration) (Wave 2)
 - [ ] 02-05-PLAN.md — iOS SIP call controller (PjsuaBridge, AudioSessionCoordinator) (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
