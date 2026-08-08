@@ -26,6 +26,11 @@ android-app/gradle/wrapper/gradle-wrapper.jar.bak
 ios-app/third_party/
 ios-app/Frameworks/
 
+# iOS (ios-app/ -- Phase 2 real HA-Phone test-extension credentials, 02-05).
+# Secrets.xcconfig.example (tracked) is the template; the real file below
+# holds the live host/port/username/password and must never be committed.
+ios-app/Secrets.xcconfig
+
 # graphify knowledge-graph cache (project CLAUDE.md post-edit rebuild step) --
 # generated, large (includes vendored third_party source node counts), never committed
 graphify-out/

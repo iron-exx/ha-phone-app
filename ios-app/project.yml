@@ -12,10 +12,21 @@ targets:
       path: HAPhoneTestApp/Info.plist
       properties:
         UIBackgroundModes: [voip]
+        # Real HA-Phone test-extension credentials (02-05, credential
+        # substitution) flow in via Secrets.xcconfig's build settings, never
+        # as Swift string literals in tracked source -- read at runtime via
+        # Bundle.main in HAPhoneTestAppApp.swift.
+        SIPTestHost: $(SIP_TEST_HOST)
+        SIPTestPort: $(SIP_TEST_PORT)
+        SIPTestUsername: $(SIP_TEST_USERNAME)
+        SIPTestPassword: $(SIP_TEST_PASSWORD)
     entitlements:
       path: HAPhoneTestApp/HAPhoneTestApp.entitlements
       properties:
         aps-environment: development
+    configFiles:
+      Debug: Secrets.xcconfig
+      Release: Secrets.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.haphone.app.test

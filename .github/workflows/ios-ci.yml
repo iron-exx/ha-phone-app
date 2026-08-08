@@ -23,6 +23,18 @@ jobs:
           chmod +x scripts/build_pjsip_ios.sh
           ./scripts/build_pjsip_ios.sh
 
+      - name: Provision placeholder Secrets.xcconfig (CI has no real test-extension credentials)
+        run: |
+          # Secrets.xcconfig (real host/port/username/password) is gitignored
+          # (02-05 credential substitution) and never present in a fresh CI
+          # checkout. CI only proves a structural Simulator build/test
+          # (D-15/D-16), never a live call, so the placeholder example values
+          # are sufficient here -- xcodegen's configFiles reference requires
+          # the file to exist at all, or project generation fails outright.
+          if [ ! -f Secrets.xcconfig ]; then
+            cp Secrets.xcconfig.example Secrets.xcconfig
+          fi
+
       - name: Generate Xcode project
         run: xcodegen generate --spec project.yml
 
