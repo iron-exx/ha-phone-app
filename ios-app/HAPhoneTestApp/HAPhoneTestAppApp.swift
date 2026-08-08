@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     private var pushRegistry: PKPushRegistry?
     private var callProvider: CXProvider?
-    private var callProviderDelegate: CallProviderDelegate?
+    private(set) var callProviderDelegate: CallProviderDelegate?
     private var pushHandler: PushHandler?
 
     private let pjsuaBridge = PjsuaBridge()
@@ -82,10 +82,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct HAPhoneTestAppApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @ObservedObject private var callSessionState = CallSessionState.shared
 
     var body: some Scene {
         WindowGroup {
             DiagnosticsView()
+                .fullScreenCover(isPresented: $callSessionState.isCallActive) {
+                    ActiveCallView()
+                }
         }
     }
 }
