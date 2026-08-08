@@ -6,6 +6,7 @@ import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
 import androidx.core.telecom.CallControlScope
 import androidx.core.telecom.CallsManager
+import de.haphone.app.test.sip.SipCallController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,7 +28,7 @@ import kotlinx.coroutines.launch
  * Positional (unnamed) arguments are used deliberately here so this code
  * does not depend on guessed named-parameter labels.
  */
-class CallRegistration(private val context: Context) {
+class CallRegistration(private val context: Context, private val sipCallController: SipCallController) {
     private val callsManager = CallsManager(context)
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -58,16 +59,85 @@ class CallRegistration(private val context: Context) {
             callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
         )
         scope.launch {
+            // Blocker fix (checker iteration 4): addCall's onAnswer/
+            // onDisconnect/onSetActive/onSetInactive lambdas are NOT
+            // CallControlScope receivers themselves -- only the trailing
+            // `block` lambda below is. The live scope is captured into
+            // this local var from inside that trailing block so onAnswer
+            // (which fires later, only on the platform's genuine
+            // user-answer signal) can reach disconnect() on SIP-answer
+            // failure (CR-01 precedent).
+            var liveScope: CallControlScope? = null
             callsManager.addCall(
                 attributes,
-                { /* onAnswer: log reportedAt / accepted */ },
-                { _: DisconnectCause -> /* onDisconnect */ },
+                {
+                    // Blocker fix: Telecom invokes this lambda ONLY when
+                    // the user actually answers via the system CallStyle
+                    // action -- the genuine user-answer signal. The real
+                    // SIP answer() call is gated HERE, not in the
+                    // trailing onRegistered block below (which fires at
+                    // registration-complete time -- essentially at
+                    // push-arrival time, long before any user
+                    // interaction or SIP INVITE could plausibly exist).
+                    // A prior revision called sipCallController.answer()
+                    // unconditionally in the trailing block instead,
+                    // which meant answer() always ran before any call
+                    // could actually be answered. Mirrors iOS's
+                    // already-correct CXAnswerCallAction gating in
+                    // CallProvider.swift.
+                    liveScope?.let { sipCallController.answer(it) }
+                },
+                { _: DisconnectCause -> sipCallController.hangup() },
                 { /* onSetActive */ },
                 { /* onSetInactive */ },
             ) {
-                // Runs once Telecom has registered the call, with `this` bound to
-                // CallControlScope -- post the CallStyle notification + full-screen
-                // intent from here, and disconnect() is available if needed.
+                // Stash the live CallControlScope BEFORE onRegistered()
+                // runs, so ActiveCallActivity (Plan 06) always has a real
+                // scope to read for Audio Routing (CALL-01), for both
+                // incoming and outgoing calls -- and so the onAnswer
+                // callback above (captured via liveScope) has a scope to
+                // call disconnect() on if SIP negotiation fails once the
+                // user actually answers.
+                liveScope = this
+                (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
+                onRegistered()
+            }
+        }
+    }
+
+    /**
+     * Outbound counterpart to [reportIncomingCall] (Blocker fix). Mirrors
+     * its exact shape with DIRECTION_OUTGOING; `addCall` is
+     * direction-agnostic on the Telecom side, so only the `direction`
+     * value and what the trailing lambda does differ -- there is no SIP
+     * answer step for an outgoing call, only the scope stash. The caller
+     * (Plan 06's OutgoingCallActivity) invokes
+     * `sipCallController.makeCall(...)` from inside its own
+     * `onRegistered` block, so the SIP INVITE only fires once Telecom has
+     * actually reported the call (Report-First pattern, same discipline
+     * as the incoming path).
+     */
+    fun reportOutgoingCall(callId: String, onRegistered: CallControlScope.() -> Unit) {
+        val attributes = CallAttributesCompat(
+            displayName = "HA-Phone Testanruf",
+            address = Uri.parse("haphone:$callId"),
+            direction = CallAttributesCompat.DIRECTION_OUTGOING,
+            callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
+        )
+        scope.launch {
+            callsManager.addCall(
+                attributes,
+                { /* onAnswer: Telecom may invoke this for a self-managed
+                     outgoing call once the far end picks up -- no SIP
+                     action needed here; the SIP 200 OK for an outgoing
+                     call already drives media setup via makeCall's own
+                     INVITE transaction, not a Telecom-side callback. */
+                },
+                { _: DisconnectCause -> sipCallController.hangup() },
+                { /* onSetActive */ },
+                { /* onSetInactive */ },
+            ) {
+                (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
                 onRegistered()
             }
         }

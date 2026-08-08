@@ -15,7 +15,7 @@ class TestFcmService : FirebaseMessagingService() {
         val isValid = EnvelopeVerifier.verify(data, verifierPublicKeyHex)
         val isExpired = EnvelopeVerifier.isExpired(data)
 
-        val registration = CallRegistration(applicationContext)
+        val registration = CallRegistration(applicationContext, (applicationContext as HAPhoneTestApplication).sipCallController)
         registration.registerApp()
         val callId = data["call_id"] as? String ?: java.util.UUID.randomUUID().toString()
 
