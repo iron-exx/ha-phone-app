@@ -22,6 +22,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+    implementation(project(":sip-core"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.core:core-telecom:1.0.0")
     implementation("androidx.activity:activity-compose:1.9.2")

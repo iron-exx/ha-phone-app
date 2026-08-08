@@ -6,3 +6,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "HAPhoneTestApp"
 include(":app")
+include(":sip-core")
