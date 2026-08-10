@@ -34,6 +34,17 @@ targets:
         HEADER_SEARCH_PATHS: "$(SRCROOT)/third_party/pjproject/pjsip/include $(SRCROOT)/third_party/pjproject/pjlib/include $(SRCROOT)/third_party/pjproject/pjmedia/include $(SRCROOT)/third_party/pjproject/pjnath/include $(SRCROOT)/third_party/pjproject/pjlib-util/include $(SRCROOT)/third_party/pjproject/pjsip-apps/src/pjsua2/include"
         CLANG_CXX_LANGUAGE_STANDARD: "gnu++17"
         CLANG_ENABLE_MODULES: NO
+        # PJSIP's pjmedia-codec archive only compiles in opus.c's *references* to
+        # the opus_* symbols -- the actual libopus implementation is never bundled
+        # into the xcframework (build_pjsip_ios.sh links against Homebrew's opus
+        # at PJSIP-build time, but static archives don't resolve external symbols
+        # until final link). Without this, the app binary itself fails the exact
+        # same "Undefined symbols ... _opus_encode" link error the PJSIP build
+        # script hit. Hardcoded to Homebrew's Apple Silicon prefix since GitHub's
+        # macos-14 CI runners are arm64; adjust for Intel Macs (/usr/local) if
+        # building locally on an older machine.
+        LIBRARY_SEARCH_PATHS: "/opt/homebrew/opt/opus/lib"
+        OTHER_LDFLAGS: "-lopus"
     dependencies:
       - framework: Frameworks/pjsua2.xcframework
         embed: false
