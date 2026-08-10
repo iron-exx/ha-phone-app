@@ -17,6 +17,19 @@ echo "== Installing Opus via Homebrew (macOS runner) =="
 brew install opus
 
 cd "$VENDOR_DIR"
+
+# pjsua2 (the C++ OO wrapper the app's Obj-C++ bridge links against) uses
+# rvalue references, `auto`, and default member initializers -- all C++11+.
+# Apple clang++ invoked bare (no -std= flag at all, confirmed in the actual
+# failing command line) defaults to gnu++98 on this toolchain, so
+# account.cpp fails with "expected ';' at end of declaration list" etc.
+# (misleading syntax-error phrasing for what's really a missing-C++11 error).
+# PJSIP's Makefiles fold the CXXFLAGS env var into every module's _CXXFLAGS,
+# so exporting it before configure-iphone is enough -- no Makefile edits
+# needed. gnu++17 matches project.yml's CLANG_CXX_LANGUAGE_STANDARD so the
+# PJSIP libs and the app that links them agree on ABI-relevant language rules.
+export CXXFLAGS="-std=gnu++17"
+
 # Merges every static lib PJSIP produced for the pass that just finished
 # (pjlib, pjlib-util, pjnath, pjmedia + its codec/audiodev/videodev
 # sub-libs, pjsip + its ua/simple/pjsua/pjsua2 sub-libs, third_party codecs)
