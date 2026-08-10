@@ -69,13 +69,33 @@ make lib
 mkdir -p "$WORKDIR/Frameworks/device"
 merge_pass_libs "$WORKDIR/Frameworks/device/libpjproject.a"
 
-echo "== configure-iphone: Simulator =="
+echo "== configure-iphone: Simulator (forced x86_64) =="
 # Per docs.pjsip.org iOS build_instructions.html: DEVICE variable selects
-# the Simulator SDK/arch pass; re-run configure-iphone + make into a
-# separate build products directory so device+simulator libs don't clash.
-# NOTE: on Apple Silicon (arm64) GitHub macos-14 runners this produces an
-# arm64 simulator slice, not x86_64 -- do not assume Intel-simulator naming.
-DEVICE=iPhoneSimulator ./configure-iphone --with-opus="$(brew --prefix opus)"
+# the Simulator SDK; re-run configure-iphone + make into a separate build
+# products directory so device+simulator libs don't clash.
+#
+# ARCH is forced to x86_64 rather than the runner's native arm64. Run #3
+# confirmed the reason: `xcodebuild -create-xcframework` derives each
+# library's platform-variant identifier ("ios-arm64" vs
+# "ios-arm64-simulator") from the compiled binary's embedded
+# LC_BUILD_VERSION platform tag, not the filename. configure-iphone's
+# DEVICE=iPhoneSimulator pass still emits `-miphoneos-version-min=` (the
+# device flag) instead of a simulator-tagged target, so an arm64 simulator
+# build ends up mislabeled as plain "ios-arm64" -- identical to the device
+# pass -- and xcodebuild refuses with "A library with the identifier
+# 'ios-arm64' already exists." x86_64 has never been ambiguous (no real
+# iOS device ships x86_64), so it sidesteps the mistagging entirely --
+# this is also why the very first version of this script assumed an
+# x86_64-simulator filename, before either of us corrected it downstream.
+#
+# RISK: Homebrew's opus at $(brew --prefix opus) is arm64-only on this
+# Apple Silicon runner (Homebrew does not ship universal binaries by
+# default), so linking it into an x86_64 build may itself fail with an
+# architecture-mismatch error. If so, cross-compile opus for x86_64 from
+# source instead of relying on the Homebrew arm64 build -- mirroring
+# exactly what build_pjsip_android.sh already does per-ABI (see its
+# build_opus_for_abi() function) rather than improvising a new approach.
+ARCH="-arch x86_64" DEVICE=iPhoneSimulator ./configure-iphone --with-opus="$(brew --prefix opus)"
 make dep
 make clean
 make lib
