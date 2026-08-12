@@ -41,6 +41,20 @@ targets:
         HEADER_SEARCH_PATHS: "$(SRCROOT)/third_party/pjproject/pjsip/include $(SRCROOT)/third_party/pjproject/pjlib/include $(SRCROOT)/third_party/pjproject/pjmedia/include $(SRCROOT)/third_party/pjproject/pjnath/include $(SRCROOT)/third_party/pjproject/pjlib-util/include $(SRCROOT)/third_party/pjproject/pjsip-apps/src/pjsua2/include"
         CLANG_CXX_LANGUAGE_STANDARD: "gnu++17"
         CLANG_ENABLE_MODULES: NO
+        # PjsuaBridge (Obj-C++, wraps PJSUA2's C++ Endpoint/Account/Call) is
+        # invisible to Swift without this -- Swift can only see Objective-C
+        # types via a bridging header or a Clang module, and CLANG_ENABLE_MODULES
+        # is NO above (C++ interop + modules don't mix reliably here). Without
+        # it, SipCallOperations.swift/SipCallController.swift fail with
+        # "cannot find type 'PjsuaBridge' in scope".
+        SWIFT_OBJC_BRIDGING_HEADER: "HAPhoneTestApp/HAPhoneTestApp-Bridging-Header.h"
+        # build_pjsip_ios.sh only builds an arm64 Simulator slice (matching
+        # this Apple Silicon runner; see that script's comments for why
+        # x86_64 isn't needed). ios-ci.yml's `-destination 'generic/platform=iOS
+        # Simulator'` otherwise asks Xcode to build every simulator arch
+        # (arm64 AND x86_64) it knows about, and the link fails since the
+        # xcframework has no x86_64 slice to offer.
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: "x86_64"
         # PJSIP's pjmedia-codec archive only compiles in opus.c's *references* to
         # the opus_* symbols -- the actual libopus implementation is never bundled
         # into the xcframework (build_pjsip_ios.sh links against Homebrew's opus
