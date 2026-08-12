@@ -60,7 +60,16 @@ final class PushHandler: NSObject, PKPushRegistryDelegate {
     // MARK: - Incoming push (Pitfall 1: report first, unconditionally, always)
 
     func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType, completion: @escaping () -> Void) {
-        handleIncomingPush(dict: payload.dictionaryPayload, completion: completion)
+        // PKPushPayload.dictionaryPayload is [AnyHashable: Any] (matches the
+        // Obj-C NSDictionary bridging); handleIncomingPush's [String: Any]
+        // entry point below is what tests construct directly, so narrow the
+        // keys here rather than loosening the testable signature.
+        let stringKeyedPayload = payload.dictionaryPayload.reduce(into: [String: Any]()) { result, entry in
+            if let key = entry.key as? String {
+                result[key] = entry.value
+            }
+        }
+        handleIncomingPush(dict: stringKeyedPayload, completion: completion)
     }
 
     /// Core payload-handling logic, extracted into a plain-`[String: Any]`
