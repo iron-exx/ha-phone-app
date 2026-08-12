@@ -3,6 +3,13 @@ options:
   bundleIdPrefix: de.haphone.app
   deploymentTarget:
     iOS: "17.0"
+  # `brew install xcodegen` always grabs the latest release, whose default
+  # project format (objectVersion 77, XcodeGenKit's ProjectFormat.xcode16_0
+  # since 2.43.0) is newer than the ios-ci.yml runner's pinned Xcode 15.4 --
+  # xcodebuild refuses to open it ("future Xcode project file format 77").
+  # Pin the generated project to the 15.x-compatible format (objectVersion
+  # 63) instead of chasing whatever Xcode version XcodeGen assumes next.
+  projectFormat: xcode15_3
 targets:
   HAPhoneTestApp:
     type: application
