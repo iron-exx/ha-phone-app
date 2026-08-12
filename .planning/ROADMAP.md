@@ -58,9 +58,9 @@ Plans:
 **Plans**: 8 plans across 4 waves
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Cross-repo HA-Phone TLS/SRTP test-extension provisioning (Wave 1)
+- [x] 02-01-PLAN.md — Cross-repo HA-Phone TLS/SRTP test-extension provisioning (Wave 1)
 - [x] 02-02-PLAN.md — Android PJSIP 2.17 native build (Opus, JNI/SWIG) (Wave 1)
-- [ ] 02-03-PLAN.md — iOS PJSIP 2.17 build via GitHub Actions macOS runner (Wave 1)
+- [x] 02-03-PLAN.md — iOS PJSIP 2.17 build via GitHub Actions macOS runner (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 02-04-PLAN.md — Android SIP call controller (codec/DTMF/hold/xfer/transient registration) (Wave 2)
@@ -71,7 +71,7 @@ Plans:
 - [x] 02-07-PLAN.md — iOS UI (dialpad, outgoing call, active call screen) (Wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-08-PLAN.md — Manual test procedure + Phase 2 sign-off (Wave 4)
+- [x] 02-08-PLAN.md — Manual test procedure + Phase 2 sign-off (Wave 4)
 
 ### Phase 3: QR Provisioning & Device Management
 **Goal**: New devices are set up purely by scanning a QR code, and the HA-Phone admin can manage which devices are attached to each extension.
