@@ -113,16 +113,35 @@ add-on's terminal/SSH:
 
 ## iOS Status (Phase 2)
 
-iOS is verified for Phase 2 ONLY structurally: PJSIP 2.17 builds via
-the GitHub Actions macOS runner (Plan 03), SipCallController's unit
-tests pass on the iOS Simulator (Plan 05). Per 02-05-SUMMARY.md and
-02-07-SUMMARY.md, neither plan's iOS code has actually been confirmed
-green on that CI run yet — `ios-ci.yml` has not been re-triggered
-against these commits from this sandbox (no `gh` CLI, no push
-capability here, same constraint documented in Phase 1's sign-off). No
-real device or real audio I/O is exercised on iOS in Phase 2. See
-`02-PHASE-SIGNOFF.md` for the full gap documentation and resumption
-trigger (D-17/D-18).
+**UPDATE (this document's original authoring, 2026-08-08, predates the
+result below; corrected here rather than left stale):** Plan 03's Task
+3 checkpoint is now **RESOLVED**. `build-test` on GitHub Actions is
+green end-to-end (PJSIP build, XcodeGen, app build+link, AND unit
+tests) as of commit `d6b623e7` --
+https://github.com/iron-exx/ha-phone-app/actions/runs/31588437266/job/94087580778.
+This is real compile+link+test proof, not the structural/grep-only
+verification this document originally described.
+
+That debugging session also permanently disabled the Opus codec for
+iOS (`PJMEDIA_HAS_OPUS_CODEC 0` in
+`ios-app/HAPhoneTestApp/Sip/config_site.h`): Homebrew's `opus` is a
+macOS-native build and cannot link into an iOS/iOS-Simulator binary
+regardless of CPU arch. PJSIP's own bundled codecs (G.711/PCMU/PCMA,
+GSM, iLBC, Speex) remain available on iOS; G.722 availability on iOS
+depends on PJSIP's own bundled codec set (not Opus-dependent) and was
+not otherwise touched. **This means the CALL-01 codec matrix above is
+Android-only for Opus in practice** — iOS builds without Opus until a
+from-source iOS libopus cross-compile is done as a separate, explicitly
+deferred task. See `02-PHASE-SIGNOFF.md` for the full gap documentation.
+
+iOS remains verified for Phase 2 ONLY at the build+unit-test level:
+PJSIP 2.17 builds via the GitHub Actions macOS runner (Plan 03) and
+`SipCallControllerTests`/`NetworkChangeHandlerTests`/`DialedNumberStateTests`
+pass on the iOS Simulator (Plans 05/07), now confirmed by a real green
+CI run rather than structural checks alone. No real device or real
+audio I/O is exercised on iOS in Phase 2 -- that remains a separate,
+zero-budget-constrained gap (D-15/D-16). See `02-PHASE-SIGNOFF.md` for
+the full gap documentation and resumption trigger (D-17/D-18).
 
 ## Automated Suite Status (as of this document's authoring)
 
@@ -130,4 +149,6 @@ trigger (D-17/D-18).
 |-------|---------|--------|
 | Android unit tests | `cd android-app && ./gradlew testDebugUnitTest --console=plain` | 24 tests, 0 failures (`CallControlTest` x5, `DialpadSanitizeTest` x4, `NetworkChangeHandlerTest` x1, `EnvelopeVerifierTest` x5, `DtmfControllerTest` x2, `CodecConfigTest` x2, `DialpadTest` x5) |
 | HA-Phone backend (cross-repo) | `python3 -m pytest backend/tests/test_api.py backend/tests/test_cont_init_tls.py -x` | 93 passed, 2 skipped, 0 failed (95 collected). Required an isolated venv built from `backend/requirements.txt` — the shared `~/.local` environment's `pydantic==2.5.3` is incompatible with `sqlmodel==0.0.38` (`TypeError: BaseModel.model_dump() got an unexpected keyword argument 'context'`); a scratch venv with a current `pydantic` (2.13.4) resolved it without touching the shared environment or any repo files, per the workaround documented in Plan 01's checkpoint output. |
-| iOS unit tests | `xcodebuild test -scheme HAPhoneTestApp -destination 'platform=iOS Simulator,name=iPhone 16'` | NOT RUN -- no Xcode/xcodebuild/Swift toolchain in this Linux sandbox. Structural-only verification per Plan 03/05/07 (grep-based signature checks against real, already-compiled interfaces); real compile/test happens exclusively on Plan 03's GitHub Actions macOS runner, whose live run against these commits is unconfirmed as of this writing (see "iOS Status" above). |
+| iOS unit tests | `xcodebuild test -scheme HAPhoneTestApp -destination 'platform=iOS Simulator,name=iPhone 16'` | Cannot run directly in this Linux sandbox (no Xcode/xcodebuild/Swift toolchain). **Superseded by a real result:** GitHub Actions' macOS-runner `build-test` job ran this exact `xcodebuild test` step for real and is green on commit `d6b623e7` -- https://github.com/iron-exx/ha-phone-app/actions/runs/31588437266/job/94087580778 (see "iOS Status" above). This is the authoritative iOS build+test proof for Phase 2, not the grep-based structural checks Plans 03/05/07 originally relied on. |
+
+**Re-confirmation (this execution session, 2026-08-12):** Android suite re-run clean (`./gradlew testDebugUnitTest --console=plain`, `BUILD SUCCESSFUL`, 24/24 tests passing per `app/build/test-results/testDebugUnitTest/TEST-*.xml`); HA-Phone backend suite re-run clean via the same scratch-venv workaround (93 passed, 2 skipped, 0 failed) -- both suites reproduce the counts recorded above with no regressions since this document's original authoring.
