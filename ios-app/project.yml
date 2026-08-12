@@ -71,6 +71,16 @@ targets:
         # building locally on an older machine.
         LIBRARY_SEARCH_PATHS: "/opt/homebrew/opt/opus/lib"
         OTHER_LDFLAGS: "-lopus"
+        # PjsuaBridge.mm #includes pjsua2.hpp -> pjlib/include/pj/config.h,
+        # whose ARM/ARM64 branch hard-errors ("Endianness must be declared
+        # for this processor") unless PJ_IS_LITTLE_ENDIAN/PJ_IS_BIG_ENDIAN
+        # are already defined. build_pjsip_ios.sh's `make lib` gets these
+        # for free from configure-iphone's underlying autoconf script
+        # (aconfigure.ac's AC_C_BIGENDIAN injects them into PJSIP's own
+        # CFLAGS), but Xcode's own compile of this bridge file never runs
+        # through that configure step, so it never received them. Both
+        # iOS device and simulator arm64/arm64e are always little-endian.
+        GCC_PREPROCESSOR_DEFINITIONS: "$(inherited) PJ_IS_LITTLE_ENDIAN=1 PJ_IS_BIG_ENDIAN=0"
     dependencies:
       - framework: Frameworks/pjsua2.xcframework
         embed: false
