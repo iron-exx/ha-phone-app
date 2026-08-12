@@ -16,7 +16,8 @@ affects: [02-pjsip-audio-media-core (plan 05 - iOS SIP call controller), 02-VALI
 
 # Tech tracking
 tech-stack:
-  added: [PJSIP 2.17 (iOS, from source), Opus (via Homebrew on the macOS runner), xcodebuild -create-xcframework]
+  added: [PJSIP 2.17 (iOS, from source), xcodebuild -create-xcframework]
+  removed: ["Opus codec (was added via Homebrew in the original Task 1-2 commits; dropped during Task 3's checkpoint resolution -- Homebrew's build is macOS-native and cannot link into iOS/iOS-Simulator. Deferred to a separate from-source iOS cross-compile task.)"]
   patterns: ["from-source iOS build gated to a GitHub Actions macOS runner only, never attempted in this Linux sandbox (D-02)", "gitignored vendored third_party/ + built Frameworks/ output, rebuilt deterministically from a pinned tag every CI run"]
 
 key-files:
@@ -45,7 +46,7 @@ completed: 2026-08-10
 
 # Phase 2 Plan 03: PJSIP iOS Build + CI Wiring Summary
 
-**PJSIP 2.17 from-source iOS build script (device + Simulator, Opus enabled) authored and wired into `ios-ci.yml` ahead of `xcodegen generate`, with `project.yml` linking the resulting `pjsua2.xcframework` -- structurally verified in this sandbox; live GitHub Actions confirmation remains an open checkpoint.**
+**PJSIP 2.17 from-source iOS build script (device + Simulator) authored and wired into `ios-ci.yml` ahead of `xcodegen generate`, with `project.yml` linking the resulting `pjsua2.xcframework` -- Task 3's live GitHub Actions checkpoint is now RESOLVED: `build-test` is green end-to-end (build + link + unit tests) as of commit `d6b623e`, run https://github.com/iron-exx/ha-phone-app/actions/runs/31588437266/job/94087580778.**
 
 ## Performance
 
@@ -69,7 +70,7 @@ Both task commits were made in a prior session (2026-08-08); re-verified against
 1. **Task 1: Build PJSIP 2.17 from source for iOS with Opus enabled (device + Simulator)** - `5551283` (feat) - 2026-08-08 12:30:08 +0200
 2. **Task 2: Wire the PJSIP build into ios-ci.yml and project.yml** - `9a5c12b` (feat) - 2026-08-08 12:30:51 +0200
 
-**Task 3: Confirm the extended iOS CI pipeline actually runs on GitHub** - NOT executed (checkpoint:human-verify, gate=blocking) - requires the user to push and check GitHub Actions; see "Checkpoint: Task 3" below.
+**Task 3: Confirm the extended iOS CI pipeline actually runs on GitHub** - RESOLVED in a later session (checkpoint:human-verify, gate=blocking) - `build-test` is green on commit `d6b623e`; see "Checkpoint: Task 3" below for the full fix trail.
 
 **Plan metadata:** this commit (SUMMARY.md backfill only -- STATE.md/ROADMAP.md are intentionally left untouched per this execution's parallel-worktree instructions; the orchestrator updates those centrally after the wave completes)
 
@@ -103,38 +104,44 @@ None during this backfill/verification session. The working tree was clean at se
 
 ## User Setup Required
 
-**Task 3 (checkpoint:human-verify, gate=blocking) requires action from the user -- see "Checkpoint: Task 3" below.** No environment variables or dashboard configuration are needed; the required action is purely "push and watch GitHub Actions."
+None remaining. Task 3 required the user to push each fix commit (this sandbox has no git push credentials); that loop is now closed -- see "Checkpoint: Task 3" below.
 
-## Checkpoint: Task 3 (BLOCKING, unresolved)
+## Checkpoint: Task 3 (RESOLVED)
 
-**What's built:** PJSIP-for-iOS build step, xcframework linkage, and the Obj-C++ smoke file (Tasks 1-2) are authored, committed, and structurally verified (YAML validity + grep checks) from this sandbox. The repo was pushed to GitHub (`iron-exx/ha-phone-app`) earlier in this same overall session, so `.github/workflows/ios-ci.yml`'s extended pipeline is live on GitHub -- but no one has yet confirmed the workflow run actually succeeded.
+**What's built:** PJSIP-for-iOS build step, xcframework linkage, and the app's real Obj-C++ bridge (superseded from the original smoke file by Plan 05) are authored, committed, pushed, and now confirmed green on GitHub Actions -- build, link, AND unit tests, not just a structural YAML check.
 
-**Why this session cannot resolve it:** This sandbox has no `gh` CLI and cannot push, trigger, or poll GitHub Actions runs. Per the plan's Task 3 definition (`type="checkpoint:human-verify" gate="blocking"`) and Phase 1's `01-PHASE-SIGNOFF.md` precedent, live CI confirmation is a human-in-the-loop step, not an automatable one from here.
+**Resolution:** In a later session (2026-08-12), the user pushed each fix commit and pasted back the resulting GitHub Actions log/annotations for diagnosis, run after run, until `build-test` passed clean. The pipeline had never actually been exercised end-to-end before this session (Run #1 was the first real attempt), and it surfaced 8 real, previously-invisible defects across the PJSIP build, the Xcode project, and app runtime code -- none of which any prior sandboxed/structural check could have caught:
 
-**Exact verification steps (from the plan):**
-1. Push this branch (or merge to `main`) so `.github/workflows/ios-ci.yml`'s `paths: ["ios-app/**"]` trigger fires, or manually trigger via GitHub's Actions tab -> "iOS CI" -> "Run workflow".
-2. Watch the run: confirm "Build PJSIP 2.17 for iOS (device + simulator)" completes successfully (the script's own `OPUS_OBJ_COUNT` gate fails the step if Opus wasn't compiled in), then confirm "Generate Xcode project" / "Build for iOS Simulator" / "Run unit tests on iOS Simulator" all stay green.
-3. Report back pass/fail per step, and if it fails, paste the failing step's log output (most likely failure point per RESEARCH.md Open Question 3: the exact SWIG/`.a` output filenames in the xcframework packaging step may need adjusting for the actual pjproject 2.17 layout).
+1. `pjsua2`'s C++11+ syntax needs an explicit `-std=gnu++17` (Apple clang++ defaults to gnu++98 bare) -- fixed in `build_pjsip_ios.sh`.
+2. The Simulator `configure-iphone` pass never actually targeted the Simulator SDK (`DEVICE=iPhoneSimulator` isn't a real variable) -- fixed with `DEVPATH`/`MIN_IOS` pointing at `iPhoneSimulator.platform`.
+3. XcodeGen's default project format (objectVersion 77) outpaced the runner's pinned Xcode 15.4 -- pinned via `options.projectFormat: xcode15_3` in `project.yml`.
+4. The app's Swift/Obj-C++ bridging header was declared but never actually wired in (`CLANG_ENABLE_MODULES` was `NO`) -- flipped to `YES` to match the official PJSUA2 sample.
+5. Pre-existing Phase-1 bug in `PushHandler.swift`: `PKPushPayload.dictionaryPayload` (`[AnyHashable: Any]`) passed directly where `[String: Any]` was expected -- only surfaced because this was the first time the app ever compiled in CI.
+6. `AVRoutePickerView` (a UIKit view) used directly in a SwiftUI `ViewBuilder` without a `UIViewRepresentable` wrapper -- fixed in `ActiveCallView.swift`.
+7. PJSIP's `pjlib/include/pj/config.h` hard-errors on ARM64 unless `PJ_IS_LITTLE_ENDIAN`/`PJ_IS_BIG_ENDIAN` are pre-defined; `configure-iphone`'s own autoconf script injects these into PJSIP's own build, but Xcode's separate compile of the app's bridge file never received them -- fixed via `GCC_PREPROCESSOR_DEFINITIONS` on the app target.
+8. Homebrew's `opus` is a macOS-native build (dylib or static `.a` alike) and can never link into an iOS/iOS-Simulator binary regardless of CPU arch -- **Opus was dropped for this plan's scope** rather than cross-compiling a real iOS libopus (a separate, explicitly deferred task; user confirmed this tradeoff). `configure-iphone` no longer takes `--with-opus`, `config_site.h` sets `PJMEDIA_HAS_OPUS_CODEC 0`, and the app no longer links `-lopus` or sets `opus/48000` codec priority. PJSIP's own bundled codecs (G.711/PCMU/PCMA, GSM, iLBC, Speex) remain available.
+9. (Runtime, not build) `NWPathMonitor`'s path-update callback fired on a private background queue and called straight into PJSUA2 (`handleIpChange`) without ever registering that thread with pjlib, crashing every test run on launch ("Calling pjlib from unknown/external thread") -- fixed by hopping back to `DispatchQueue.main` in `NetworkChangeMonitor.start()` before notifying.
 
-**Resume signal:** Paste the GitHub Actions run URL + pass/fail per step, or "not yet pushed" if deferring.
+**Final proof:** `build-test` completed=success on commit `d6b623e7` -- https://github.com/iron-exx/ha-phone-app/actions/runs/31588437266/job/94087580778 (all steps green: PJSIP build, XcodeGen, app build+link, unit tests).
 
-**This plan is NOT considered fully complete until Task 3 resolves.** Tasks 1-2 are done and verified; the overall plan-level `<verification>`/`<success_criteria>` explicitly require the live CI green run.
+**Deviation from this plan's original scope:** Opus (declared in this plan's `tech-stack.added` above) is temporarily disabled per item 8 -- tracked as a named, accepted gap for `02-PHASE-SIGNOFF.md`, not a silent regression. Re-enabling it requires a from-source iOS cross-compile of libopus, deferred as its own task.
 
 ## Next Phase Readiness
-- Plan 05 (iOS SIP call controller) depends on this plan's xcframework/header-search-path wiring existing structurally -- that dependency is satisfied regardless of Task 3's outcome, since Plan 05's own commits (already present in git log, per STATE.md) were built on top of exactly this project.yml/build script state.
-- Task 3 remains open. Per D-17/D-18 (02-CONTEXT.md), this kind of "accepted, not-hidden gap" is expected to be carried forward into `02-PHASE-SIGNOFF.md` at phase close, with a concrete resumption trigger (user pushes + checks the Actions tab).
-- No blockers for continuing other Phase 2 plans in this wave -- this gap is specific to live-CI confirmation for the iOS PJSIP build step, not to any downstream code dependency.
+- Plan 05 (iOS SIP call controller) depends on this plan's xcframework/header-search-path wiring existing structurally -- confirmed at the strongest possible level now: it actually compiles, links, and runs unit tests green in CI, not just structurally.
+- Task 3 is resolved. The one named, accepted gap carried forward into `02-PHASE-SIGNOFF.md` is Opus being disabled (see item 8 above) -- everything else that blocked a green CI run has been fixed.
+- No blockers for continuing other Phase 2 plans -- CI is green.
 
 ---
 *Phase: 02-pjsip-audio-media-core*
-*Completed: 2026-08-10 (Tasks 1-2 verified/backfilled; Task 3 checkpoint still open)*
+*Completed: 2026-08-12 (Task 3 checkpoint resolved -- CI green end-to-end)*
 
 ## Self-Check: PASSED
 
 - FOUND: `ios-app/scripts/build_pjsip_ios.sh` (executable, `bash -n` exits 0, contains `PJSIP_TAG="2.17"`)
-- FOUND: `ios-app/HAPhoneTestApp/Sip/config_site.h` (contains `PJMEDIA_HAS_OPUS_CODEC 1`)
-- FOUND: `.github/workflows/ios-ci.yml` (valid YAML, contains `build_pjsip_ios.sh`, PJSIP step at line 21 precedes "Generate Xcode project" at line 38)
+- FOUND: `ios-app/HAPhoneTestApp/Sip/config_site.h` (contains `PJMEDIA_HAS_OPUS_CODEC 0` -- Opus deferred, see Checkpoint: Task 3)
+- FOUND: `.github/workflows/ios-ci.yml` (valid YAML, contains `build_pjsip_ios.sh`, PJSIP step precedes "Generate Xcode project")
 - FOUND: `ios-app/project.yml` (valid YAML, single `settings:` key per target, contains `pjsua2.xcframework`)
 - FOUND: commit `5551283` in `git log --all`
 - FOUND: commit `9a5c12b` in `git log --all`
-- Task 3 intentionally NOT executed (checkpoint boundary honored, no GitHub push/trigger/poll attempted from this sandbox)
+- FOUND: commit `d6b623e7` in `git log --all` (final green-CI fix)
+- CONFIRMED: `build-test` check-run conclusion=`success` on commit `d6b623e7` via GitHub API
