@@ -13,9 +13,6 @@ if [ ! -d "$VENDOR_DIR" ]; then
 fi
 cp "$CONFIG_SITE" "$VENDOR_DIR/pjlib/include/pj/config_site.h"
 
-echo "== Installing Opus via Homebrew (macOS runner) =="
-brew install opus
-
 cd "$VENDOR_DIR"
 
 # pjsua2 (the C++ OO wrapper the app's Obj-C++ bridge links against) uses
@@ -55,16 +52,21 @@ merge_pass_libs() {
 }
 
 echo "== configure-iphone: device (arm64) =="
-./configure-iphone --with-opus="$(brew --prefix opus)"
+# No --with-opus: Homebrew's opus is a macOS-native build (dylib and its
+# static .a alike) and cannot be linked into any iOS/iOS-Simulator binary
+# regardless of CPU arch -- the linker enforces the Mach-O platform tag,
+# not just architecture ("building for 'iOS-simulator', but linking in
+# dylib ... built for 'macOS'"). A real iOS Opus needs its own from-source
+# cross-compile (arm64-ios + arm64-ios-simulator), which is a separate,
+# scoped task. Until then, PJSIP's own bundled codecs (G.711/PCMU/PCMA,
+# GSM, iLBC, Speex) are enough to prove the call pipeline.
+./configure-iphone
 make dep
 make clean
-# `make lib` (not plain `make`/`all`) -- the top-level Makefile's `all` target
-# also builds each module's test/demo executables (e.g. pjmedia/build's
-# pjmedia-test), which link against opus symbols without ever receiving
-# -lopus (that flag only reaches the library build, not the test binaries'
-# link line). We only need the static libraries for the xcframework, so
-# `lib` skips those test executables entirely and avoids the resulting
-# "Undefined symbols ... _opus_encode" link failure.
+# `make lib` (not plain `make`/`all`) -- the top-level Makefile's `all`
+# target also builds each module's test/demo executables (e.g. pjmedia's
+# pjmedia-test), which we don't need and don't want to have to link at
+# all. We only need the static libraries for the xcframework.
 make lib
 mkdir -p "$WORKDIR/Frameworks/device"
 merge_pass_libs "$WORKDIR/Frameworks/device/libpjproject.a"
@@ -87,11 +89,12 @@ echo "== configure-iphone: Simulator (arm64) =="
 # `-miphoneos-version-min=` -- that's what correctly tags the resulting
 # Mach-O with the Simulator platform (not device), so xcodebuild can tell
 # the two libraries apart. Staying on arm64 (the runner's native arch,
-# matching the device pass and avoiding any Homebrew-opus arch mismatch)
-# is fine once DEVPATH+MIN_IOS are both right -- x86_64 was never required.
+# matching the device pass) is fine once DEVPATH+MIN_IOS are both right --
+# x86_64 was never required. No --with-opus here either, see the device
+# pass above.
 DEVPATH="/Applications/XCode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer" \
 MIN_IOS="-mios-simulator-version-min=13.0" \
-./configure-iphone --with-opus="$(brew --prefix opus)"
+./configure-iphone
 make dep
 make clean
 make lib
@@ -106,10 +109,4 @@ xcodebuild -create-xcframework \
     -library "$WORKDIR/Frameworks/simulator/libpjproject.a" \
     -output "$XCFRAMEWORK_OUT"
 
-echo "== Build-verification gate: Opus actually compiled in =="
-OPUS_OBJ_COUNT=$(find "$VENDOR_DIR" -iname "*opus*.o" | wc -l)
-if [ "$OPUS_OBJ_COUNT" -eq 0 ]; then
-    echo "ERROR: no opus object files found -- Opus was NOT compiled in (Pitfall 3)" >&2
-    exit 1
-fi
-echo "PJSIP $PJSIP_TAG built for iOS device+simulator, opus object files: $OPUS_OBJ_COUNT"
+echo "PJSIP $PJSIP_TAG built for iOS device+simulator (no Opus -- see comments above)"
