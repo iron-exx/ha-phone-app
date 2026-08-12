@@ -56,8 +56,11 @@ public:
     EpConfig epConfig;
     _endpoint.libInit(epConfig);
     _endpoint.libStart();
-    // CALL-01/D-07: all 3 codecs verified for real.
-    _endpoint.codecSetPriority("opus/48000", 255);
+    // CALL-01/D-07. Opus is intentionally absent: it is compiled out via
+    // config_site.h's PJMEDIA_HAS_OPUS_CODEC 0 (see that file for why), and
+    // codecSetPriority throws pj::Error for a codec the endpoint doesn't
+    // have, so naming it here would abort -start at runtime. Re-add
+    // "opus/48000" at priority 255 together with a real iOS Opus build.
     _endpoint.codecSetPriority("g722/16000", 200);
     _endpoint.codecSetPriority("pcma/8000", 150);
     _endpoint.codecSetPriority("pcmu/8000", 150);
