@@ -2,6 +2,19 @@ import SwiftUI
 import AVKit
 import CallKit
 
+/// AVRoutePickerView is a UIKit UIView, not a SwiftUI View -- using it
+/// directly in a ViewBuilder resolves `.frame` to UIView's own `frame:
+/// CGRect` property instead of the SwiftUI modifier ("cannot call value
+/// of non-function type 'CGRect'"). Wrap it so SwiftUI's `.frame(...)`
+/// modifier applies correctly.
+private struct RoutePickerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        AVRoutePickerView()
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+
 /// Active Call screen hosting exactly the 5 CALL-01..05 controls (D-11):
 /// Mute, Hold, Audio Routing, Keypad, Transfer, End Call. Presented via
 /// HAPhoneTestAppApp's .fullScreenCover bound to CallSessionState.shared
@@ -20,7 +33,7 @@ struct ActiveCallView: View {
             HStack(spacing: 16) {
                 Button(isMuted ? "Unmute" : "Mute") { toggleMute() }
                 Button(isOnHold ? "Unhold" : "Hold") { toggleHold() }
-                AVRoutePickerView()
+                RoutePickerView()
                     .frame(width: 44, height: 44)
             }
 
