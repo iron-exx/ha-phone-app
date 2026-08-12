@@ -37,7 +37,15 @@ final class NetworkChangeMonitor {
     func start() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard path.status == .satisfied else { return }
-            self?.handler.onPathSatisfied()
+            // PjsuaBridge's handleIpChange() calls straight into pjsua2,
+            // which asserts ("Calling pjlib from unknown/external thread")
+            // on any native thread that never called Endpoint::libCreate()
+            // -- AppDelegate calls that on the main thread, but NWPathMonitor
+            // delivers path updates on `queue` (a private background
+            // DispatchQueue), so hop back to main before notifying.
+            DispatchQueue.main.async {
+                self?.handler.onPathSatisfied()
+            }
         }
         monitor.start(queue: queue)
     }
