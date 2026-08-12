@@ -40,13 +40,18 @@ targets:
         CODE_SIGN_STYLE: Automatic
         HEADER_SEARCH_PATHS: "$(SRCROOT)/third_party/pjproject/pjsip/include $(SRCROOT)/third_party/pjproject/pjlib/include $(SRCROOT)/third_party/pjproject/pjmedia/include $(SRCROOT)/third_party/pjproject/pjnath/include $(SRCROOT)/third_party/pjproject/pjlib-util/include $(SRCROOT)/third_party/pjproject/pjsip-apps/src/pjsua2/include"
         CLANG_CXX_LANGUAGE_STANDARD: "gnu++17"
-        CLANG_ENABLE_MODULES: NO
-        # PjsuaBridge (Obj-C++, wraps PJSUA2's C++ Endpoint/Account/Call) is
-        # invisible to Swift without this -- Swift can only see Objective-C
-        # types via a bridging header or a Clang module, and CLANG_ENABLE_MODULES
-        # is NO above (C++ interop + modules don't mix reliably here). Without
-        # it, SipCallOperations.swift/SipCallController.swift fail with
-        # "cannot find type 'PjsuaBridge' in scope".
+        # Was NO (an unexplained deviation from the official ios-swift-pjsua2
+        # sample -- confirmed via pjsip-apps/src/pjsua2/ios-swift-pjsua2/*.xcodeproj/
+        # project.pbxproj at tag 2.17, which uses YES for the exact same
+        # PJSUA2-Obj-C++-plus-Swift setup). Run #7 showed why it matters here:
+        # with modules disabled, PjsuaBridge never became visible to Swift at
+        # all -- SWIFT_OBJC_BRIDGING_HEADER was correctly set (confirmed via
+        # `xcodegen`'s own parsed YAML) but "-import-objc-header" never
+        # appeared in a single swift-frontend invocation, and all Sip/*.swift
+        # files failed with "cannot find type 'PjsuaBridge' in scope".
+        CLANG_ENABLE_MODULES: YES
+        # Path format matches the official sample exactly (bare path relative
+        # to SRCROOT, no $(SRCROOT)/ prefix needed for this specific setting).
         SWIFT_OBJC_BRIDGING_HEADER: "HAPhoneTestApp/HAPhoneTestApp-Bridging-Header.h"
         # build_pjsip_ios.sh only builds an arm64 Simulator slice (matching
         # this Apple Silicon runner; see that script's comments for why
