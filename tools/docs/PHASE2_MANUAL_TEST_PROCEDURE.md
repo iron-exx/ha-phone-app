@@ -20,7 +20,7 @@ rather than an undefined "test it somehow" instruction.
 | Field | Value |
 |-------|-------|
 | Extension number | `13` |
-| SIP password | `L3FP6wuEIj9jp3sC` |
+| SIP password | see `android-app/local.properties` (`SIP_TEST_PASSWORD`) or `ios-app/Secrets.xcconfig` (`SIP_TEST_PASSWORD`) -- both gitignored, never committed |
 | Host | `192.168.7.10` |
 | Transport | TLS, port 5061 |
 | Media encryption | SDES |
@@ -40,11 +40,19 @@ a safe, dedicated test extension and not an active household line** —
 running test calls against a real household extension risks
 interference with real incoming calls.
 
-These credentials are recorded here in plaintext for developer/tester
-convenience. Per this plan's threat model (T-2-11), this is an
-accepted risk scoped to a local-network-only, non-production dev/test
-extension — same risk tier as Phase 1's dev-only signing key
-documentation, not a production credential.
+**Security correction (code review CR-1):** an earlier revision of this
+document recorded the SIP password in plaintext, and that revision was
+pushed to this repo's public GitHub remote -- this is a real,
+currently-live credential for the real HA-Phone box, not a disposable
+value scoped to this repo's own risk tier. T-2-11's "accepted risk"
+framing conflated a dev-only *public verification key* (safe to embed
+by design, Phase 1 precedent) with a live PBX *account password* (never
+safe to commit, public repo or not). **The password must be rotated on
+the real box before this procedure is run again** -- it should be
+treated as compromised the moment it was pushed, regardless of whether
+this document itself gets corrected. Once rotated, update the gitignored
+build-config files referenced above with the new value; do not put the
+new password back into this file or any other tracked file.
 
 ## CALL-01: Codec + Audio Routing Test Matrix (D-07)
 
