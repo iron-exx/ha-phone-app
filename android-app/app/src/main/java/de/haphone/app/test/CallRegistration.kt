@@ -32,6 +32,18 @@ class CallRegistration(private val context: Context, private val sipCallControll
     private val callsManager = CallsManager(context)
     private val scope = CoroutineScope(Dispatchers.Default)
 
+    // Code review WR-1 fix: Endpoint.libCreate()/libInit()/libStart() run on
+    // the main thread (HAPhoneTestApplication.onCreate()) -- PJSIP aborts
+    // with a native assertion ("Calling pjlib from unknown/external
+    // thread") if any other, unregistered thread calls into it. Whether
+    // androidx.core.telecom's addCall callbacks (onAnswer/onDisconnect) and
+    // its trailing onRegistered block run on the calling coroutine's
+    // dispatcher or on Telecom's own binder thread is not documented by the
+    // library, so every call that reaches sipCallController/sipOps is
+    // routed through this main-dispatcher scope explicitly rather than
+    // relying on that undocumented behavior.
+    private val mainScope = CoroutineScope(Dispatchers.Main)
+
     fun registerApp() {
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
     }
@@ -85,9 +97,9 @@ class CallRegistration(private val context: Context, private val sipCallControll
                     // could actually be answered. Mirrors iOS's
                     // already-correct CXAnswerCallAction gating in
                     // CallProvider.swift.
-                    liveScope?.let { sipCallController.answer(it) }
+                    liveScope?.let { s -> mainScope.launch { sipCallController.answer(s) } }
                 },
-                { _: DisconnectCause -> sipCallController.hangup() },
+                { _: DisconnectCause -> mainScope.launch { sipCallController.hangup() } },
                 { /* onSetActive */ },
                 { /* onSetInactive */ },
             ) {
@@ -100,7 +112,8 @@ class CallRegistration(private val context: Context, private val sipCallControll
                 // user actually answers.
                 liveScope = this
                 (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
-                onRegistered()
+                val receiverScope = this
+                mainScope.launch { receiverScope.onRegistered() }
             }
         }
     }
@@ -133,12 +146,13 @@ class CallRegistration(private val context: Context, private val sipCallControll
                      call already drives media setup via makeCall's own
                      INVITE transaction, not a Telecom-side callback. */
                 },
-                { _: DisconnectCause -> sipCallController.hangup() },
+                { _: DisconnectCause -> mainScope.launch { sipCallController.hangup() } },
                 { /* onSetActive */ },
                 { /* onSetInactive */ },
             ) {
                 (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
-                onRegistered()
+                val receiverScope = this
+                mainScope.launch { receiverScope.onRegistered() }
             }
         }
     }
