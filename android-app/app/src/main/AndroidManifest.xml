@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:name=".HAPhoneTestApplication"
@@ -33,6 +34,8 @@
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
+
+        <activity android:name=".SettingsActivity" android:exported="false" />
 
         <service android:name=".TestFcmService" android:exported="false">
             <intent-filter>

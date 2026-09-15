@@ -3,9 +3,13 @@ package de.haphone.app.test
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
+import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.telecom.CallControlScope
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import de.haphone.app.test.sip.NetworkChangeHandler
 import de.haphone.app.test.sip.PjsuaEndpointHolder
 import de.haphone.app.test.sip.SipCallController
@@ -30,31 +34,16 @@ class HAPhoneTestApplication : Application() {
     var currentCallControlScope: CallControlScope? = null
 
     /**
-     * Real HA-Phone test-extension host/port/username/password (Plan 01's
-     * checkpoint output) compiled into the app config via BuildConfig fields
-     * sourced from the already-gitignored android-app/local.properties (see
-     * app/build.gradle.kts) -- deliberately NOT literal Kotlin string
-     * constants here. This repo has a public GitHub remote; a real LAN PBX
-     * password committed to git history is effectively permanent exposure
-     * even after later rotation (kotlin/security.md: "Never hardcode API
-     * keys, tokens, or credentials in source code... use local.properties
-     * for local development secrets"). BuildConfig.SIP_TEST_* are still
-     * "compiled into the app config" at build time, satisfying this plan's
-     * functional requirement without a plaintext secret in tracked source.
-     *
-     * NOTE (pending-deploy caveat, see 02-04-SUMMARY.md): Plan 01 Task 3's
-     * human-action checkpoint (restarting the real HA-Phone box to activate
-     * the [transport-tls] Asterisk transport) has not been confirmed live
-     * yet -- these are confirmed-valid extension credentials, but a real
-     * end-to-end call has not been verified against the live box (deferred
-     * to Plan 08's manual test procedure).
+     * SIP-Call-Controller: verwendet gespeicherte Credentials aus EncryptedSharedPreferences,
+     * fällt auf BuildConfig zurück (für Test/Dev ohne Provisioning).
      */
     val sipCallController: SipCallController by lazy {
-        val sipDomain = "${BuildConfig.SIP_TEST_HOST}:${BuildConfig.SIP_TEST_PORT}"
+        val (host, port, username, password) = getSipCredentials(this)
+        val sipDomain = "$host:$port"
         SipCallController(
             sipOps = pjsuaEndpointHolder.asSipCallOperations(
-                username = BuildConfig.SIP_TEST_USERNAME,
-                password = BuildConfig.SIP_TEST_PASSWORD,
+                username = username,
+                password = password,
                 domain = sipDomain,
             ),
             sipDomain = sipDomain,
@@ -69,7 +58,6 @@ class HAPhoneTestApplication : Application() {
             NotificationManager.IMPORTANCE_HIGH,
         )
         NotificationManagerCompat.from(this).createNotificationChannel(channel)
-        pjsuaEndpointHolder.start()
 
         // D-09: mid-call network-switch resilience (RESEARCH.md Pattern 3) --
         // observe platform network changes for the app process lifetime and
@@ -82,5 +70,25 @@ class HAPhoneTestApplication : Application() {
         }
         connectivityManager?.registerDefaultNetworkCallback(callback)
         networkCallback = callback
+    }
+
+    private fun getSipCredentials(context: Context): List<String> {
+        val prefs = getEncryptedPrefs(context)
+        val host = prefs.getString("sip_host", "") ?: BuildConfig.SIP_TEST_HOST
+        val port = prefs.getString("sip_port", "") ?: BuildConfig.SIP_TEST_PORT
+        val username = prefs.getString("sip_username", "") ?: BuildConfig.SIP_TEST_USERNAME
+        val password = prefs.getString("sip_password", "") ?: BuildConfig.SIP_TEST_PASSWORD
+        return listOf(host, port, username, password)
+    }
+
+    private fun getEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+        return EncryptedSharedPreferences.create(
+            "haphone_prefs",
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
 }

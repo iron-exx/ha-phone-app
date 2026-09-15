@@ -11,21 +11,25 @@ object CallNotificationBuilder {
     const val CHANNEL_ID = "haphone_test_calls"
     private const val NOTIFICATION_ID = 1001
 
-    fun show(context: Context, callId: String, isValid: Boolean, isExpired: Boolean) {
-        val caller = Person.Builder().setName("HA-Phone Testanruf").setImportant(true).build()
+    fun show(context: Context, callId: String, callType: String, isValid: Boolean, isExpired: Boolean) {
+        val callerName = when (callType) {
+            "video", "door" -> "HA-Phone Türstation"
+            else -> "HA-Phone Testanruf"
+        }
+        val caller = Person.Builder().setName(callerName).setImportant(true).build()
         val fullScreenIntent = PendingIntent.getActivity(
             context, 0,
-            Intent(context, IncomingCallActivity::class.java).putExtra("callId", callId),
+            Intent(context, IncomingCallActivity::class.java).putExtra("callId", callId).putExtra("callType", callType),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val answerIntent = PendingIntent.getActivity(
             context, 1,
-            Intent(context, IncomingCallActivity::class.java).putExtra("callId", callId),
+            Intent(context, IncomingCallActivity::class.java).putExtra("callId", callId).putExtra("callType", callType),
             PendingIntent.FLAG_IMMUTABLE
         )
         val declineIntent = PendingIntent.getActivity(
             context, 2,
-            Intent(context, IncomingCallActivity::class.java).putExtra("callId", callId),
+            Intent(context, IncomingCallActivity::class.java).putExtra("callId", callId).putExtra("callType", callType),
             PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -44,7 +48,7 @@ object CallNotificationBuilder {
         // notify() call always runs, unconditionally, regardless of what isValid or
         // isExpired evaluate to -- there is no branch anywhere above that returns
         // early or otherwise avoids calling notify() based on their values.
-        android.util.Log.i("HAPhoneTest", "notification shown callId=$callId isValid=$isValid isExpired=$isExpired")
+        android.util.Log.i("HAPhoneTest", "notification shown callId=$callId callType=$callType isValid=$isValid isExpired=$isExpired")
         notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
 

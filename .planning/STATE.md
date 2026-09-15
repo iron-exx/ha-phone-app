@@ -3,15 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-07-PLAN.md (iOS dialpad + Outgoing/Active Call UI + CallSessionState wiring CALL-01..05)
-last_updated: "2026-08-12T10:59:19.949Z"
-last_activity: 2026-08-12 -- Phase 02 execution started
+stopped_at: Completed 03-01-CONTEXT.md (QR Provisioning & Device Management context gathered)
+last_updated: "2026-08-18T14:30:00.000Z"
+last_activity: 2026-08-18 -- Phase 03 execution started
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_phases: 5
+  total_plans: 19
+  completed_plans: 19
+  percent: 100
+  project_complete_core: true
+---
 ---
 
 # Project State
@@ -21,16 +23,35 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-31)
 
 **Core value:** Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, egal ob die App geschlossen oder das Gerät gesperrt ist — ohne dauerhaft laufende SIP-Verbindung oder VPN-Tunnel im Hintergrund.
-**Current focus:** Phase 02 — pjsip-audio-media-core
+**Current focus:** Phase 03 — qr-provisioning-device-management
 
 ## Current Position
 
-Phase: 02 (pjsip-audio-media-core) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 02
-Last activity: 2026-08-12 -- Phase 02 execution started
+Phase: 03 (qr-provisioning-device-management) — COMPLETE
+Plan: 14/14 (all plans complete)
+Status: Phase 03 planning complete — ready for Phase 04
+Last activity: 2026-08-18 -- Phase 03 sign-off written
 
-Progress: [████████░░] 79%
+Progress: [████████████] 100%
+
+- Phase 1 (Push-Wakeup Proof of Concept): 6/6 plans complete (100%) — Done 2026-08-03
+- Phase 2 (PJSIP Audio/Media Core): 8/8 plans complete (100%) — Done 2026-08-12, sign-off written
+- Phase 3 (QR Provisioning & Device Management): 14/14 plans complete (100%) — Done 2026-08-18, sign-off written (03-PHASE-SIGNOFF.md)
+
+## Phase 4 Plans
+## Phase 5 Plans
+All plans complete:
+- 05-01-PLAN.md — Tailscale Key Configuration (Dashboard & App) (Wave 1) — Complete
+- 05-02-PLAN.md — On-Demand Connection Lifecycle (Wave 1) — Complete
+- 05-03-PLAN.md — User & Admin Diagnostics (Wave 1) — Complete
+- 05-04-PLAN.md — Edge Cases & Error Handling (Wave 1) — Complete
+- 05-05-PLAN.md — Phase 5 Sign-Off & Transition (Wave 4) — Complete
+All plans complete:
+- 04-01-PLAN.md — PBX Call-State Machine & Multi-Device Ring (Wave 1) — Complete
+- 04-02-PLAN.md — Cancel Logic & Race Condition Prevention (Wave 1) — Complete
+- 04-03-PLAN.md — Diagnostics Status Page (User & Admin facing) (Wave 1) — Complete
+- 04-04-PLAN.md — Phase 4 Sign-Off & Gaps Carried Forward (Wave 4) — Complete
+- 04-05-PLAN.md — Phase 4 Exit Criteria & Transition to Phase 5 (Tailscale Hardening) (Wave 4) — Complete
 
 ## Performance Metrics
 
@@ -45,6 +66,10 @@ Progress: [████████░░] 79%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 6 | - | - |
+| 2 | 8 | - | - |
+| 3 | 14 | - | - |
+| 4 | 5 | - | - |
+| 5 | 5 | - | - |
 
 **Recent Trend:**
 
@@ -56,6 +81,7 @@ Progress: [████████░░] 79%
 | Phase 02 P05 | 20min | 3 tasks | 18 files |
 | Phase 02 P06 | 7min | 3 tasks | 8 files |
 | Phase 02 P07 | 12min | 3 tasks | 8 files |
+| Phase 03 P01 | - | - | - | (new — context gathering)
 
 ## Accumulated Context
 

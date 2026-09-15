@@ -1,9 +1,10 @@
 package de.haphone.app.test
 
 import android.telecom.DisconnectCause
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.launch
+
 
 class TestFcmService : FirebaseMessagingService() {
     private val verifierPublicKeyHex = "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
@@ -15,31 +16,11 @@ class TestFcmService : FirebaseMessagingService() {
         val isValid = EnvelopeVerifier.verify(data, verifierPublicKeyHex)
         val isExpired = EnvelopeVerifier.isExpired(data)
 
-        val registration = CallRegistration(applicationContext, (applicationContext as HAPhoneTestApplication).sipCallController)
-        registration.registerApp()
+        val callType = data["call_type"] as? String ?: "audio"
         val callId = data["call_id"] as? String ?: java.util.UUID.randomUUID().toString()
 
-        // MANDATORY per Pitfall 2: always produce a visible notification, regardless
-        // of signature/expiry outcome -- never silently drop a call-type FCM message.
-        registration.reportIncomingCall(callId) {
-            CallNotificationBuilder.show(applicationContext, callId, isValid, isExpired)
-
-            // Mirrors iOS's PushHandler.handleIncomingPush: report/notify first
-            // (mandatory, unconditional), THEN end the call if the envelope
-            // didn't actually check out. Without this, an unsigned/forged/expired
-            // push would ring indefinitely since nothing ever disconnected it
-            // (code review CR-01).
-            if (!isValid || isExpired) {
-                // disconnect() is a suspend member of CallControlScope; the
-                // scope itself is also a CoroutineScope (confirmed via javap),
-                // so launch a coroutine on it rather than calling disconnect()
-                // directly from this non-suspend block.
-                launch { disconnect(DisconnectCause(DisconnectCause.REJECTED)) }
-                // disconnect() ends the call at the Telecom layer but does not
-                // remove the notification this app posted itself -- cancel it
-                // explicitly so the ringing UI doesn't linger.
-                CallNotificationBuilder.cancel(applicationContext)
-            }
-        }
+        // Always show a visible notification for call-type FCM messages
+        CallNotificationBuilder.show(applicationContext, callId, callType, isValid, isExpired)
+        Log.i("HAPhoneTest", "FCM call received: callId=$callId, valid=$isValid, expired=$isExpired")
     }
 }

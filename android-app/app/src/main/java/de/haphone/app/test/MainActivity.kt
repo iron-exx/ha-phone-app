@@ -1,33 +1,52 @@
 package de.haphone.app.test
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : ComponentActivity() {
+
     private val fcmTokenState = mutableStateOf("Fetching FCM token...")
+    private var isProvisioned = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Fetch the FCM registration token on launch. Displayed (selectable) below so the
-        // developer can copy it directly for `tools/push_trigger.py --device-token <token>`
-        // without needing to dig through `adb logcat`; the log line is kept as a fallback.
+        checkProvisionedStatus()
+
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val token = task.result
@@ -41,22 +60,240 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val fcmToken by fcmTokenState
+            val provisioned = isProvisioned
             MaterialTheme {
                 Surface {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("HA-Phone Test")
-                        SelectionContainer {
-                            Text(fcmToken)
+                    MainScreen(
+                        fcmToken = fcmToken,
+                        isProvisioned = provisioned,
+                        onScanQr = { /* TODO: QR Scanner */ },
+                        onDial = { startActivity(Intent(this@MainActivity, OutgoingCallActivity::class.java)) },
+                        onSettings = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) }
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkProvisionedStatus()
+    }
+
+    private fun checkProvisionedStatus() {
+        isProvisioned = hasValidCredentials(this)
+    }
+
+    private fun hasValidCredentials(context: Context): Boolean {
+        val prefs = getEncryptedPrefs(context)
+        return prefs.getString("sip_host", "")?.isNotBlank() == true &&
+               prefs.getString("sip_port", "")?.isNotBlank() == true &&
+               prefs.getString("sip_username", "")?.isNotBlank() == true &&
+               prefs.getString("sip_password", "")?.isNotBlank() == true
+    }
+
+    private fun getEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+        return EncryptedSharedPreferences.create(
+            "haphone_prefs",
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    @Composable
+    private fun MainScreen(
+        fcmToken: String,
+        isProvisioned: Boolean,
+        onScanQr: () -> Unit,
+        onDial: () -> Unit,
+        onSettings: () -> Unit
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("HA-Phone", style = MaterialTheme.typography.headlineMedium)
+                Button(onClick = onSettings) {
+                    Text("⚙️")
+                }
+            }
+
+            if (!isProvisioned) {
+                // Onboarding Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Ersteinrichtung", style = MaterialTheme.typography.titleMedium)
+                            Text("ℹ️")
                         }
-                        Button(onClick = { startActivity(Intent(this@MainActivity, OutgoingCallActivity::class.java)) }) {
-                            Text("Dial")
+                        Spacer(modifier = Modifier.padding(top = 8.dp))
+                        Text(
+                            "HA-Phone ist noch nicht eingerichtet. Wählen Sie eine Option:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.padding(top = 12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(onClick = onScanQr, modifier = Modifier.weight(1f)) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("🔍")
+                                    Spacer(modifier = Modifier.padding(top = 4.dp))
+                                    Text("QR-Code scannen")
+                                }
+                            }
+                            Button(onClick = { /* TODO: Settings */ }, modifier = Modifier.weight(1f)) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("⚙️")
+                                    Spacer(modifier = Modifier.padding(top = 4.dp))
+                                    Text("Manuell eingeben")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Info Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Was ist der FCM-Token?", style = MaterialTheme.typography.labelLarge)
+                        Spacer(modifier = Modifier.padding(top = 8.dp))
+                        Text(
+                            "Dies ist Ihre eindeutige Push-Adresse. Die HA-Phone-Box nutzt sie, " +
+                            "um Ihr Gerät bei eingehenden Anrufen aufzuwecken (über Firebase).\n\n" +
+                            "• Kopieren Sie den Token für Tests mit: tools/push_trigger.py\n" +
+                            "• Bei QR-Setup wird er automatisch an die Box gesendet\n" +
+                            "• Er ändert sich selten, aber kann neu generiert werden",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Status Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isProvisioned)
+                        MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceContainerHighest
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (isProvisioned) "✅ HA-Phone bereit" else "⚠️ Nicht eingerichtet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isProvisioned)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (isProvisioned) {
+                            Text("✅")
                         }
                     }
                 }
             }
+
+            // FCM Token Card
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("FCM Push-Token", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("📋")
+                    }
+                    SelectionContainer {
+                        Text(
+                            fcmToken,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 3,
+                            
+                        )
+                    }
+                }
+            }
+
+            // Actions
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (!isProvisioned) {
+                    Button(onClick = onScanQr, modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text("🔍")
+                            Spacer(modifier = Modifier.padding(end = 8.dp))
+                            Text("QR-Code scannen & einrichten")
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = onDial,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = isProvisioned,
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = if (isProvisioned)
+                            MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                ) {
+                    Text("Anrufen (Dialpad)", style = MaterialTheme.typography.titleMedium)
+                }
+
+                Button(onClick = onSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text("Einstellungen", style = MaterialTheme.typography.titleMedium)
+                }
+            }
+
+            // Footer
+            Spacer(modifier = Modifier.padding(top = 24.dp))
+            Text(
+                "HA-Phone Test v0.1 • BuildConfig: ${BuildConfig.SIP_TEST_HOST}:${BuildConfig.SIP_TEST_PORT}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
