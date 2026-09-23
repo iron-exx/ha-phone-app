@@ -89,31 +89,36 @@ Anlage: Backend-Tests `ssh CCsrv-ahrens "cd /home/roto/projects/Ha-Phone/ha-phon
 
 Auf der HA-Box ist laut Nutzer 0.7.101 oder neuer installiert (TLS funktioniert). Ob 0.7.102 schon drauf ist: offen.
 
-## 5. Stand 2026-09-23 abends: Phase 1 Rest + Phase 2 gebaut, nicht auf dem Gerät getestet
+## 5. Stand 2026-09-23 spät (autonom weitergebaut, Nutzer will: "zieh es durch, keine Fragen")
 
-App 0.2.0 (APK gebaut, `flutter analyze` sauber, 61 Dart-Tests + 30 Kotlin-Tests grün):
-- **Neue Oberfläche im Linkus-Stil**: Einrichtungsbildschirm (QR), dann fünf Reiter Kontakte · Anrufe · Tastatur · Voicemail · Ich. Hell/dunkel nach System, Akzent HA-Blau `#0284C7`. Code: `lib/screens/app_shell.dart`, `*_tab.dart`, `lib/theme/`.
-- **Geräte-Token** wird jetzt gespeichert (`saveDeviceAuth`, EncryptedSharedPreferences `api_host`/`device_id`/`device_token`). **Einmal neu koppeln**, sonst meldet der Kontakte-Reiter "Gerät neu koppeln".
-- **Kontakte** aus `/api/mobile/directory` (Cache + Favoriten per `shared_preferences`), Präsenz-Punkt, Tür-Symbol.
-- **Anrufliste** wird nativ geführt (`calls/CallHistoryStore.kt`, max. 200), auch wenn die Flutter-Oberfläche nicht läuft. Verpasst-Filter, Wischen = löschen, Badge.
-- **Gesprächsbildschirm** 3×2: Stumm, Tastatur, Lautsprecher, Halten, Weiterleiten, *Tür öffnen* (bei Türstationen) bzw. Konferenz (deaktiviert). Dauer, TLS-Hinweis, Video im Gespräch über Platform-View `de.haphone.app.test/remote_video` (TextureView → `VideoSurfaceBinder`).
-- **Tür öffnen**: Code kommt aus der Anlage (Feld pro Nebenstelle), Dart schreibt die Codes nach jedem Verzeichnis-Abruf per `setDoorCodes` nativ weg. Klingelbildschirm (nativ, Compose) hat die Taste "Tür öffnen": nimmt an und sendet den Code 800 ms nach CONFIRMED (`pendingDtmf`). Im Gespräch: `openDoor`.
-- **Audio-Umschaltung** über `CallControlScope.availableEndpoints/currentCallEndpoint/requestEndpointChange` (`calls/AudioRouting.kt`).
-- **Voicemail-Reiter**: vorerst nur "Mailbox anrufen" = `*97`.
+**Arbeitsweise jetzt:** Handy weg → **Emulator** `haphone_test_api35` auf CCsrv (siehe unten), gekoppelt auf **Nebenstelle 12**. Kopplungs-Links und Add-on-Updates holt Claude selbst: Zugangsdaten in `no-git/credentials.json` (HA + HA-Phone-Admin). Hilfsskripte im Scratchpad: `ha.py` (HA-Login), `hasup.py` (Supervisor über HA-Websocket), `deploy_pbx.py` (wartet auf CI-Image der Anlage, dann Update). Die Anlage baut **nicht** auf der Box: GitHub Actions baut `ghcr.io/iron-exx/ha-phone/{arch}:{version}`, die Box zieht das Image (amd64 ~10 min nach Push).
+**APK für den Emulator mit `flutter build apk --debug` bauen** (`build/app/outputs/flutter-apk/`), nicht mit `./gradlew assembleDebug`: Die Gradle-APK startet im Emulator nicht ("Could not prepare isolate").
 
-Anlage (gepusht auf `main`):
-| Commit | Version | Inhalt |
-|---|---|---|
-| 1014125 | 0.7.103 | Feld "Tür-Öffnen-Code (DTMF)" pro Nebenstelle (Admin → Nebenstelle bearbeiten), Directory liefert `self`, `video`, `door_open_code`, `presence` |
-| 21530e1 | 0.7.104 | `*97` = eigene Mailbox ohne PIN (Box über `${CHANNEL(endpoint)}`, nicht über fälschbare Caller-ID) |
+App (aktuell 0.3.0+, alles gepusht, ~110 Dart- + 39 Kotlin-Tests grün):
+- Phase 1–2 (siehe Commits): Linkus-Oberfläche, Kopplung per QR **und Link** (`haphone://provision?...`), Tür öffnen, Audio-Umschaltung, Video im Gespräch, native Anrufliste.
+- Phase 3: Status setzen (Ich), Live-Leitungsstatus in Kontakten, visuelle Voicemail (just_audio), Badges.
+- Phase 4: **zwei Leitungen** (`calls/CallSession.kt` rein & getestet, `CallCoordinator.kt`), Anklopfen (Benachrichtigung + Karte), Rückfrage, Makeln, Weiterleiten mit Rückfrage (REFER/Replaces, `onCallTransferStatus` beendet eigenes Bein), 3er-Konferenz (PJSUA-Audiobrücke), Hinzufügen, Wahlwiederholung. `lockCodecEnabled=false` (kein UPDATE nach Annahme).
+- Phase 5 (Dart, Agent lief): Weiterleitungen-Editor, Anrufliste mit CDR der Anlage abgeglichen, Diagnose-Seite.
+- **Noch offen App:** Tür-HA-Aktionen in App (Endpunkt fertig, s.u.), Emulator-Test Zwei-Leitungen mit `*43`, Push-Wecken (Phase 8), iOS (Phase 7).
 
-## 5a. Nächste Schritte (in dieser Reihenfolge)
+Anlage (gepusht, auf der Box **0.7.110**, 0.7.111 wird eingespielt):
+| Version | Inhalt |
+|---|---|
+| 0.7.103/104 | Tür-Öffnen-Code, Directory, `*97` Mailbox |
+| 0.7.105–108 | Ansagen: `menuselect --disable-all` hatte **alle** Sounds abgeschaltet (Mailbox legte sofort auf). Jetzt EN-WAV + **deutsche Ansagen** (joni1802/asterisk-sound-generator v0.2.3, A-law+G.722, `language=de`). `format_g722` gibt es nicht (format_pcm) |
+| 0.7.107 | `/api/mobile/presence` GET/PUT, `/api/mobile/voicemail` (+audio, DELETE) |
+| 0.7.109 | `*43` Echo-Test |
+| 0.7.110 | `/api/mobile/forwarding` GET/PUT, `/api/mobile/calls` (CDR `/data/logs/asterisk/cdr-csv/Master.csv`); **Fix Voicemail-Pfad**: `/data/voicemail/voicemail/default/<n>` (astspooldir), Admin zeigte nie Nachrichten |
+| 0.7.111 | Tür-**Home-Assistant-Aktionen** (Extension.door_actions, Admin-Editor, Directory liefert nur Labels, `POST /api/mobile/door-action {extension,index}` → HA-Service via Supervisor), `homeassistant_api`+`hassio_api`; Tür-Code-Validierung beim PATCH (sqlmodel `regex=` wird NICHT geprüft → `field_validator`) |
 
-1. **Auf dem Handy testen** (Nutzer): Add-on auf 0.7.104 aktualisieren, bei der Türklingel (16) Video an + Tür-Öffnen-Code eintragen, bei der 13 Video an, App 0.2.0 installieren, **neu koppeln**. Dann: Kontakte laden, Anruf aus Kontakten/Anrufliste, Lautsprecher/Bluetooth, Akuvox klingelt → Vorschau → "Tür öffnen".
-2. Akuvox R20K auf Parallelruf umstellen (siehe unten, Push Button `13;11`) und Vorschau auf App + Fanvil gleichzeitig prüfen.
-3. 24-h-Dauertest (13 bleibt online bei ausgeschaltetem Display).
-4. **Phase 3**: Präsenz setzen (`GET/PUT /api/mobile/presence`), Live-Status "telefoniert" (AMI), visuelle Voicemail (`/api/mobile/voicemail`), Badges.
-5. Danach Phasen 4–8 laut Schlachtplan.
+CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 16:57 beendet. CCsrv jetzt 32 GB.
+
+## 5a. Nächste Schritte
+
+1. Tür-HA-Aktionen in der App (nativer Klingelbildschirm + Gesprächsbildschirm), Directory `door_actions` → nativ speichern.
+2. Emulator: Zwei-Leitungen-Test mit `*43` (Echo, nimmt an) + zweitem Ruf; Präsenz/Voicemail/Anrufliste gegen 0.7.110+ prüfen.
+3. Design-Feinschliff, App-Symbol, Startbildschirm; Handy-Adressbuch (Phase 5 optional).
+4. Phase 8: Push-Wecken über FCM (Anlage sendet bei Anruf), Tailscale.
 
 Türstation / Klingelgruppe:
 - **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
