@@ -34,3 +34,4 @@ ios-app/Secrets.xcconfig
 # graphify knowledge-graph cache (project CLAUDE.md post-edit rebuild step) --
 # generated, large (includes vendored third_party source node counts), never committed
 graphify-out/
+*.hprof

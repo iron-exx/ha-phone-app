@@ -1,0 +1,36 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/doc/api/
+
+# Android
+android/local.properties
+android/.gradle/
+android/gradle/wrapper/gradle-wrapper.jar.bak
+android/app/build/
+android/*.iml
+android/.idea/
+android/app/google-services.json
+android/app/sip-secrets.local.properties
+
+# sip-core payload: PJSUA2 SWIG-generated Java bindings + prebuilt .so libs
+# are large, machine-built artifacts, not source -- physically copied in
+# from android-app/sip-core (see settings.gradle.kts comment), gitignored
+# there too. Only build.gradle.kts is tracked.
+android/sip-core/src/main/java/org/
+android/sip-core/src/main/jniLibs/
+android/sip-core/build/
+
+# iOS (Phase 2, not created yet)
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+*.iml
+.idea/

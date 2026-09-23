@@ -1,0 +1,27 @@
+name: ha_phone_test
+description: >
+  HA-Phone companion softphone. Flutter UI/business-logic layer over the
+  native PJSIP/Telecom/CallKit call-handling code (see android/app/.../sip/
+  and, for iOS, a future platform-channel port of ios-app's Swift PJSIP/
+  CallKit layer -- not yet built, see the Phase 1 plan).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  mobile_scanner: ^5.2.3
+  http: ^1.2.2
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
