@@ -3,7 +3,6 @@ package de.haphone.app.test
 import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 /**
@@ -23,19 +22,9 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        val app = application as HAPhoneTestApplication
-        val handler = SipChannelHandler(app)
-
-        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SIP_METHOD_CHANNEL)
-        channel.setMethodCallHandler(handler)
-        methodChannel = channel
-
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, SIP_EVENT_CHANNEL)
-            .setStreamHandler(handler)
-
-        flutterEngine.platformViewsController.registry
-            .registerViewFactory(RemoteVideoViewFactory.VIEW_TYPE, RemoteVideoViewFactory())
-
+        // The sip_calls/call_events handlers are registered with the engine in
+        // HAPhoneTestApplication.onCreate (before Dart starts), not here.
+        methodChannel = (application as HAPhoneTestApplication).sipMethodChannel
         deliverRouteIfAny(intent)
     }
 

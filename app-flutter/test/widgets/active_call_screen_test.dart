@@ -51,7 +51,8 @@ void main() {
 
     expect(find.text('türklingel'), findsOneWidget);
     expect(find.text('16 · Türstation'), findsOneWidget);
-    expect(find.text('02:37'), findsOneWidget);
+    // Wall clock: the timer may already show the next second.
+    expect(find.textContaining(RegExp(r'^02:3[78]$')), findsOneWidget);
     expect(find.text('TLS'), findsOneWidget);
     expect(find.text('Konferenz'), findsNothing);
 

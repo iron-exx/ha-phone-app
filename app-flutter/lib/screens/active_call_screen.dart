@@ -125,12 +125,15 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   }
 
   Future<void> _endCall() async {
+    final hadSecondLine = _call?.other != null;
     try {
       await SipChannel.instance.hangup();
     } catch (e) {
       debugPrint('hangup failed: $e');
     }
-    _leave();
+    // With two lines the other call stays up: stay here, the native "lineEnded"
+    // event refreshes the screen. The last call's "disconnected" event leaves.
+    if (!hadSecondLine) _leave();
   }
 
   Future<void> _openDoor() async {

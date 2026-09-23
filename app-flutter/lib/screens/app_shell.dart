@@ -1,3 +1,4 @@
+import '../widgets/ongoing_call_banner.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -75,14 +76,21 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
+      body: Column(
         children: [
-          const ContactsTab(),
-          CallsTab(isActive: _index == _callsTab),
-          const KeypadTab(),
-          VoicemailTab(isActive: _index == _voicemailTab),
-          MeTab(onSetupChanged: widget.onSetupChanged, onUnpaired: widget.onUnpaired),
+          const OngoingCallBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: _index,
+              children: [
+                const ContactsTab(),
+                CallsTab(isActive: _index == _callsTab),
+                const KeypadTab(),
+                VoicemailTab(isActive: _index == _voicemailTab),
+                MeTab(onSetupChanged: widget.onSetupChanged, onUnpaired: widget.onUnpaired),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: ListenableBuilder(

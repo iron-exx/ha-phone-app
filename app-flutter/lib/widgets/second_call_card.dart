@@ -26,7 +26,11 @@ class SecondCallCard extends StatelessWidget {
   final VoidCallback onTransfer;
   final VoidCallback onMerge;
 
-  String get _name => other.name.isNotEmpty ? other.name : DirectoryRepository.instance.nameFor(other.number);
+  String get _name {
+    if (other.name.isNotEmpty) return other.name;
+    final fromDirectory = DirectoryRepository.instance.nameFor(other.number);
+    return fromDirectory.isNotEmpty ? fromDirectory : other.number;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,14 +95,43 @@ class SecondCallCard extends StatelessWidget {
               )
             else if (!conference)
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  TextButton.icon(key: const Key('swap'), onPressed: onSwap, icon: const Icon(Icons.swap_calls), label: const Text('Makeln')),
-                  TextButton.icon(key: const Key('connect'), onPressed: onTransfer, icon: const Icon(Icons.call_split), label: const Text('Verbinden')),
-                  TextButton.icon(key: const Key('merge'), onPressed: onMerge, icon: const Icon(Icons.call_merge), label: const Text('Konferenz')),
+                  _LineAction(key: const Key('swap'), icon: Icons.swap_calls, label: 'Makeln', onPressed: onSwap),
+                  _LineAction(key: const Key('connect'), icon: Icons.call_split, label: 'Verbinden', onPressed: onTransfer),
+                  _LineAction(key: const Key('merge'), icon: Icons.call_merge, label: 'Konferenz', onPressed: onMerge),
                 ],
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Icon above label so three actions fit side by side even on narrow phones.
+class _LineAction extends StatelessWidget {
+  const _LineAction({super.key, required this.icon, required this.label, required this.onPressed});
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600), maxLines: 1),
+            ],
+          ),
         ),
       ),
     );

@@ -202,6 +202,10 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 cfg.idUri = "sip:$username@$domain"
                 // Without ;transport=tls PJSIP resolves the registrar to UDP, for which no transport exists.
                 cfg.regConfig.registrarUri = "sip:$domain;transport=tls"
+                // After a PBX restart / add-on update, come back within seconds, not after the
+                // default 5 minutes (first retry fast, then every 30 s).
+                cfg.regConfig.firstRetryIntervalSec = 5
+                cfg.regConfig.retryIntervalSec = 30
                 val cred = org.pjsip.pjsua2.AuthCredInfo("digest", "*", username, 0, password)
                 cfg.sipConfig.authCreds.add(cred)
                 // DEV-ONLY (RESEARCH.md Pitfall 5): self-signed cert for the

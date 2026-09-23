@@ -77,6 +77,10 @@ class HAPhoneTestApplication : Application() {
     }
 
     /** Up to two calls (on screen + held/waiting), history and UI events. Main thread only. */
+    /** Native -> Dart calls (navigateTo); set up with the engine in onCreate. */
+    var sipMethodChannel: io.flutter.plugin.common.MethodChannel? = null
+        private set
+
     val calls by lazy { de.haphone.app.test.calls.CallCoordinator(callHistory, doorCodes, doorActions::labelsFor) }
 
     /** The call on screen, null when idle. */
@@ -224,6 +228,16 @@ class HAPhoneTestApplication : Application() {
         networkCallback = callback
 
         val flutterEngine = FlutterEngine(this)
+        // Channels are registered HERE, before Dart starts: registering them only in
+        // MainActivity.configureFlutterEngine raced Dart's first calls on a cold start,
+        // and a lost EventChannel listen meant the call screen never got a single event.
+        val handler = SipChannelHandler(this)
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+        sipMethodChannel = io.flutter.plugin.common.MethodChannel(messenger, MainActivity.SIP_METHOD_CHANNEL)
+            .also { it.setMethodCallHandler(handler) }
+        io.flutter.plugin.common.EventChannel(messenger, MainActivity.SIP_EVENT_CHANNEL).setStreamHandler(handler)
+        flutterEngine.platformViewsController.registry
+            .registerViewFactory(RemoteVideoViewFactory.VIEW_TYPE, RemoteVideoViewFactory())
         flutterEngine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
         FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_ID, flutterEngine)
     }
