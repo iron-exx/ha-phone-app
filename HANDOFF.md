@@ -110,7 +110,8 @@ Außerdem offen:
 
 ## 6. Git-Stand ha-phone-app
 
-- Die App hat ihr eigenes Repo **`iron-exx/ha-phone-app`** (dieser Ordner). Die Anlage liegt getrennt in `Ha-Phone` → `iron-exx/HA-Phone`.
+- Die App hat ihr eigenes Repo **`iron-exx/ha-phone-app`** (dieser Ordner).
+- Pushen (Claude darf das selbst, Token liegt in `no-git/token.txt`, nicht versioniert): `git push "https://$(tr -d '[:space:]' < no-git/token.txt)@github.com/iron-exx/ha-phone-app.git" main`. Den Token nie in `.git/config` oder eine Datei im Repo schreiben. Die Anlage liegt getrennt in `Ha-Phone` → `iron-exx/HA-Phone`.
 - Seit 2026-09-23 ist alles committet: `app-flutter/`, Build-Skript, Referenz-Apps, `HANDOFF.md`, `docs/`, `.planning/`. `*.hprof` steht in `.gitignore`.
 - Die selbst gebauten Libraries (OpenSSL, `libpjsua2.so`, SWIG-Java) liegen nur auf CCsrv (gitignored). Sie lassen sich per Skript reproduzieren.
 
