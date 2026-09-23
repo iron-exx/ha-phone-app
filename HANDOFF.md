@@ -92,7 +92,8 @@ Auf der HA-Box ist laut Nutzer 0.7.101 oder neuer installiert (TLS funktioniert)
 ## 5. Nächste Schritte (in dieser Reihenfolge)
 
 1. **Test mit der echten Türstation.** Video für die 13 anschalten, Türklingel so konfigurieren, dass *nur* die 13 klingelt, Vorschau prüfen. Logcat: `incoming call from … video=true`, `incoming video window N`.
-2. **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt. **Offene Frage an den Nutzer: welches Türstationsmodell?**
+2. **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
+   Türstation ist eine **Akuvox** (Modell noch offen). Ansatz: am Klingeltaster mehrere Nebenstellen als *Gruppenruf/parallel* eintragen statt einer Klingelgruppe. Dann ist jeder Dial in Asterisk ein Einzelziel, und Early Media geht an jedes Gerät. Genaue Menübezeichnung im Akuvox-Webinterface prüfen.
 3. **App speichert das Geräte-Token noch nicht.** `lib/screens/qr_scan_screen.dart` verwirft `device_token`/`device_id` aus `/provision/complete`. Beides nativ in EncryptedSharedPreferences speichern (per Channel), dazu die API-Adresse (`host` aus dem QR). Danach **einmal neu koppeln**.
 4. **Phase 2 der App (Linkus-Hülle):** fünf Reiter (Kontakte · Anrufe · Tastatur · Voicemail · Ich)
    - Kontakte aus `/api/mobile/directory` (Backend fertig)
@@ -107,12 +108,11 @@ Außerdem offen:
 - iOS: `ios-app/.../PjsuaBridge.mm` hat dieselbe Lücke (kein `transportCreate`), und dem iOS-PJSIP fehlen vermutlich ebenfalls TLS und Video.
 - Kaltstart-Race Dart ↔ Channel-Registrierung ist nur umgangen (`_invokeResilient`), nicht behoben.
 
-## 6. Git-Stand ha-phone-app (Achtung)
+## 6. Git-Stand ha-phone-app
 
-- **`app-flutter/` ist nicht versioniert** (untracked im Repo `iron-exx/ha-phone-app`). Nutzerentscheidung offen: committen / eigenes Repo?
-- Nicht committet: Änderungen in `android-app/app/.../HAPhoneTestApplication.kt`, `MainActivity.kt`, `TestFcmService.kt`, `ios-app/.../PushHandler.swift`, `android-app/scripts/build_pjsip_android.sh`, `.planning/phases/03–05`, `HANDOFF.md`, `docs/`.
-- `android-app/java_pid*.hprof` sind Heap-Dumps von Gradle-Abstürzen, wegwerfbar (nicht committen).
-- Die selbst gebauten Libraries (OpenSSL, `libpjsua2.so`) liegen nur auf CCsrv (gitignored). Sie lassen sich per Skript reproduzieren.
+- Die App hat ihr eigenes Repo **`iron-exx/ha-phone-app`** (dieser Ordner). Die Anlage liegt getrennt in `Ha-Phone` → `iron-exx/HA-Phone`.
+- Seit 2026-09-23 ist alles committet: `app-flutter/`, Build-Skript, Referenz-Apps, `HANDOFF.md`, `docs/`, `.planning/`. `*.hprof` steht in `.gitignore`.
+- Die selbst gebauten Libraries (OpenSSL, `libpjsua2.so`, SWIG-Java) liegen nur auf CCsrv (gitignored). Sie lassen sich per Skript reproduzieren.
 
 ## 7. Fallstricke (teuer gelernt, bitte nicht wiederholen)
 
