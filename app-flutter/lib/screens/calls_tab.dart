@@ -2,19 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../services/call_history_store.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
+import '../utils/call_merge.dart';
 import '../widgets/call_history_tile.dart';
 import '../widgets/status_message.dart';
 
-/// Anrufe tab: local call history with Alle / Verpasst filter. The shell
-/// reloads the store on CallHistoryChangedEvent and whenever this tab
-/// becomes visible ([isActive] flips to true).
+/// Anrufe tab: local call history merged with the PBX log (calls on the
+/// desk phone too), Alle / Verpasst filter. While visible ([isActive]) the
+/// store polls the PBX every 60 s; the shell reloads the local part on
+/// CallHistoryChangedEvent.
 class CallsTab extends StatefulWidget {
-  const CallsTab({super.key, required this.isActive});
+  const CallsTab({super.key, required this.isActive, CallHistoryStore? store, DirectoryRepository? directory})
+      : _store = store,
+        _directory = directory;
 
   final bool isActive;
+  final CallHistoryStore? _store;
+  final DirectoryRepository? _directory;
 
   @override
   State<CallsTab> createState() => _CallsTabState();
@@ -23,7 +30,8 @@ class CallsTab extends StatefulWidget {
 class _CallsTabState extends State<CallsTab> {
   bool _missedOnly = false;
 
-  CallHistoryStore get _store => CallHistoryStore.instance;
+  CallHistoryStore get _store => widget._store ?? CallHistoryStore.instance;
+  DirectoryRepository get _directory => widget._directory ?? DirectoryRepository.instance;
 
   @override
   void initState() {
@@ -35,10 +43,19 @@ class _CallsTabState extends State<CallsTab> {
   void didUpdateWidget(CallsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) _onVisible();
+    if (!widget.isActive && oldWidget.isActive) _store.setVisible(false);
   }
 
+  @override
+  void dispose() {
+    _store.setVisible(false);
+    super.dispose();
+  }
+
+  /// The poller fetches the PBX log right away when it starts.
   void _onVisible() {
-    unawaited(_store.load().then((_) => _store.markSeen()));
+    _store.setVisible(true);
+    unawaited(_store.load());
   }
 
   Future<void> _confirmClear() async {
@@ -67,7 +84,7 @@ class _CallsTabState extends State<CallsTab> {
             builder: (context, _) => IconButton(
               tooltip: 'Verlauf löschen',
               icon: const Icon(Icons.delete_sweep_outlined),
-              onPressed: _store.entries.isEmpty ? null : _confirmClear,
+              onPressed: _store.calls.isEmpty ? null : _confirmClear,
             ),
           ),
         ],
@@ -91,7 +108,7 @@ class _CallsTabState extends State<CallsTab> {
           ),
           Expanded(
             child: ListenableBuilder(
-              listenable: Listenable.merge([_store, DirectoryRepository.instance]),
+              listenable: Listenable.merge([_store, _directory]),
               builder: (context, _) => _buildList(context),
             ),
           ),
@@ -100,14 +117,24 @@ class _CallsTabState extends State<CallsTab> {
     );
   }
 
+  /// Only "too old" is worth a hint; offline PBX just shows local entries.
+  String? _pbxHint() {
+    final e = _store.pbxError;
+    if (e == null || e.kind != ApiErrorKind.unsupported) return null;
+    return 'Anrufe anderer Geräte: ${e.message}';
+  }
+
   Widget _buildList(BuildContext context) {
-    final entries = _missedOnly ? _store.entries.where((e) => e.missed).toList() : _store.entries;
-    if (entries.isEmpty) {
+    final all = _store.calls;
+    final calls = _missedOnly ? all.where((c) => c.missed).toList() : all;
+    final hint = _pbxHint();
+    if (calls.isEmpty) {
       return RefreshIndicator(
-        onRefresh: _store.load,
+        onRefresh: _store.refreshAll,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
+            if (hint != null) ErrorBanner(message: hint),
             const SizedBox(height: 48),
             StatusMessage(
               icon: _missedOnly ? Icons.call_missed : Icons.history,
@@ -118,32 +145,39 @@ class _CallsTabState extends State<CallsTab> {
       );
     }
     final now = DateTime.now();
-    final directory = DirectoryRepository.instance;
+    final offset = hint == null ? 0 : 1;
     return RefreshIndicator(
-      onRefresh: _store.load,
+      onRefresh: _store.refreshAll,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: entries.length,
+        itemCount: calls.length + offset,
         itemBuilder: (context, i) {
-          final e = entries[i];
-          return Dismissible(
-            key: ValueKey('call-${e.id}'),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Theme.of(context).colorScheme.errorContainer,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 24),
-              child: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onErrorContainer),
-            ),
-            onDismissed: (_) => _store.delete(e.id),
-            child: CallHistoryTile(
-              entry: e,
-              resolvedName: e.name.isNotEmpty ? e.name : directory.nameFor(e.number),
-              now: now,
-              onTap: () => CallLauncher.call(context, e.number),
-            ),
-          );
+          if (i < offset) return ErrorBanner(message: hint!);
+          return _row(context, calls[i - offset], now);
         },
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, MergedCall c, DateTime now) {
+    final entry = c.entry;
+    final scheme = Theme.of(context).colorScheme;
+    return Dismissible(
+      key: ValueKey('call-${c.key}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: scheme.errorContainer,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
+      ),
+      onDismissed: (_) => _store.deleteCall(c),
+      child: CallHistoryTile(
+        entry: entry,
+        resolvedName: entry.name.isNotEmpty ? entry.name : _directory.nameFor(entry.number),
+        now: now,
+        otherDevice: c.isOtherDevice,
+        onTap: () => CallLauncher.call(context, entry.number),
       ),
     );
   }

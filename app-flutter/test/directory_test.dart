@@ -7,7 +7,8 @@ import 'package:ha_phone_test/models/presence.dart';
 const _json = '''
 {"self": {"number":"13","name":"Test","presence":"available"},
  "extensions": [
-   {"number":"16","name":"türklingel","video":true,"door_open_code":"*1","presence":"available"},
+   {"number":"16","name":"türklingel","video":true,"door_open_code":"*1","presence":"available",
+    "door_actions":[{"index":1,"label":"Garage"},{"index":0,"label":"Licht"}]},
    {"number":"11","name":"sandro","video":true,"door_open_code":null,"presence":"lunch"},
    {"number":15,"name":"dect","video":null,"door_open_code":"","presence":null}
  ],
@@ -37,6 +38,12 @@ void main() {
   test('only a door-open code makes a door station, video alone does not', () {
     expect(directory.extensions[0].isDoorStation, isTrue);
     expect(directory.extensions[1].isDoorStation, isFalse);
+  });
+
+  test('door actions keep the PBX index order and survive the cache', () {
+    expect(directory.doorActions, {'16': ['Licht', 'Garage']});
+    final cached = Directory.fromJson(jsonDecode(jsonEncode(directory.toJson())) as Map<String, dynamic>);
+    expect(cached.doorActions, {'16': ['Licht', 'Garage']});
   });
 
   test('builds the door-code map for setDoorCodes', () {

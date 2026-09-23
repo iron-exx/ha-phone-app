@@ -10,6 +10,7 @@ import de.haphone.app.test.CallEventBus
 class CallCoordinator(
     private val history: CallHistoryStore,
     private val doorCodes: DoorCodes,
+    private val doorActionLabels: (String) -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     val session = CallSession()
@@ -22,7 +23,10 @@ class CallCoordinator(
         val entryName = if (name == number) "" else name
         history.update { CallHistory.add(it, CallHistoryEntry(historyId, number, entryName, direction, video, startedAt)) }
         historyChanged()
-        return CurrentCall(historyId, number, entryName, direction, video, doorCodes.forNumber(number), state)
+        return CurrentCall(
+            historyId, number, entryName, direction, video, doorCodes.forNumber(number), state,
+            doorActions = doorActionLabels(number),
+        )
     }
 
     fun beginIncoming(callId: Int, number: String, name: String, video: Boolean): CallSession.IncomingRole {

@@ -8,6 +8,7 @@ abstract final class StoreKeys {
   static const favorites = 'favorites_v1';
   static const callsLastSeenMs = 'calls_last_seen_ms';
   static const voicemailHeard = 'voicemail_heard_v1';
+  static const callsHiddenPbx = 'calls_hidden_pbx_v1';
 }
 
 /// Lazily resolved SharedPreferences. If the plugin fails (shouldn't happen

@@ -126,6 +126,13 @@ class SipChannel {
   /// Connect the held party with the current one and leave (attended transfer).
   Future<bool> transferAttended() async => await _channel.invokeMethod<bool>('transferAttended') ?? false;
 
+  /// Extension number -> labels of its Home Assistant door actions (from the directory).
+  Future<void> setDoorActions(Map<String, List<String>> labels) => _channel.invokeMethod('setDoorActions', labels);
+
+  /// Runs door action [index] of [number] on the PBX; throws PlatformException with a German message on failure.
+  Future<void> runDoorAction(String number, int index) =>
+      _channel.invokeMethod('runDoorAction', {'number': number, 'index': index});
+
   /// Sends the current call's door-open code as DTMF. No-op if the caller is no door station.
   Future<void> openDoor() => _channel.invokeMethod('openDoor');
 
@@ -193,6 +200,7 @@ class CurrentCall {
     this.onHold = false,
     this.other,
     this.conference = false,
+    this.doorActions = const [],
   });
 
   factory CurrentCall.fromMap(Map<Object?, Object?> m) => CurrentCall(
@@ -210,6 +218,7 @@ class CurrentCall {
         onHold: m['onHold'] as bool? ?? false,
         other: m['other'] is Map ? CurrentCall.fromMap(m['other'] as Map<Object?, Object?>) : null,
         conference: m['conference'] as bool? ?? false,
+        doorActions: ((m['doorActions'] as List<Object?>?) ?? const []).whereType<String>().toList(),
       );
 
   final String number;
@@ -243,6 +252,9 @@ class CurrentCall {
   final bool conference;
 
   bool get isWaiting => state == 'waiting';
+
+  /// Home Assistant buttons of this door station ("Licht", "Garage"), index = action id.
+  final List<String> doorActions;
 
   bool get isDoor => doorCode.isNotEmpty;
 }

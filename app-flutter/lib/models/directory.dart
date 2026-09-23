@@ -40,6 +40,12 @@ class Directory {
           if (e.doorOpenCode.isNotEmpty) e.number: e.doorOpenCode,
       };
 
+  /// Number -> Home Assistant action labels for SipChannel.setDoorActions.
+  Map<String, List<String>> get doorActions => {
+        for (final e in extensions)
+          if (e.doorActions.isNotEmpty) e.number: e.doorActions,
+      };
+
   /// Name for a number (extensions first), or '' if unknown.
   String nameFor(String number) {
     for (final c in [...extensions, ...phonebook]) {

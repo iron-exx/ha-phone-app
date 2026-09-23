@@ -87,8 +87,9 @@ class DirectoryRepository extends ChangeNotifier {
   Future<void> _pushDoorCodes(Directory d) async {
     try {
       await SipChannel.instance.setDoorCodes(d.doorCodes);
+      await SipChannel.instance.setDoorActions(d.doorActions);
     } catch (e) {
-      debugPrint('setDoorCodes failed: $e');
+      debugPrint('setDoorCodes/setDoorActions failed: $e');
     }
   }
 

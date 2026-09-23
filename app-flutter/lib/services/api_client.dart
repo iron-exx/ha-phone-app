@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 
 import '../models/directory.dart';
 import '../models/extension_status.dart';
+import '../models/forwarding.dart';
+import '../models/pbx_call.dart';
 import '../models/presence.dart';
 import '../models/voicemail.dart';
 
@@ -29,12 +31,18 @@ enum ApiErrorKind {
 /// First HA-Phone version with the presence and voicemail endpoints.
 const kMinPbxVersionPhase3 = '0.7.107';
 
+/// First HA-Phone version with the forwarding and call-history endpoints.
+const kMinPbxVersionPhase5 = '0.7.110';
+
 /// Error with a German message that tells the user what to do.
 class ApiException implements Exception {
-  const ApiException(this.kind, [this.statusCode]);
+  const ApiException(this.kind, [this.statusCode, this.minPbxVersion = kMinPbxVersionPhase3]);
 
   final ApiErrorKind kind;
   final int? statusCode;
+
+  /// HA-Phone version the failed endpoint needs (for [ApiErrorKind.unsupported]).
+  final String minPbxVersion;
 
   bool get needsRepairing => kind == ApiErrorKind.notPaired || kind == ApiErrorKind.unauthorized;
 
@@ -43,7 +51,7 @@ class ApiException implements Exception {
         ApiErrorKind.unauthorized => 'Gerät nicht mehr gekoppelt – Gerät neu koppeln (QR-Code).',
         ApiErrorKind.unreachable => 'Anlage nicht erreichbar – WLAN prüfen.',
         ApiErrorKind.server => 'Anlage meldet einen Fehler${statusCode != null ? ' (HTTP $statusCode)' : ''}.',
-        ApiErrorKind.unsupported => 'Funktion braucht HA-Phone $kMinPbxVersionPhase3 oder neuer.',
+        ApiErrorKind.unsupported => 'Funktion braucht HA-Phone $minPbxVersion oder neuer.',
       };
 
   @override
@@ -138,6 +146,30 @@ class ApiClient {
     );
   }
 
+  /// Own forwarding rules per presence status.
+  Future<List<ForwardingRule>> fetchForwarding(DeviceAuth auth) async {
+    final response = await _send(auth, 'GET', '/api/mobile/forwarding', minVersion: kMinPbxVersionPhase5);
+    return parseForwardingRules(_decodeObject(response));
+  }
+
+  /// Replaces all own rules; returns what the PBX stored. 422 = invalid list.
+  Future<List<ForwardingRule>> saveForwarding(DeviceAuth auth, List<ForwardingRule> rules) async {
+    final response = await _send(
+      auth,
+      'PUT',
+      '/api/mobile/forwarding',
+      body: forwardingRulesToJson(rules),
+      minVersion: kMinPbxVersionPhase5,
+    );
+    return parseForwardingRules(_decodeObject(response));
+  }
+
+  /// PBX call log of the own extension (all devices), newest first.
+  Future<List<PbxCall>> fetchCalls(DeviceAuth auth, {int limit = 200}) async {
+    final response = await _send(auth, 'GET', '/api/mobile/calls?limit=$limit', minVersion: kMinPbxVersionPhase5);
+    return parsePbxCalls(_decodeObject(response));
+  }
+
   Future<http.Response> _send(
     DeviceAuth auth,
     String method,
@@ -146,6 +178,7 @@ class ApiClient {
     bool notFoundIsUnsupported = true,
     bool acceptNotFound = false,
     Duration timeout = _timeout,
+    String minVersion = kMinPbxVersionPhase3,
   }) async {
     if (!auth.isComplete) throw const ApiException(ApiErrorKind.notPaired);
     final uri = _uri(auth, path);
@@ -171,13 +204,13 @@ class ApiClient {
     final status = response.statusCode;
     if (status == 401 || status == 403) throw ApiException(ApiErrorKind.unauthorized, status);
     if (status == 404 && acceptNotFound) return response;
-    if (status == 404 && notFoundIsUnsupported) throw const ApiException(ApiErrorKind.unsupported, 404);
+    if (status == 404 && notFoundIsUnsupported) throw ApiException(ApiErrorKind.unsupported, 404, minVersion);
     if (status != 200) throw ApiException(ApiErrorKind.server, status);
     // PBX versions before an endpoint existed answer unknown /api paths with the
     // admin web app (HTML, 200) instead of a 404.
     final contentType = response.headers['content-type'] ?? '';
     if (notFoundIsUnsupported && contentType.contains('text/html')) {
-      throw const ApiException(ApiErrorKind.unsupported, 200);
+      throw ApiException(ApiErrorKind.unsupported, 200, minVersion);
     }
     return response;
   }

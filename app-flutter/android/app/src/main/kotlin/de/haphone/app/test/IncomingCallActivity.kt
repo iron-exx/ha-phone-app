@@ -66,6 +66,7 @@ class IncomingCallActivity : ComponentActivity() {
         val callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
         val isVideo = intent.getStringExtra(EXTRA_CALL_TYPE) in setOf("video", "door")
         val doorCode = app.doorCodes.forNumber(callId)
+        val doorActions = app.doorActions.labelsFor(callId)
 
         when (intent.getStringExtra(EXTRA_ACTION)) {
             ACTION_ANSWER -> { answer(); return }
@@ -83,6 +84,14 @@ class IncomingCallActivity : ComponentActivity() {
                         onAnswer = ::answer,
                         onDecline = ::decline,
                         onOpenDoor = { openDoor(doorCode) },
+                        doorActions = doorActions,
+                        onDoorAction = { index ->
+                            app.runDoorAction(callId, index) { error ->
+                                android.widget.Toast.makeText(
+                                    this, error ?: "${doorActions[index]}: erledigt", android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        },
                     )
                 }
             }
@@ -179,6 +188,8 @@ private fun IncomingCallScreen(
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
     onOpenDoor: () -> Unit,
+    doorActions: List<String> = emptyList(),
+    onDoorAction: (Int) -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -199,6 +210,19 @@ private fun IncomingCallScreen(
         Spacer(Modifier.height(24.dp))
         if (showVideo) VideoPreview()
         Spacer(Modifier.weight(1f))
+        if (doorActions.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                doorActions.forEachIndexed { index, label ->
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { onDoorAction(index) },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(label, color = Color.White, maxLines = 1) }
+                }
+            }
+        }
         if (isDoor) {
             Button(
                 onClick = onOpenDoor,

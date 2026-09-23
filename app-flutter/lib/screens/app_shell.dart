@@ -67,11 +67,10 @@ class _AppShellState extends State<AppShell> {
     _updatePresencePolling();
   }
 
-  /// While the Anrufe tab is on screen, new missed calls count as seen.
-  Future<void> _reloadHistory() async {
-    await _history.load();
-    if (_index == _callsTab) await _history.markSeen();
-  }
+  /// Local history + PBX log (the badge also counts calls missed on the
+  /// desk phone). While the Anrufe tab is on screen the store itself counts
+  /// new missed calls as seen and polls the PBX (CallsTab.isActive).
+  Future<void> _reloadHistory() => _history.refreshAll();
 
   @override
   Widget build(BuildContext context) {

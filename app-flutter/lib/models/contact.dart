@@ -8,6 +8,7 @@ class Contact {
     this.presence = Presence.unknown,
     this.video = false,
     this.doorOpenCode = '',
+    this.doorActions = const [],
     this.isExtension = true,
   });
 
@@ -19,14 +20,30 @@ class Contact {
         presence: Presence.fromApi(json['presence'] as String?),
         video: json['video'] == true,
         doorOpenCode: (json['door_open_code'] as String?) ?? '',
+        doorActions: _labels(json['door_actions']),
         isExtension: isExtension,
       );
+
+  /// `[{"index":0,"label":"Licht"}, ...]` (PBX) or `["Licht", ...]` (own cache) -> labels by index.
+  static List<String> _labels(Object? raw) {
+    if (raw is! List) return const [];
+    final byIndex = <int, String>{};
+    for (final (i, item) in raw.indexed) {
+      if (item is String) byIndex[i] = item;
+      if (item is Map && item['label'] is String) byIndex[(item['index'] as int?) ?? i] = item['label'] as String;
+    }
+    final keys = byIndex.keys.toList()..sort();
+    return [for (final k in keys) byIndex[k]!];
+  }
 
   final String number;
   final String name;
   final Presence presence;
   final bool video;
   final String doorOpenCode;
+
+  /// Labels of the door's Home Assistant actions; index = action id on the PBX.
+  final List<String> doorActions;
 
   /// false for phonebook entries (no presence, no avatar dot).
   final bool isExtension;
@@ -43,5 +60,6 @@ class Contact {
         if (isExtension) 'presence': presence.apiValue,
         if (isExtension) 'video': video,
         if (isExtension) 'door_open_code': doorOpenCode,
+        if (isExtension && doorActions.isNotEmpty) 'door_actions': doorActions,
       };
 }

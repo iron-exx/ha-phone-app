@@ -150,7 +150,7 @@ class _ContactsTabState extends State<ContactsTab> {
             isFavorite: FavoritesStore.instance.isFavorite(c.number),
             status: c.isExtension ? _presence.statusFor(c.number) : null,
             onTap: () => _call(c),
-            onLongPress: () => ContactDetailsSheet.show(context, c, onCall: () => _call(c)),
+            onLongPress: () => ContactDetailsSheet.show(context, c, onCall: () => _call(c), presence: _presence),
           );
         },
       ),

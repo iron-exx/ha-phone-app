@@ -102,6 +102,17 @@ void main() {
     await dispose(tester);
   });
 
+  testWidgets('door call shows Home Assistant actions and runs them by index', (tester) async {
+    final call = {..._call(doorCode: '*1'), 'doorActions': ['Licht', 'Garage']};
+    await pumpCall(tester, call, _routes('earpiece', ['earpiece', 'speaker']));
+
+    await tester.tap(find.byKey(const Key('door-action-1')));
+    await tester.pump();
+    expect(sip.callsTo('runDoorAction').single.arguments, {'number': '16', 'index': 1});
+    expect(find.text('Garage: erledigt'), findsOneWidget);
+    await dispose(tester);
+  });
+
   testWidgets('conference card shows the partner without line actions', (tester) async {
     final call = {..._call(), 'conference': true, 'other': {..._call(), 'number': '13', 'name': 'Test'}};
     await pumpCall(tester, call, _routes('earpiece', ['earpiece', 'speaker']));

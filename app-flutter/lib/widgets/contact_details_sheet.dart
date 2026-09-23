@@ -1,27 +1,49 @@
 import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
+import '../models/extension_status.dart';
 import '../services/favorites_store.dart';
+import '../services/presence_repository.dart';
 import '../theme/app_colors.dart';
 import 'contact_avatar.dart';
 
-/// Long-press details: big avatar, number, status, Anrufen + Favorit.
+/// Long-press details: big avatar, number, live status (like the list rows:
+/// "telefoniert" wins over the presence), Anrufen + Favorit.
 class ContactDetailsSheet extends StatelessWidget {
-  const ContactDetailsSheet({super.key, required this.contact, required this.onCall});
+  const ContactDetailsSheet({super.key, required this.contact, required this.onCall, PresenceRepository? presence})
+      : _presence = presence;
 
   final Contact contact;
   final VoidCallback onCall;
+  final PresenceRepository? _presence;
 
-  static Future<void> show(BuildContext context, Contact contact, {required VoidCallback onCall}) {
+  static Future<void> show(
+    BuildContext context,
+    Contact contact, {
+    required VoidCallback onCall,
+    PresenceRepository? presence,
+  }) {
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (_) => ContactDetailsSheet(contact: contact, onCall: onCall),
+      builder: (_) => ContactDetailsSheet(contact: contact, onCall: onCall, presence: presence),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final presence = _presence ?? PresenceRepository.instance;
+    return ListenableBuilder(
+      listenable: presence,
+      builder: (context, _) => _build(
+        context,
+        (contact.isExtension ? presence.statusFor(contact.number) : null) ??
+            ExtensionStatus(presence: contact.presence),
+      ),
+    );
+  }
+
+  Widget _build(BuildContext context, ExtensionStatus live) {
     final theme = Theme.of(context);
     final favorites = FavoritesStore.instance;
     return SafeArea(
@@ -33,7 +55,8 @@ class ContactDetailsSheet extends StatelessWidget {
             ContactAvatar(
               name: contact.name,
               number: contact.number,
-              presence: contact.isExtension ? contact.presence : null,
+              presence: contact.isExtension ? live.presence : null,
+              dotColor: contact.isExtension ? live.color : null,
               size: 72,
             ),
             const SizedBox(height: 12),
@@ -41,7 +64,7 @@ class ContactDetailsSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               contact.isExtension
-                  ? 'Nebenstelle ${contact.number} · ${contact.presence.label}'
+                  ? 'Nebenstelle ${contact.number} · ${live.label}'
                   : contact.number,
               style: tabular(theme.textTheme.bodyMedium)?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),

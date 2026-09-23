@@ -184,6 +184,22 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
+                "setDoorActions" -> {
+                    val actions = (call.arguments as? Map<*, *>).orEmpty().mapNotNull { (k, v) ->
+                        val number = k as? String ?: return@mapNotNull null
+                        number to (v as? List<*>).orEmpty().filterIsInstance<String>()
+                    }.toMap()
+                    app.doorActions.replaceAll(actions)
+                    result.success(null)
+                }
+
+                "runDoorAction" -> {
+                    val args = call.arguments as Map<*, *>
+                    app.runDoorAction(args["number"] as? String ?: "", (args["index"] as? Int) ?: -1) { error ->
+                        if (error == null) result.success(null) else result.error("DOOR_ACTION", error, null)
+                    }
+                }
+
                 "openDoor" -> {
                     val code = app.currentCall?.doorCode.orEmpty()
                     if (code.isNotEmpty()) app.sipCallController.sendDtmf(code)

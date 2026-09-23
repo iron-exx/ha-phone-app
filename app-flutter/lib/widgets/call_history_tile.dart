@@ -6,7 +6,8 @@ import '../utils/formatters.dart';
 import 'contact_avatar.dart';
 
 /// Anrufe-list row. [resolvedName] comes from the directory when the native
-/// entry has no name.
+/// entry has no name. [otherDevice] marks calls only the PBX saw (e.g.
+/// missed or taken on the desk phone).
 class CallHistoryTile extends StatelessWidget {
   const CallHistoryTile({
     super.key,
@@ -14,12 +15,14 @@ class CallHistoryTile extends StatelessWidget {
     required this.resolvedName,
     required this.now,
     required this.onTap,
+    this.otherDevice = false,
   });
 
   final CallHistoryEntry entry;
   final String resolvedName;
   final DateTime now;
   final VoidCallback onTap;
+  final bool otherDevice;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +43,7 @@ class CallHistoryTile extends StatelessWidget {
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-              callSubtitle(entry),
+              otherDevice ? '${callSubtitle(entry)} · anderes Gerät' : callSubtitle(entry),
               overflow: TextOverflow.ellipsis,
               style: tabular(theme.textTheme.bodyMedium)?.copyWith(color: missedColor),
             ),

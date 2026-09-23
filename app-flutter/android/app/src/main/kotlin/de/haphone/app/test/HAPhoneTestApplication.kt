@@ -64,9 +64,20 @@ class HAPhoneTestApplication : Application() {
 
     val callHistory by lazy { de.haphone.app.test.calls.CallHistoryStore(this) }
     val doorCodes by lazy { de.haphone.app.test.calls.DoorCodes(this) }
+    val doorActions by lazy { de.haphone.app.test.calls.DoorActionClient(this) }
+
+    /** Runs a door station's HA action off the main thread; [onDone] gets null or an error, on main. */
+    fun runDoorAction(number: String, index: Int, onDone: (String?) -> Unit) {
+        val auth = getDeviceAuth()
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        Thread {
+            val error = doorActions.run(auth["apiHost"].orEmpty(), auth["deviceId"].orEmpty(), auth["deviceToken"].orEmpty(), number, index)
+            main.post { onDone(error) }
+        }.start()
+    }
 
     /** Up to two calls (on screen + held/waiting), history and UI events. Main thread only. */
-    val calls by lazy { de.haphone.app.test.calls.CallCoordinator(callHistory, doorCodes) }
+    val calls by lazy { de.haphone.app.test.calls.CallCoordinator(callHistory, doorCodes, doorActions::labelsFor) }
 
     /** The call on screen, null when idle. */
     val currentCall: de.haphone.app.test.calls.CurrentCall? get() = calls.currentCall

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/call_events.dart';
 import '../services/directory_repository.dart';
@@ -140,6 +141,15 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     } catch (e) {
       debugPrint('openDoor failed: $e');
       messenger.showSnackBar(const SnackBar(content: Text('Tür-Code konnte nicht gesendet werden')));
+    }
+  }
+
+  Future<void> _runDoorAction(String number, int index, String label) async {
+    try {
+      await SipChannel.instance.runDoorAction(number, index);
+      _snack('$label: erledigt');
+    } on PlatformException catch (e) {
+      _snack(e.message ?? '$label fehlgeschlagen');
     }
   }
 
@@ -319,6 +329,23 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
             const SizedBox(height: 12),
           ],
           if (showVideo) const _RemoteVideo() else const Spacer(),
+          if (call != null && call.doorActions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final (index, label) in call.doorActions.indexed)
+                  ActionChip(
+                    key: Key('door-action-$index'),
+                    avatar: const Icon(Icons.home_outlined, size: 18),
+                    label: Text(label),
+                    onPressed: () => _runDoorAction(call.number, index, label),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           _actionGrid(call),
           SizedBox(height: compact ? 16 : 32),
