@@ -3,14 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_info.dart';
-import '../models/presence.dart';
 import '../services/call_events.dart';
 import '../services/directory_repository.dart';
+import '../services/presence_repository.dart';
 import '../services/sip_channel.dart';
+import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/registration_ui.dart';
-import '../widgets/contact_avatar.dart';
-import '../widgets/presence_chip.dart';
+import '../widgets/own_status_header.dart';
 
 /// Ich tab: own extension, live registration state, device actions.
 class MeTab extends StatefulWidget {
@@ -115,6 +115,8 @@ class _MeTabState extends State<MeTab> {
       debugPrint('clearing device auth failed: $e');
     }
     await DirectoryRepository.instance.clear();
+    PresenceRepository.instance.clear();
+    await VoicemailRepository.instance.clear();
     await widget.onUnpaired();
   }
 
@@ -125,10 +127,7 @@ class _MeTabState extends State<MeTab> {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          ListenableBuilder(
-            listenable: DirectoryRepository.instance,
-            builder: (context, _) => _ownExtension(context),
-          ),
+          const OwnStatusHeader(),
           const Divider(height: 32),
           _registrationTile(context),
           ListTile(
@@ -156,46 +155,6 @@ class _MeTabState extends State<MeTab> {
             leading: Icon(Icons.info_outline),
             title: Text('App-Version'),
             trailing: Text(kAppVersion),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _ownExtension(BuildContext context) {
-    final theme = Theme.of(context);
-    final self = DirectoryRepository.instance.directory?.self;
-    final presence = self?.presence ?? Presence.unknown;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          ContactAvatar(name: self?.name ?? '', number: self?.number ?? '', presence: presence, size: 64),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(self?.displayName ?? 'Eigene Nebenstelle', style: theme.textTheme.titleLarge),
-                Text(
-                  self == null ? 'Noch nicht geladen' : 'Nebenstelle ${self.number}',
-                  style: tabular(theme.textTheme.bodyMedium),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    PresenceChip(presence: presence),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Status ändern folgt',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ],
       ),

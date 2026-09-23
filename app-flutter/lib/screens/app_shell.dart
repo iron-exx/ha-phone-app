@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../services/call_events.dart';
 import '../services/call_history_store.dart';
+import '../services/presence_repository.dart';
+import '../services/voicemail_repository.dart';
 import 'calls_tab.dart';
 import 'contacts_tab.dart';
 import 'keypad_tab.dart';
@@ -23,13 +25,18 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  static const _contactsTab = 0;
   static const _callsTab = 1;
+  static const _voicemailTab = 3;
+  static const _meTab = 4;
 
   /// Start on Tastatur: calling is the primary job of the app.
   int _index = 2;
   StreamSubscription<CallEvent>? _events;
 
   CallHistoryStore get _history => CallHistoryStore.instance;
+  PresenceRepository get _presence => PresenceRepository.instance;
+  VoicemailRepository get _voicemail => VoicemailRepository.instance;
 
   @override
   void initState() {
@@ -38,12 +45,26 @@ class _AppShellState extends State<AppShell> {
       if (e is CallHistoryChangedEvent) unawaited(_reloadHistory());
     });
     unawaited(_reloadHistory());
+    // Voicemail badge is visible on every tab, so poll for the shell's lifetime.
+    _voicemail.setPolling(true);
+    _updatePresencePolling();
   }
 
   @override
   void dispose() {
     _events?.cancel();
+    _voicemail.setPolling(false);
+    _presence.setVisible(false);
     super.dispose();
+  }
+
+  /// Live presence is only polled while it is on screen.
+  void _updatePresencePolling() =>
+      _presence.setVisible(_index == _contactsTab || _index == _meTab);
+
+  void _select(int i) {
+    setState(() => _index = i);
+    _updatePresencePolling();
   }
 
   /// While the Anrufe tab is on screen, new missed calls count as seen.
@@ -61,17 +82,18 @@ class _AppShellState extends State<AppShell> {
           const ContactsTab(),
           CallsTab(isActive: _index == _callsTab),
           const KeypadTab(),
-          const VoicemailTab(),
+          VoicemailTab(isActive: _index == _voicemailTab),
           MeTab(onSetupChanged: widget.onSetupChanged, onUnpaired: widget.onUnpaired),
         ],
       ),
       bottomNavigationBar: ListenableBuilder(
-        listenable: _history,
+        listenable: Listenable.merge([_history, _voicemail]),
         builder: (context, _) {
           final missed = _history.unseenMissed;
+          final unheard = _voicemail.unheardCount;
           return NavigationBar(
             selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
+            onDestinationSelected: _select,
             destinations: [
               const NavigationDestination(
                 icon: Icon(Icons.people_outline),
@@ -92,9 +114,17 @@ class _AppShellState extends State<AppShell> {
                 selectedIcon: Icon(Icons.dialpad),
                 label: 'Tastatur',
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.voicemail_outlined),
-                selectedIcon: Icon(Icons.voicemail),
+              NavigationDestination(
+                icon: Badge(
+                  isLabelVisible: unheard > 0,
+                  label: Text('$unheard'),
+                  child: const Icon(Icons.voicemail_outlined),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: unheard > 0,
+                  label: Text('$unheard'),
+                  child: const Icon(Icons.voicemail),
+                ),
                 label: 'Voicemail',
               ),
               const NavigationDestination(

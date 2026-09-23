@@ -7,6 +7,7 @@ abstract final class StoreKeys {
   static const directoryCache = 'directory_cache_v1';
   static const favorites = 'favorites_v1';
   static const callsLastSeenMs = 'calls_last_seen_ms';
+  static const voicemailHeard = 'voicemail_heard_v1';
 }
 
 /// Lazily resolved SharedPreferences. If the plugin fails (shouldn't happen

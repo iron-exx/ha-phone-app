@@ -111,6 +111,21 @@ class SipChannel {
   /// Extension number -> DTMF door-open code, from /api/mobile/directory. Replaces the stored map.
   Future<void> setDoorCodes(Map<String, String> codes) => _channel.invokeMethod('setDoorCodes', codes);
 
+  // ---- Second call (call waiting, consultation, conference) ----
+
+  /// Answer the waiting call; the current one goes on hold.
+  Future<bool> answerWaiting() async => await _channel.invokeMethod<bool>('answerWaiting') ?? false;
+  Future<void> rejectWaiting() => _channel.invokeMethod('rejectWaiting');
+
+  /// Makeln: swap between the on-screen and the held call.
+  Future<bool> swapCalls() async => await _channel.invokeMethod<bool>('swapCalls') ?? false;
+
+  /// 3-way conference of both calls (mixed in the app, no PBX change).
+  Future<bool> mergeCalls() async => await _channel.invokeMethod<bool>('mergeCalls') ?? false;
+
+  /// Connect the held party with the current one and leave (attended transfer).
+  Future<bool> transferAttended() async => await _channel.invokeMethod<bool>('transferAttended') ?? false;
+
   /// Sends the current call's door-open code as DTMF. No-op if the caller is no door station.
   Future<void> openDoor() => _channel.invokeMethod('openDoor');
 
@@ -176,6 +191,8 @@ class CurrentCall {
     required this.secure,
     this.muted = false,
     this.onHold = false,
+    this.other,
+    this.conference = false,
   });
 
   factory CurrentCall.fromMap(Map<Object?, Object?> m) => CurrentCall(
@@ -191,6 +208,8 @@ class CurrentCall {
         secure: m['secure'] as bool? ?? false,
         muted: m['muted'] as bool? ?? false,
         onHold: m['onHold'] as bool? ?? false,
+        other: m['other'] is Map ? CurrentCall.fromMap(m['other'] as Map<Object?, Object?>) : null,
+        conference: m['conference'] as bool? ?? false,
       );
 
   final String number;
@@ -205,7 +224,7 @@ class CurrentCall {
   /// Non-empty when the other side is a door station.
   final String doorCode;
 
-  /// 'ringing' | 'connecting' | 'confirmed'
+  /// 'ringing' | 'connecting' | 'confirmed' | 'waiting' (second call knocking)
   final String state;
 
   /// Set once the call was answered (SIP CONFIRMED).
@@ -216,6 +235,14 @@ class CurrentCall {
 
   final bool muted;
   final bool onHold;
+
+  /// Second call: held behind this one, or ringing as call waiting (state 'waiting').
+  final CurrentCall? other;
+
+  /// Both calls are joined in a 3-way conference.
+  final bool conference;
+
+  bool get isWaiting => state == 'waiting';
 
   bool get isDoor => doorCode.isNotEmpty;
 }

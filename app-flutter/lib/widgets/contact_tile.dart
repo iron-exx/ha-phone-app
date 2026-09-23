@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
+import '../models/extension_status.dart';
 import '../theme/app_colors.dart';
 import 'contact_avatar.dart';
 
-/// Contacts-list row: avatar with presence dot, name, "13 · verfügbar".
+/// Contacts-list row: avatar with status dot, name, "13 · verfügbar" or
+/// "11 · telefoniert". [status] is the live presence/line state; without it
+/// the directory's presence is shown.
 class ContactTile extends StatelessWidget {
   const ContactTile({
     super.key,
@@ -12,24 +15,28 @@ class ContactTile extends StatelessWidget {
     required this.isFavorite,
     required this.onTap,
     required this.onLongPress,
+    this.status,
   });
 
   final Contact contact;
   final bool isFavorite;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final ExtensionStatus? status;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtitle = contact.isExtension ? '${contact.number} · ${contact.presence.label}' : contact.number;
+    final live = status ?? ExtensionStatus(presence: contact.presence);
+    final subtitle = contact.isExtension ? '${contact.number} · ${live.label}' : contact.number;
     return ListTile(
       onTap: onTap,
       onLongPress: onLongPress,
       leading: ContactAvatar(
         name: contact.name,
         number: contact.number,
-        presence: contact.isExtension ? contact.presence : null,
+        presence: contact.isExtension ? live.presence : null,
+        dotColor: contact.isExtension ? live.color : null,
       ),
       title: Row(
         children: [

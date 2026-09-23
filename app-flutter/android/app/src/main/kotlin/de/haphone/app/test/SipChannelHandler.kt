@@ -68,7 +68,23 @@ class SipChannelHandler(
 
                 "makeCall" -> {
                     val number = call.arguments as? String ?: ""
-                    app.beginCall(number, "", "outgoing", video = false, state = "connecting")
+                    val secondCall = app.currentCall != null
+                    if (!app.calls.beginOutgoing(number)) {
+                        result.error("SIP_BUSY", "Schon zwei Gespräche aktiv", null)
+                        return
+                    }
+                    if (secondCall) {
+                        // Consultation call inside the running Telecom call: no new Telecom call.
+                        try {
+                            app.calls.bindOutgoing(app.sipCallController.makeCall(number))
+                        } catch (e: Exception) {
+                            android.util.Log.e("SipChannelHandler", "second makeCall failed", e)
+                            app.calls.failOutgoing()
+                            CallEventBus.emitCallState(number, "outgoing", "lineEnded", e.message)
+                        }
+                        result.success(null)
+                        return
+                    }
                     // Re-homed from the old OutgoingCallActivity's onClick:
                     // report the call to Telecom first (Report-First
                     // pattern), and only fire the real SIP INVITE from
@@ -79,12 +95,12 @@ class SipChannelHandler(
                     app.callRegistration.reportOutgoingCall(callId = number) {
                         // Runs later inside a coroutine, outside this method's try/catch -- an uncaught PJSIP error here kills the process.
                         try {
-                            app.sipCallController.makeCall(number)
+                            app.calls.bindOutgoing(app.sipCallController.makeCall(number))
                         } catch (e: Exception) {
                             android.util.Log.e("SipChannelHandler", "makeCall failed", e)
-                            app.endCurrentCall()
+                            app.calls.failOutgoing()
                             CallEventBus.emitCallState(number, "outgoing", "disconnected", e.message)
-                            app.releaseTelecomCall(DisconnectCause.ERROR)
+                            app.endTelecomSession(DisconnectCause.ERROR)
                         }
                     }
                     result.success(null)
@@ -101,21 +117,40 @@ class SipChannelHandler(
                     // both. Doing both here keeps Telecom's own call state
                     // in sync instead of leaving a "phantom" registered
                     // call behind.
-                    app.releaseTelecomCall(DisconnectCause.LOCAL)
+                    // With a second call the Telecom call stays: that call is still up.
+                    if (app.calls.session.other == null) app.releaseTelecomCall(DisconnectCause.LOCAL)
                     result.success(null)
                 }
+
+                "answerWaiting" -> {
+                    CallNotificationBuilder.cancelWaiting(app)
+                    val ok = app.sipCallController.answerWaiting() && app.calls.acceptWaiting()
+                    result.success(ok)
+                }
+
+                "rejectWaiting" -> {
+                    CallNotificationBuilder.cancelWaiting(app)
+                    app.sipCallController.rejectWaiting()
+                    result.success(null)
+                }
+
+                "swapCalls" -> result.success(app.sipCallController.swap() && app.calls.swap())
+
+                "mergeCalls" -> result.success(app.sipCallController.merge() && app.calls.startConference())
+
+                "transferAttended" -> result.success(app.sipCallController.transferAttended())
 
                 "hold" -> {
                     val onHold = call.arguments as Boolean
                     app.sipCallController.hold(onHold)
-                    app.updateCurrentCall { it.copy(onHold = onHold) }
+                    app.calls.setHold(onHold)
                     result.success(null)
                 }
 
                 "mute" -> {
                     val muted = call.arguments as Boolean
                     app.sipCallController.mute(muted)
-                    app.updateCurrentCall { it.copy(muted = muted) }
+                    app.calls.setMuted(muted)
                     result.success(null)
                 }
 
@@ -155,7 +190,7 @@ class SipChannelHandler(
                     result.success(code.isNotEmpty())
                 }
 
-                "getCurrentCall" -> result.success(app.currentCall?.toChannelMap())
+                "getCurrentCall" -> result.success(app.calls.snapshot())
 
                 "getAudioRoutes" -> result.success(de.haphone.app.test.calls.AudioRouting.snapshot())
 

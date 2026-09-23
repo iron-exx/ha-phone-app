@@ -13,6 +13,7 @@ import '../widgets/audio_route_sheet.dart';
 import '../widgets/call_header.dart';
 import '../widgets/in_call_keypad_sheet.dart';
 import '../widgets/round_action_button.dart';
+import '../widgets/second_call_card.dart';
 import '../widgets/transfer_sheet.dart';
 
 /// Linkus-style in-call screen: caller header, optional door-station video,
@@ -192,8 +193,55 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
           SipChannel.instance.transfer(target);
           Navigator.of(sheetContext).pop();
         },
+        // Consultation: call the target first, then "Verbinden" on the held-call card.
+        onConsult: (target) {
+          Navigator.of(sheetContext).pop();
+          _placeSecondCall(target);
+        },
       ),
     );
+  }
+
+  void _showAddCall() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => TransferSheet(
+        title: 'Anruf hinzufügen',
+        actionLabel: 'Anrufen',
+        actionIcon: Icons.call,
+        onTransfer: (target) {
+          Navigator.of(sheetContext).pop();
+          _placeSecondCall(target);
+        },
+      ),
+    );
+  }
+
+  Future<void> _placeSecondCall(String number) async {
+    try {
+      await SipChannel.instance.makeCall(number);
+    } catch (e) {
+      debugPrint('second call failed: $e');
+      _snack('Zweiter Anruf nicht möglich');
+    }
+    await _refreshCall();
+  }
+
+  Future<void> _runSecondLine(Future<bool> Function() action, String failure) async {
+    try {
+      if (!await action()) _snack(failure);
+    } catch (e) {
+      debugPrint('$failure: $e');
+      _snack(failure);
+    }
+    await _refreshCall();
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -210,13 +258,24 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
           child: LayoutBuilder(
             // Short screens (or video) drop the big avatar so the grid and
             // hang-up button always fit without scrolling.
-            builder: (context, constraints) => _body(
-              name: name,
-              number: number,
-              call: call,
-              showVideo: showVideo,
-              compact: showVideo || constraints.maxHeight < 680,
-            ),
+            builder: (context, constraints) {
+              final body = _body(
+                name: name,
+                number: number,
+                call: call,
+                showVideo: showVideo,
+                compact: showVideo || call?.other != null || constraints.maxHeight < 680,
+              );
+              // The video box flexes itself; everything else scrolls if a second-call
+              // card or a small screen makes it taller than the screen.
+              if (showVideo) return body;
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(child: body),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -244,6 +303,21 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
             compact: compact,
           ),
           const SizedBox(height: 16),
+          if (call?.other != null) ...[
+            SecondCallCard(
+              other: call!.other!,
+              conference: call.conference,
+              onAnswerWaiting: () => _runSecondLine(SipChannel.instance.answerWaiting, 'Annehmen fehlgeschlagen'),
+              onRejectWaiting: () async {
+                await SipChannel.instance.rejectWaiting();
+                await _refreshCall();
+              },
+              onSwap: () => _runSecondLine(SipChannel.instance.swapCalls, 'Makeln fehlgeschlagen'),
+              onTransfer: () => _runSecondLine(SipChannel.instance.transferAttended, 'Verbinden fehlgeschlagen'),
+              onMerge: () => _runSecondLine(SipChannel.instance.mergeCalls, 'Konferenz erst möglich, wenn beide angenommen haben'),
+            ),
+            const SizedBox(height: 12),
+          ],
           if (showVideo) const _RemoteVideo() else const Spacer(),
           const SizedBox(height: 16),
           _actionGrid(call),
@@ -288,11 +362,11 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       if (isDoor)
         RoundActionButton(icon: Icons.door_front_door, label: 'Tür öffnen', onPressed: _openDoor)
       else
-        // Visually disabled, but tappable so users learn it's coming.
-        GestureDetector(
-          onTap: () => ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Konferenz folgt'))),
-          child: const RoundActionButton(icon: Icons.call_merge, label: 'Konferenz', onPressed: null),
+        RoundActionButton(
+          icon: Icons.person_add_alt_1,
+          label: 'Hinzufügen',
+          // One second line at most: waiting, held or conference partner.
+          onPressed: call?.other == null ? _showAddCall : null,
         ),
     ];
     return Column(

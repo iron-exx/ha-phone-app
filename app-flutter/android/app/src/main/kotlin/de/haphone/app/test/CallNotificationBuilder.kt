@@ -10,6 +10,7 @@ import androidx.core.app.Person
 object CallNotificationBuilder {
     const val CHANNEL_ID = "haphone_test_calls"
     private const val NOTIFICATION_ID = 1001
+    private const val WAITING_NOTIFICATION_ID = 1002
 
     fun show(
         context: Context,
@@ -63,5 +64,28 @@ object CallNotificationBuilder {
      */
     fun cancel(context: Context) {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+    }
+
+    /** Call waiting: heads-up with Annehmen (holds the current call) / Ablehnen, no full screen. */
+    fun showWaiting(context: Context, callId: String, callerName: String?) {
+        val name = callerName?.takeIf { it.isNotBlank() } ?: callId
+        val caller = Person.Builder().setName(name).setImportant(true).build()
+        val answer = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_ANSWER_WAITING)
+        val decline = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_REJECT_WAITING)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
+            .setSmallIcon(android.R.drawable.sym_call_incoming)
+            .setContentText("Anklopfen: $name")
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOnlyAlertOnce(true)
+            .addPerson(caller)
+            .build()
+        runCatching { NotificationManagerCompat.from(context).notify(WAITING_NOTIFICATION_ID, notification) }
+            .onFailure { android.util.Log.w("HAPhoneTest", "call waiting notification failed", it) }
+    }
+
+    fun cancelWaiting(context: Context) {
+        NotificationManagerCompat.from(context).cancel(WAITING_NOTIFICATION_ID)
     }
 }

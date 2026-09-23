@@ -1,50 +1,201 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../models/voicemail.dart';
+import '../services/api_client.dart';
 import '../services/call_launcher.dart';
+import '../services/directory_repository.dart';
+import '../services/voicemail_audio.dart';
+import '../services/voicemail_repository.dart';
+import '../theme/app_colors.dart';
+import '../widgets/status_message.dart';
+import '../widgets/voicemail_player_panel.dart';
+import '../widgets/voicemail_tile.dart';
 
-/// Mailbox access number. The HA-Phone dialplan has no VoiceMailMain
-/// feature code yet (checked backend/conf_templates), so this is the
-/// planned default; change it here once the PBX defines one.
+/// Mailbox access number (*97 = own mailbox without PIN, HA-Phone 0.7.104).
 const kVoicemailNumber = '*97';
 
-/// Voicemail tab. Visual voicemail needs /api/mobile/voicemail (Phase 3).
-class VoicemailTab extends StatelessWidget {
-  const VoicemailTab({super.key});
+/// Visual voicemail: list of mailbox messages with an inline player.
+/// Refreshes whenever the tab becomes visible ([isActive] flips to true).
+class VoicemailTab extends StatefulWidget {
+  const VoicemailTab({
+    super.key,
+    this.isActive = false,
+    VoicemailRepository? repository,
+    DirectoryRepository? directory,
+    VoicemailAudioFactory? audioFactory,
+  })  : _repository = repository,
+        _directory = directory,
+        _audioFactory = audioFactory;
+
+  final bool isActive;
+  final VoicemailRepository? _repository;
+  final DirectoryRepository? _directory;
+  final VoicemailAudioFactory? _audioFactory;
+
+  @override
+  State<VoicemailTab> createState() => _VoicemailTabState();
+}
+
+class _VoicemailTabState extends State<VoicemailTab> {
+  String? _expandedId;
+
+  VoicemailRepository get _repo => widget._repository ?? VoicemailRepository.instance;
+  DirectoryRepository get _dir => widget._directory ?? DirectoryRepository.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) unawaited(_repo.refresh());
+  }
+
+  @override
+  void didUpdateWidget(VoicemailTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) unawaited(_repo.refresh());
+  }
+
+  String _nameFor(VoicemailMessage m) => m.callerName.isNotEmpty ? m.callerName : _dir.nameFor(m.callerNumber);
+
+  Future<void> _confirmDelete(VoicemailMessage m) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final who = _nameFor(m).isNotEmpty ? _nameFor(m) : m.callerNumber;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nachricht löschen?'),
+        content: Text(who.isEmpty
+            ? 'Die Nachricht wird aus der Mailbox gelöscht.'
+            : 'Die Nachricht von $who wird aus der Mailbox gelöscht.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.hangup),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _repo.delete(m);
+      if (mounted && _expandedId == m.id) setState(() => _expandedId = null);
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Löschen fehlgeschlagen: ${e.message}')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Voicemail')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.voicemail, size: 64, color: theme.colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(
-                'Visuelle Voicemail kommt mit dem nächsten Update',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Bis dahin erreichen Sie Ihre Mailbox per Anruf.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                icon: const Icon(Icons.call),
-                label: const Text('Mailbox anrufen'),
-                onPressed: () => CallLauncher.call(context, kVoicemailNumber),
-              ),
-            ],
+      appBar: AppBar(
+        title: const Text('Voicemail'),
+        actions: [
+          IconButton(
+            tooltip: 'Mailbox anrufen',
+            icon: const Icon(Icons.phone_forwarded_outlined),
+            onPressed: () => CallLauncher.call(context, kVoicemailNumber),
           ),
-        ),
+        ],
       ),
+      body: ListenableBuilder(
+        listenable: Listenable.merge([_repo, _dir]),
+        builder: (context, _) => _buildBody(context),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final error = _repo.error;
+    final messages = _repo.messages;
+    if (!_repo.hasLoaded && _repo.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (messages.isEmpty) {
+      return _scrollable([
+        const SizedBox(height: 48),
+        if (error != null)
+          _errorState(error)
+        else
+          const StatusMessage(icon: Icons.voicemail, message: 'Keine Nachrichten'),
+      ]);
+    }
+    final now = DateTime.now();
+    return RefreshIndicator(
+      onRefresh: _repo.refresh,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: messages.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return error == null ? const SizedBox.shrink() : ErrorBanner(message: error.message);
+          }
+          return _row(messages[i - 1], now);
+        },
+      ),
+    );
+  }
+
+  Widget _row(VoicemailMessage m, DateTime now) {
+    final expanded = _expandedId == m.id;
+    final name = _nameFor(m);
+    return Column(
+      key: ValueKey('vm-${m.heardKey}'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        VoicemailTile(
+          message: m,
+          resolvedName: name,
+          isUnheard: _repo.isUnheard(m),
+          isExpanded: expanded,
+          now: now,
+          onTap: () => setState(() => _expandedId = expanded ? null : m.id),
+        ),
+        if (expanded)
+          VoicemailPlayerPanel(
+            key: ValueKey('player-${m.heardKey}'),
+            message: m,
+            repository: _repo,
+            audioFactory: widget._audioFactory ?? defaultVoicemailAudio,
+            onCallBack: m.callerNumber.isEmpty ? null : () => CallLauncher.call(context, m.callerNumber),
+            onDelete: () => _confirmDelete(m),
+          ),
+      ],
+    );
+  }
+
+  Widget _scrollable(List<Widget> children) => RefreshIndicator(
+        onRefresh: _repo.refresh,
+        child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: children),
+      );
+
+  Widget _errorState(ApiException error) {
+    if (error.kind == ApiErrorKind.unsupported) {
+      return StatusMessage(
+        icon: Icons.system_update_outlined,
+        message: '${error.message}\nBis dahin erreichen Sie Ihre Mailbox per Anruf.',
+        actionLabel: 'Mailbox anrufen',
+        onAction: () => CallLauncher.call(context, kVoicemailNumber),
+      );
+    }
+    if (error.needsRepairing) {
+      return StatusMessage(
+        icon: Icons.link_off,
+        message: error.message,
+        actionLabel: 'Neu koppeln',
+        onAction: () async {
+          await Navigator.of(context).pushNamed('/qr-scan');
+          await _repo.refresh();
+        },
+      );
+    }
+    return StatusMessage(
+      icon: Icons.cloud_off_outlined,
+      message: error.message,
+      actionLabel: 'Erneut',
+      onAction: _repo.refresh,
     );
   }
 }

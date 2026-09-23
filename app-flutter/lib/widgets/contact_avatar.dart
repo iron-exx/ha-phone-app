@@ -10,6 +10,7 @@ class ContactAvatar extends StatelessWidget {
     required this.name,
     required this.number,
     this.presence,
+    this.dotColor,
     this.size = 44,
     this.color,
   });
@@ -19,6 +20,10 @@ class ContactAvatar extends StatelessWidget {
 
   /// null = no dot (phonebook entries, unknown callers).
   final Presence? presence;
+
+  /// Overrides the presence colour of the dot (live line state, e.g. red
+  /// while the extension is on the phone). Shows a dot even without [presence].
+  final Color? dotColor;
   final double size;
 
   /// Overrides the tinted accent background (e.g. red for missed calls).
@@ -29,6 +34,7 @@ class ContactAvatar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final fg = color ?? scheme.primary;
     final dot = size * 0.3;
+    final dotFill = dotColor ?? presence?.color;
     return SizedBox(
       width: size,
       height: size,
@@ -50,7 +56,7 @@ class ContactAvatar extends StatelessWidget {
               ),
             ),
           ),
-          if (presence != null)
+          if (dotFill != null)
             Positioned(
               right: -1,
               bottom: -1,
@@ -59,7 +65,7 @@ class ContactAvatar extends StatelessWidget {
                 height: dot,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: presence!.color,
+                  color: dotFill,
                   border: Border.all(color: scheme.surface, width: 2),
                 ),
               ),

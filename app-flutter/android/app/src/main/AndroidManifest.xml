@@ -87,6 +87,8 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".CallActionReceiver" android:exported="false" />
+
         <service android:name=".TestFcmService" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

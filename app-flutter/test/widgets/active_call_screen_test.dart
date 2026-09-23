@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/screens/active_call_screen.dart';
 import 'package:ha_phone_test/services/call_events.dart';
+import 'package:ha_phone_test/widgets/round_action_button.dart';
 
 import '../helpers/fake_sip.dart';
 
@@ -61,14 +62,52 @@ void main() {
     await dispose(tester);
   });
 
-  testWidgets('non-door call shows a disabled Konferenz button', (tester) async {
+  testWidgets('non-door call offers Hinzufügen for a second call', (tester) async {
     await pumpCall(tester, _call(state: 'ringing', connectedAgoSec: -1), _routes('earpiece', ['earpiece', 'speaker']));
 
     expect(find.text('Klingelt…'), findsOneWidget);
     expect(find.text('Tür öffnen'), findsNothing);
-    await tester.tap(find.text('Konferenz'));
+    await tester.tap(find.text('Hinzufügen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Anruf hinzufügen'), findsOneWidget);
+    await dispose(tester);
+  });
+
+  testWidgets('call waiting card answers or rejects the knocking call', (tester) async {
+    final call = {..._call(), 'other': {..._call(), 'number': '13', 'name': 'Test', 'state': 'waiting'}};
+    await pumpCall(tester, call, _routes('earpiece', ['earpiece', 'speaker']));
+
+    expect(find.text('Anklopfen: Test'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('answer-waiting')));
     await tester.pump();
-    expect(find.text('Konferenz folgt'), findsOneWidget);
+    expect(sip.callsTo('answerWaiting'), hasLength(1));
+    await tester.tap(find.byKey(const Key('reject-waiting')));
+    await tester.pump();
+    expect(sip.callsTo('rejectWaiting'), hasLength(1));
+    // A second line is up, so no third one can be added.
+    expect(tester.widget<RoundActionButton>(find.widgetWithText(RoundActionButton, 'Hinzufügen')).onPressed, isNull);
+    await dispose(tester);
+  });
+
+  testWidgets('held call card swaps, connects and merges', (tester) async {
+    final call = {..._call(), 'other': {..._call(), 'number': '13', 'name': 'Test', 'onHold': true}};
+    await pumpCall(tester, call, _routes('earpiece', ['earpiece', 'speaker']));
+
+    expect(find.text('Gehalten: Test'), findsOneWidget);
+    for (final entry in {'swap': 'swapCalls', 'connect': 'transferAttended', 'merge': 'mergeCalls'}.entries) {
+      await tester.tap(find.byKey(Key(entry.key)));
+      await tester.pump();
+      expect(sip.callsTo(entry.value), hasLength(1), reason: entry.value);
+    }
+    await dispose(tester);
+  });
+
+  testWidgets('conference card shows the partner without line actions', (tester) async {
+    final call = {..._call(), 'conference': true, 'other': {..._call(), 'number': '13', 'name': 'Test'}};
+    await pumpCall(tester, call, _routes('earpiece', ['earpiece', 'speaker']));
+
+    expect(find.text('Konferenz mit Test'), findsOneWidget);
+    expect(find.byKey(const Key('swap')), findsNothing);
     await dispose(tester);
   });
 

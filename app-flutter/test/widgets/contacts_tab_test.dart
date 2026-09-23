@@ -5,10 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/screens/contacts_tab.dart';
 import 'package:ha_phone_test/services/api_client.dart';
 import 'package:ha_phone_test/services/directory_repository.dart';
+import 'package:ha_phone_test/services/presence_repository.dart';
+import 'package:ha_phone_test/theme/app_colors.dart';
+import 'package:ha_phone_test/widgets/contact_avatar.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../helpers/fake_api.dart';
 import '../helpers/fake_sip.dart';
 
 const _body = {
@@ -74,5 +78,51 @@ void main() {
     await pumpTab(tester, repo(http.Response('', 401)));
     expect(find.textContaining('Gerät neu koppeln'), findsOneWidget);
     expect(find.text('Neu koppeln'), findsOneWidget);
+  });
+
+  testWidgets('live line state wins over presence, merged by number', (tester) async {
+    final pbx = FakePbx({
+      'GET /api/mobile/directory': (_) => jsonResponse({
+            ..._body,
+            'extensions': [
+              ...(_body['extensions'] as List),
+              {'number': '15', 'name': 'Büro', 'presence': 'available'},
+              {'number': '17', 'name': 'Lager', 'presence': 'available'},
+            ],
+          }),
+      'GET /api/mobile/presence': (_) => jsonResponse({
+            'self': {'number': '13', 'presence': 'available', 'line': 'idle'},
+            'extensions': [
+              {'number': '11', 'presence': 'lunch', 'line': 'busy'},
+              {'number': '15', 'presence': 'available', 'line': 'offline'},
+              {'number': '16', 'presence': 'available', 'line': 'ringing'},
+              {'number': '17', 'presence': 'lunch', 'line': 'idle'},
+            ],
+          }),
+    });
+    final dir = DirectoryRepository(api: pbx.api, authLoader: testAuthLoader);
+    final presence = PresenceRepository(api: pbx.api, authLoader: testAuthLoader);
+    await tester.pumpWidget(MaterialApp(home: ContactsTab(repository: dir, presence: presence)));
+    await tester.runAsync(() async {
+      await dir.init();
+      await presence.refresh();
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.text('11 · telefoniert'), findsOneWidget);
+    expect(find.text('15 · offline'), findsOneWidget);
+    expect(find.text('16 · klingelt'), findsOneWidget);
+    expect(find.text('17 · Mittagspause'), findsOneWidget);
+    expect(find.byIcon(Icons.door_front_door_outlined), findsOneWidget);
+
+    Color? dotOf(String name) => tester
+        .widget<ContactAvatar>(find.descendant(
+          of: find.ancestor(of: find.text(name), matching: find.byType(ListTile)),
+          matching: find.byType(ContactAvatar),
+        ))
+        .dotColor;
+    expect(dotOf('sandro'), AppColors.presenceBusy);
+    expect(dotOf('Büro'), AppColors.presenceOffline);
+    expect(dotOf('Lager'), AppColors.presenceLunch);
   });
 }

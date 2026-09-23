@@ -48,3 +48,20 @@ String callSubtitle(CallHistoryEntry e) {
   }
   return e.video ? '$base · Video' : base;
 }
+
+/// Voicemail row time: "heute 14:02", "gestern 09:10", "Mo 14:02" within the
+/// last 7 days, otherwise "12.09. 14:02".
+String formatVoicemailTime(DateTime t, DateTime now) {
+  final clock = '${_two(t.hour)}:${_two(t.minute)}';
+  final day = DateTime(t.year, t.month, t.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final days = (today.difference(day).inMinutes / (60 * 24)).round();
+  if (days <= 0) return 'heute $clock';
+  if (days == 1) return 'gestern $clock';
+  if (days < 7) return '${_weekdaysShort[t.weekday - 1]} $clock';
+  return '${_two(t.day)}.${_two(t.month)}. $clock';
+}
+
+/// Voicemail row subtitle: "0:42 · heute 14:02".
+String voicemailSubtitle(Duration duration, DateTime receivedAt, DateTime now) =>
+    '${formatCallDuration(duration)} · ${formatVoicemailTime(receivedAt, now)}';

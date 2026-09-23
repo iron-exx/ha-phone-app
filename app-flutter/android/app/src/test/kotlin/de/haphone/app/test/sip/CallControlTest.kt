@@ -9,7 +9,7 @@ class FakeSipCallOperations : SipCallOperations {
 
     override fun register() { invocations.add("register") }
     override fun unregister() { invocations.add("unregister") }
-    override fun makeCall(uri: String) { invocations.add("makeCall:$uri") }
+    override fun makeCall(uri: String): Int { invocations.add("makeCall:$uri"); return 1 }
     override fun answer(): Boolean { invocations.add("answer"); return answerSucceeds }
     override fun hold(onHold: Boolean) { invocations.add("hold:$onHold") }
     override fun mute(muted: Boolean) { invocations.add("mute:$muted") }

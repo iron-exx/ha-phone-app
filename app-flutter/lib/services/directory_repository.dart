@@ -12,7 +12,7 @@ import 'sip_channel.dart';
 class DirectoryRepository extends ChangeNotifier {
   DirectoryRepository({ApiClient? api, Future<DeviceAuth> Function()? authLoader})
       : _api = api ?? ApiClient(),
-        _authLoader = authLoader ?? _loadAuthFromNative;
+        _authLoader = authLoader ?? loadAuthFromNative;
 
   static final DirectoryRepository instance = DirectoryRepository();
 
@@ -31,7 +31,8 @@ class DirectoryRepository extends ChangeNotifier {
   ApiException? get error => _error;
   bool get isLoading => _loading;
 
-  static Future<DeviceAuth> _loadAuthFromNative() async =>
+  /// Device credentials from the native store (shared by all repositories).
+  static Future<DeviceAuth> loadAuthFromNative() async =>
       DeviceAuth.fromMap(await SipChannel.instance.getDeviceAuth());
 
   /// Loads the cache (once) and then fetches a fresh copy.

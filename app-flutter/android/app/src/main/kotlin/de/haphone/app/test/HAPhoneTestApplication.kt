@@ -65,9 +65,11 @@ class HAPhoneTestApplication : Application() {
     val callHistory by lazy { de.haphone.app.test.calls.CallHistoryStore(this) }
     val doorCodes by lazy { de.haphone.app.test.calls.DoorCodes(this) }
 
-    /** The call currently ringing/connecting/connected, null when idle. Main thread only. */
-    var currentCall: de.haphone.app.test.calls.CurrentCall? = null
-        private set
+    /** Up to two calls (on screen + held/waiting), history and UI events. Main thread only. */
+    val calls by lazy { de.haphone.app.test.calls.CallCoordinator(callHistory, doorCodes) }
+
+    /** The call on screen, null when idle. */
+    val currentCall: de.haphone.app.test.calls.CurrentCall? get() = calls.currentCall
 
     // Rebuildable, unlike a bare `by lazy {}`: credentials can now change at
     // runtime via the Flutter Settings screen (SipChannelHandler.saveCredentials),
@@ -97,7 +99,12 @@ class HAPhoneTestApplication : Application() {
     private fun showIncomingSipCall(call: de.haphone.app.test.sip.IncomingSipCall) {
         val callId = call.number.ifBlank { "unknown" }
         val callType = if (call.hasVideo) "video" else "audio"
-        beginCall(call.number, call.displayName, "incoming", call.hasVideo, "ringing")
+        val role = calls.beginIncoming(call.callId, call.number, call.displayName, call.hasVideo)
+        if (role != de.haphone.app.test.calls.CallSession.IncomingRole.FOCUSED) {
+            // Call waiting: the Telecom call and the call screen stay; Dart shows the waiting banner.
+            CallNotificationBuilder.showWaiting(this, callId, call.displayName)
+            return
+        }
         callRegistration.reportIncomingCall(callId, displayName = call.displayName) {}
         CallNotificationBuilder.show(
             this, callId, callType, isValid = true, isExpired = false, callerName = call.displayName,
@@ -112,57 +119,21 @@ class HAPhoneTestApplication : Application() {
         }.onFailure { android.util.Log.w("HAPhoneTestApplication", "could not open ringing screen", it) }
     }
 
-    /** Records a new call in the history and makes it the [currentCall]. */
-    fun beginCall(number: String, name: String, direction: String, video: Boolean, state: String) {
-        val now = System.currentTimeMillis()
-        val id = "$now-$number"
-        val entryName = if (name == number) "" else name
-        callHistory.update {
-            de.haphone.app.test.calls.CallHistory.add(
-                it,
-                de.haphone.app.test.calls.CallHistoryEntry(id, number, entryName, direction, video, now),
-            )
-        }
-        currentCall = de.haphone.app.test.calls.CurrentCall(
-            historyId = id,
-            number = number,
-            name = entryName,
-            direction = direction,
-            video = video,
-            doorCode = doorCodes.forNumber(number),
-            state = state,
-        )
-        CallEventBus.emit(mapOf("type" to "callHistoryChanged"))
-    }
-
-    fun updateCurrentCall(transform: (de.haphone.app.test.calls.CurrentCall) -> de.haphone.app.test.calls.CurrentCall) {
-        currentCall = currentCall?.let(transform)
-    }
-
-    private fun onCallConfirmed() {
-        val call = currentCall ?: return
-        val now = System.currentTimeMillis()
-        currentCall = call.copy(state = "confirmed", connectedAtMs = now)
-        callHistory.update { de.haphone.app.test.calls.CallHistory.markAnswered(it, call.historyId, now) }
-        CallEventBus.emitCallState(call.number, call.direction, "confirmed")
-        CallEventBus.emit(mapOf("type" to "callHistoryChanged"))
-    }
-
-    /** Closes the history entry of the current call; safe to call more than once. */
-    fun endCurrentCall() {
-        val call = currentCall ?: return
-        currentCall = null
-        de.haphone.app.test.calls.AudioRouting.detach()
-        callHistory.update { de.haphone.app.test.calls.CallHistory.markEnded(it, call.historyId, System.currentTimeMillis()) }
-        CallEventBus.emit(mapOf("type" to "callHistoryChanged"))
-    }
-
     /** Keeps the process (and so the SIP registration) alive in the background. */
     fun startSipService() {
         if (!hasValidCredentials()) return
         androidx.core.content.ContextCompat.startForegroundService(
             this, android.content.Intent(this, SipService::class.java),
         )
+    }
+
+    /** Last call gone: release Telecom, ringing UI, notifications and the video window. */
+    fun endTelecomSession(cause: Int) {
+        de.haphone.app.test.calls.AudioRouting.detach()
+        releaseTelecomCall(cause)
+        CallNotificationBuilder.cancel(this)
+        de.haphone.app.test.sip.VideoSurfaceBinder.reset()
+        IncomingCallActivity.finishIfShowing()
     }
 
     fun releaseTelecomCall(cause: Int) {
@@ -211,16 +182,19 @@ class HAPhoneTestApplication : Application() {
         // eagerly at process start, which would undo the lazy-init intent.
         CallsManager(this).registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
 
-        de.haphone.app.test.sip.SipCallEvents.onCallDisconnected = { reason ->
-            endCurrentCall()
-            CallEventBus.emitCallState("", "", "disconnected", reason)
-            releaseTelecomCall(android.telecom.DisconnectCause.REMOTE)
-            CallNotificationBuilder.cancel(this)
-            de.haphone.app.test.sip.VideoSurfaceBinder.reset()
-            IncomingCallActivity.finishIfShowing()
+        de.haphone.app.test.sip.SipCallEvents.onCallDisconnected = { callId, reason ->
+            val nothingLeft = calls.ended(callId)
+            CallNotificationBuilder.cancelWaiting(this)
+            if (nothingLeft) {
+                CallEventBus.emitCallState("", "", "disconnected", reason)
+                endTelecomSession(android.telecom.DisconnectCause.REMOTE)
+            } else {
+                // One of two calls ended: the other stays (on hold) on the call screen.
+                CallEventBus.emitCallState(currentCall?.number.orEmpty(), currentCall?.direction.orEmpty(), "lineEnded", reason)
+            }
         }
         de.haphone.app.test.sip.SipCallEvents.onIncomingCall = { call -> showIncomingSipCall(call) }
-        de.haphone.app.test.sip.SipCallEvents.onCallConfirmed = { onCallConfirmed() }
+        de.haphone.app.test.sip.SipCallEvents.onCallConfirmed = { callId -> calls.confirmed(callId) }
 
         // D-09: mid-call network-switch resilience (RESEARCH.md Pattern 3) --
         // observe platform network changes for the app process lifetime and

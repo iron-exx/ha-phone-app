@@ -35,11 +35,18 @@ class SipCallController(
         CallEventBus.emitRegistrationState("unregistered")
     }
 
-    fun makeCall(rawDigits: String) {
+    /** Returns the pjsua call id. */
+    fun makeCall(rawDigits: String): Int {
         val uri = DialString.toSipUri(DialString.sanitize(rawDigits), sipDomain)
         sipOps.register()
-        sipOps.makeCall(uri)
+        return sipOps.makeCall(uri)
     }
+
+    fun answerWaiting(): Boolean = sipOps.answerWaiting()
+    fun rejectWaiting() = sipOps.rejectWaiting()
+    fun swap(): Boolean = sipOps.swap()
+    fun merge(): Boolean = sipOps.merge()
+    fun transferAttended(): Boolean = sipOps.transferAttended()
 
     /**
      * Report-First pattern (02-PATTERNS.md): called from

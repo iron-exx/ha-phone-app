@@ -4,6 +4,7 @@ import '../models/contact.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
 import '../services/favorites_store.dart';
+import '../services/presence_repository.dart';
 import '../utils/contact_filter.dart';
 import '../widgets/contact_details_sheet.dart';
 import '../widgets/contact_tile.dart';
@@ -13,10 +14,14 @@ enum ContactSegment { extensions, phonebook, favorites }
 
 /// Kontakte tab: PBX extensions (with presence), PBX phonebook, local favourites.
 class ContactsTab extends StatefulWidget {
-  const ContactsTab({super.key, DirectoryRepository? repository})
-      : _repository = repository;
+  const ContactsTab({super.key, DirectoryRepository? repository, PresenceRepository? presence})
+      : _repository = repository,
+        _presence = presence;
 
   final DirectoryRepository? _repository;
+
+  /// Live presence/line state merged over the directory by number.
+  final PresenceRepository? _presence;
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
@@ -27,6 +32,11 @@ class _ContactsTabState extends State<ContactsTab> {
   ContactSegment _segment = ContactSegment.extensions;
 
   DirectoryRepository get _repo => widget._repository ?? DirectoryRepository.instance;
+  PresenceRepository get _presence => widget._presence ?? PresenceRepository.instance;
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_repo.refresh(), _presence.refresh()]);
+  }
 
   @override
   void dispose() {
@@ -93,7 +103,7 @@ class _ContactsTabState extends State<ContactsTab> {
           ),
           Expanded(
             child: ListenableBuilder(
-              listenable: Listenable.merge([_repo, FavoritesStore.instance]),
+              listenable: Listenable.merge([_repo, _presence, FavoritesStore.instance]),
               builder: (context, _) => _buildList(context),
             ),
           ),
@@ -122,7 +132,7 @@ class _ContactsTabState extends State<ContactsTab> {
                 : _repo.refresh,
           );
     return RefreshIndicator(
-      onRefresh: _repo.refresh,
+      onRefresh: _refreshAll,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: contacts.isEmpty ? 2 : contacts.length + 1,
@@ -138,6 +148,7 @@ class _ContactsTabState extends State<ContactsTab> {
           return ContactTile(
             contact: c,
             isFavorite: FavoritesStore.instance.isFavorite(c.number),
+            status: c.isExtension ? _presence.statusFor(c.number) : null,
             onTap: () => _call(c),
             onLongPress: () => ContactDetailsSheet.show(context, c, onCall: () => _call(c)),
           );

@@ -3,10 +3,22 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'dialpad_grid.dart';
 
-/// Blind-transfer target entry (SIP REFER).
+/// Number entry for blind transfer (SIP REFER) and, via [onConsult], for a
+/// consultation call first (attended transfer). Also reused for "Anruf hinzufügen".
 class TransferSheet extends StatefulWidget {
-  const TransferSheet({super.key, required this.onTransfer});
+  const TransferSheet({
+    super.key,
+    required this.onTransfer,
+    this.onConsult,
+    this.title = 'Weiterleiten an',
+    this.actionLabel = 'Sofort weiterleiten',
+    this.actionIcon = Icons.phone_forwarded,
+  });
   final ValueChanged<String> onTransfer;
+  final ValueChanged<String>? onConsult;
+  final String title;
+  final String actionLabel;
+  final IconData actionIcon;
 
   @override
   State<TransferSheet> createState() => _TransferSheetState();
@@ -24,7 +36,7 @@ class _TransferSheetState extends State<TransferSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Weiterleiten an', style: theme.textTheme.titleMedium),
+            Text(widget.title, style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -54,10 +66,19 @@ class _TransferSheetState extends State<TransferSheet> {
             const SizedBox(height: 16),
             FilledButton.icon(
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              icon: const Icon(Icons.phone_forwarded),
+              icon: Icon(widget.actionIcon),
               onPressed: _target.isEmpty ? null : () => widget.onTransfer(_target),
-              label: const Text('Weiterleiten'),
+              label: Text(widget.actionLabel),
             ),
+            if (widget.onConsult != null) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                icon: const Icon(Icons.support_agent),
+                onPressed: _target.isEmpty ? null : () => widget.onConsult!(_target),
+                label: const Text('Mit Rückfrage'),
+              ),
+            ],
           ],
         ),
       ),
