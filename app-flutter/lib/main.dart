@@ -31,6 +31,12 @@ class _HAPhoneAppState extends State<HAPhoneApp> {
   }
 
   void _handleNativeRoute(String route) {
+    if (route.startsWith('provision:')) {
+      _navigatorKey.currentState?.push(MaterialPageRoute<void>(
+        builder: (_) => QrScanScreen(initialLink: route.substring('provision:'.length)),
+      ));
+      return;
+    }
     if (route == 'active_call') {
       _navigatorKey.currentState?.pushNamedAndRemoveUntil('/active-call', (r) => r.isFirst);
     }

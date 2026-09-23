@@ -51,6 +51,13 @@ class MainActivity : FlutterActivity() {
      * than relying only on the live call_events stream (which a not-yet-
      * listening Dart side could miss). */
     private fun deliverRouteIfAny(intent: Intent) {
+        val data = intent.data
+        if (intent.action == Intent.ACTION_VIEW && data?.scheme == "haphone" && data.host == "provision") {
+            // Consume it so a later configuration change does not pair a second time.
+            intent.data = null
+            methodChannel?.invokeMethod("navigateTo", "provision:$data")
+            return
+        }
         val route = intent.getStringExtra("route") ?: return
         methodChannel?.invokeMethod("navigateTo", route)
     }

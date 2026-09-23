@@ -17,7 +17,11 @@ enum _ScreenState { checkingPermission, permissionDenied, scanning, processing, 
 /// read, so no separate "provisioned via QR" state is needed. The returned
 /// device id/token are stored too (SipChannel.saveDeviceAuth).
 class QrScanScreen extends StatefulWidget {
-  const QrScanScreen({super.key});
+  const QrScanScreen({super.key, this.initialLink});
+
+  /// A `haphone://provision?...` link opened from outside (system camera, admin page,
+  /// `adb shell am start -d`): pair with it directly instead of scanning.
+  final String? initialLink;
 
   @override
   State<QrScanScreen> createState() => _QrScanScreenState();
@@ -32,7 +36,15 @@ class _QrScanScreenState extends State<QrScanScreen> {
   @override
   void initState() {
     super.initState();
-    _checkPermission();
+    final link = widget.initialLink;
+    if (link != null) {
+      _handled = true;
+      _state = _ScreenState.processing;
+      // Not synchronously: _pairWithLink calls setState, which is not allowed inside initState.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _pairWithLink(link));
+    } else {
+      _checkPermission();
+    }
   }
 
   @override
@@ -64,8 +76,15 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
     _handled = true;
     await _controller.stop();
+    await _pairWithLink(rawValue);
+  }
 
-    final uri = Uri.parse(rawValue);
+  Future<void> _pairWithLink(String link) async {
+    final uri = Uri.tryParse(link);
+    if (uri == null) {
+      _showError('QR-Code ungültig');
+      return;
+    }
     final token = uri.queryParameters['t'];
     final host = uri.queryParameters['host'];
     if (token == null || host == null) {
