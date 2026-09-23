@@ -81,11 +81,13 @@ final class PushHandler: NSObject, PKPushRegistryDelegate {
         diagnosticsLog.record(event: "receivedAt", timestamp: Date())
 
         let callIdString = dict["call_id"] as? String ?? UUID().uuidString
+        let callType = dict["call_type"] as? String ?? "audio"
         let uuid = UUID(uuidString: callIdString) ?? UUID()
         let update = CXCallUpdate()
         update.remoteHandle = CXHandle(type: .generic, value: "HA-Phone Testanruf")
         update.localizedCallerName = "HA-Phone Testanruf"
-        update.hasVideo = false
+        update.hasVideo = (callType == "video" || callType == "door")
+        diagnosticsLog.record(event: "callType:\(callType) hasVideo:\(update.hasVideo)", timestamp: Date())
 
         // MANDATORY: report first, synchronously, unconditionally -- Pitfall 1.
         callReporter.reportNewIncomingCall(with: uuid, update: update) { [weak self] _ in

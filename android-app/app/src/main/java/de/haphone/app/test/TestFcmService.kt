@@ -19,8 +19,11 @@ class TestFcmService : FirebaseMessagingService() {
         val callType = data["call_type"] as? String ?: "audio"
         val callId = data["call_id"] as? String ?: java.util.UUID.randomUUID().toString()
 
-        // Always show a visible notification for call-type FCM messages
-        CallNotificationBuilder.show(applicationContext, callId, callType, isValid, isExpired)
+        if (isValid && !isExpired) {
+            CallNotificationBuilder.show(applicationContext, callId, callType, isValid, isExpired)
+        } else {
+            Log.w("HAPhoneTest", "FCM call REJECTED: callId=$callId, valid=$isValid, expired=$isExpired")
+        }
         Log.i("HAPhoneTest", "FCM call received: callId=$callId, valid=$isValid, expired=$isExpired")
     }
 }

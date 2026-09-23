@@ -1,12 +1,17 @@
 package de.haphone.app.test
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,10 +47,14 @@ class MainActivity : ComponentActivity() {
     private val fcmTokenState = mutableStateOf("Fetching FCM token...")
     private var isProvisioned = false
 
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         checkProvisionedStatus()
+        requestNotificationPermissionIfNeeded()
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
@@ -82,6 +91,15 @@ class MainActivity : ComponentActivity() {
 
     private fun checkProvisionedStatus() {
         isProvisioned = hasValidCredentials(this)
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     private fun hasValidCredentials(context: Context): Boolean {
@@ -156,14 +174,15 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Button(onClick = onScanQr, modifier = Modifier.weight(1f)) {
+                            Button(onClick = onScanQr, modifier = Modifier.weight(1f), enabled = false) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("🔍")
                                     Spacer(modifier = Modifier.padding(top = 4.dp))
                                     Text("QR-Code scannen")
+                                    Text("(bald verfügbar)", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
-                            Button(onClick = { /* TODO: Settings */ }, modifier = Modifier.weight(1f)) {
+                            Button(onClick = onSettings, modifier = Modifier.weight(1f)) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("⚙️")
                                     Spacer(modifier = Modifier.padding(top = 4.dp))
@@ -182,14 +201,16 @@ class MainActivity : ComponentActivity() {
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Was ist der FCM-Token?", style = MaterialTheme.typography.labelLarge)
+                        Text("So richten Sie HA-Phone ein", style = MaterialTheme.typography.labelLarge)
                         Spacer(modifier = Modifier.padding(top = 8.dp))
                         Text(
-                            "Dies ist Ihre eindeutige Push-Adresse. Die HA-Phone-Box nutzt sie, " +
-                            "um Ihr Gerät bei eingehenden Anrufen aufzuwecken (über Firebase).\n\n" +
-                            "• Kopieren Sie den Token für Tests mit: tools/push_trigger.py\n" +
-                            "• Bei QR-Setup wird er automatisch an die Box gesendet\n" +
-                            "• Er ändert sich selten, aber kann neu generiert werden",
+                            "1. Öffnen Sie \"SIP-Zugangsdaten eingeben\" oben\n" +
+                            "2. Tragen Sie Server, Port, Nebenstelle und Passwort aus Ihrem " +
+                            "HA-Phone-Dashboard ein\n" +
+                            "3. Speichern – die App ist danach betriebsbereit\n\n" +
+                            "Der FCM-Push-Token unten wird von der HA-Phone-Box benötigt, um Ihr " +
+                            "Gerät bei eingehenden Anrufen aufzuwecken (nur für manuelle Tests " +
+                            "relevant, z.B. tools/push_trigger.py).",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -256,14 +277,14 @@ class MainActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (!isProvisioned) {
-                    Button(onClick = onScanQr, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onSettings, modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Text("🔍")
+                            Text("⚙️")
                             Spacer(modifier = Modifier.padding(end = 8.dp))
-                            Text("QR-Code scannen & einrichten")
+                            Text("SIP-Zugangsdaten eingeben")
                         }
                     }
                 }

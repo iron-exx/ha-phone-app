@@ -38,6 +38,7 @@ class HAPhoneTestApplication : Application() {
      * fällt auf BuildConfig zurück (für Test/Dev ohne Provisioning).
      */
     val sipCallController: SipCallController by lazy {
+        pjsuaEndpointHolder.start()
         val (host, port, username, password) = getSipCredentials(this)
         val sipDomain = "$host:$port"
         SipCallController(
