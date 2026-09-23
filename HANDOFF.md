@@ -113,12 +113,19 @@ Anlage (gepusht, auf der Box **0.7.110**, 0.7.111 wird eingespielt):
 
 CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 16:57 beendet. CCsrv jetzt 32 GB.
 
-## 5a. Nächste Schritte
+## 5a. Im Emulator getestet (2026-09-23 21:40, App 0.4.0, Anlage 0.7.112)
 
-1. Tür-HA-Aktionen in der App (nativer Klingelbildschirm + Gesprächsbildschirm), Directory `door_actions` → nativ speichern.
-2. Emulator: Zwei-Leitungen-Test mit `*43` (Echo, nimmt an) + zweitem Ruf; Präsenz/Voicemail/Anrufliste gegen 0.7.110+ prüfen.
-3. Design-Feinschliff, App-Symbol, Startbildschirm; Handy-Adressbuch (Phase 5 optional).
-4. Phase 8: Push-Wecken über FCM (Anlage sendet bei Anruf), Tailscale.
+- Kopplung per Link, TLS-Registrierung, Kontakte mit Live-Status, Voicemail-Reiter, Ich (Status), Diagnose ("erreichbar · 624 ms", alle Funktionen "ja"), Anrufliste mit CDR.
+- Zwei Leitungen mit `*43`: Rückfrage über "Hinzufügen", Makeln, Konferenz, Auflegen der vorderen Leitung (gehaltene bleibt mit "Fortsetzen"), Auflegen der letzten → zurück zur Hauptansicht.
+- Behoben dabei: Kanäle werden jetzt in `HAPhoneTestApplication.onCreate` **vor** dem Dart-Start registriert (Kaltstart verlor sonst das EventChannel-Listen → Gesprächsbildschirm ohne Ereignisse). `_invokeResilient` ist damit eigentlich überflüssig.
+- Nicht testbar im Emulator: echter Ton, Bluetooth, Türstation-Video (braucht die Akuvox), Anklopfen (braucht einen zweiten Anrufer).
+
+## 5b. Nächste Schritte
+
+1. Weiterleitungen-Bildschirm im Emulator durchklicken (lädt; Speichern prüfen).
+2. App-Symbol + Startbildschirm im HA-Blau (Phase 2 Rest).
+3. Anklopfen testen: zweites Gerät/Softphone auf einer anderen Nebenstelle ruft die 12 an, während sie telefoniert.
+4. Phase 8: Push-Wecken über FCM (Anlage sendet bei Anruf), Tailscale; Phase 7 iOS.
 
 Türstation / Klingelgruppe:
 - **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
