@@ -113,7 +113,11 @@ void main() {
     expect(find.text('15 · offline'), findsOneWidget);
     expect(find.text('16 · klingelt'), findsOneWidget);
     expect(find.text('17 · Mittagspause'), findsOneWidget);
-    expect(find.byIcon(Icons.door_front_door_outlined), findsOneWidget);
+    // Only the ringing colleague offers "Heranholen".
+    expect(find.byKey(const Key('pickup-16')), findsOneWidget);
+    expect(find.text('Heranholen'), findsOneWidget);
+    // While it rings, the door station shows "Heranholen" instead of its door icon.
+    expect(find.byIcon(Icons.door_front_door_outlined), findsNothing);
 
     Color? dotOf(String name) => tester
         .widget<ContactAvatar>(find.descendant(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
 import '../models/extension_status.dart';
+import '../services/call_launcher.dart';
 import '../theme/app_colors.dart';
 import 'contact_avatar.dart';
 
@@ -48,7 +49,15 @@ class ContactTile extends StatelessWidget {
         ],
       ),
       subtitle: Text(subtitle, style: tabular(theme.textTheme.bodyMedium)),
-      trailing: contact.isDoorStation
+      // A ringing colleague: take the call over (PBX code **<ext>), like the desk phone's BLF key.
+      trailing: live.line == LineState.ringing && contact.isExtension
+          ? FilledButton.tonalIcon(
+              key: Key('pickup-${contact.number}'),
+              onPressed: () => CallLauncher.call(context, '**${contact.number}'),
+              icon: const Icon(Icons.call_received, size: 18),
+              label: const Text('Heranholen'),
+            )
+          : contact.isDoorStation
           ? Tooltip(
               message: 'Türstation',
               child: Icon(Icons.door_front_door_outlined, color: theme.colorScheme.primary),
