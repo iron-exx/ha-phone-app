@@ -22,7 +22,8 @@
         android:name=".HAPhoneTestApplication"
         android:allowBackup="true"
         android:label="HA-Phone"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/NormalTheme"
         android:usesCleartextTraffic="true">
 

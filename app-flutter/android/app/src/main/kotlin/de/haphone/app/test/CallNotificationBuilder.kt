@@ -36,7 +36,7 @@ object CallNotificationBuilder {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, declineIntent, answerIntent))
-            .setSmallIcon(android.R.drawable.sym_call_incoming)
+            .setSmallIcon(R.drawable.ic_stat_haphone)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .addPerson(caller)
@@ -74,7 +74,7 @@ object CallNotificationBuilder {
         val decline = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_REJECT_WAITING)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
-            .setSmallIcon(android.R.drawable.sym_call_incoming)
+            .setSmallIcon(R.drawable.ic_stat_haphone)
             .setContentText("Anklopfen: $name")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

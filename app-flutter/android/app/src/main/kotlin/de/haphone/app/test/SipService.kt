@@ -34,7 +34,7 @@ class SipService : Service() {
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.sym_action_call)
+            .setSmallIcon(R.drawable.ic_stat_haphone)
             .setContentTitle("HA-Phone ist bereit")
             .setContentText("Eingehende Anrufe werden empfangen")
             .setContentIntent(openApp)
