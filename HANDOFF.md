@@ -93,7 +93,9 @@ Auf der HA-Box ist laut Nutzer 0.7.101 oder neuer installiert (TLS funktioniert)
 
 1. **Test mit der echten Türstation.** Video für die 13 anschalten, Türklingel so konfigurieren, dass *nur* die 13 klingelt, Vorschau prüfen. Logcat: `incoming call from … video=true`, `incoming video window N`.
 2. **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
-   Türstation ist eine **Akuvox** (Modell noch offen). Ansatz: am Klingeltaster mehrere Nebenstellen als *Gruppenruf/parallel* eintragen statt einer Klingelgruppe. Dann ist jeder Dial in Asterisk ein Einzelziel, und Early Media geht an jedes Gerät. Genaue Menübezeichnung im Akuvox-Webinterface prüfen.
+   Türstation: **Akuvox R20K**, Firmware 20.30.4.147, IP `192.168.7.46`, als Nebenstelle **16** an der HA-Box registriert.
+   Lösung: Web-UI → **Intercom → Basic → Push Button**: statt der Gruppe die Nebenstellen **mit `;` getrennt** eintragen (z. B. `13;11`). Die Akuvox ruft dann jedes Ziel gleichzeitig mit eigenem INVITE an. Asterisk macht dann pro Anruf einen Dial mit genau einem Ziel, und Early Media geht an jedes Gerät. Das neuere Menü (Call Type → Group Call, Dial Plan Replace) gibt es erst ab Firmware 320.x.
+   Dazu auf der Akuvox H.264 als Video-Codec des Accounts aktiv lassen.
 3. **App speichert das Geräte-Token noch nicht.** `lib/screens/qr_scan_screen.dart` verwirft `device_token`/`device_id` aus `/provision/complete`. Beides nativ in EncryptedSharedPreferences speichern (per Channel), dazu die API-Adresse (`host` aus dem QR). Danach **einmal neu koppeln**.
 4. **Phase 2 der App (Linkus-Hülle):** fünf Reiter (Kontakte · Anrufe · Tastatur · Voicemail · Ich)
    - Kontakte aus `/api/mobile/directory` (Backend fertig)
