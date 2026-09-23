@@ -17,6 +17,9 @@ class DialerView extends StatefulWidget {
 class _DialerViewState extends State<DialerView> {
   String _digits = '';
 
+  /// Wahlwiederholung like on a desk phone: call with an empty field brings back the last number.
+  static String _lastDialed = '';
+
   void _append(String d) => setState(() => _digits += d);
 
   void _backspace() {
@@ -26,7 +29,12 @@ class _DialerViewState extends State<DialerView> {
 
   Future<void> _call() async {
     final number = _digits;
-    if (number.isEmpty) return;
+    if (number.isEmpty) {
+      if (_lastDialed.isNotEmpty) setState(() => _digits = _lastDialed);
+      return;
+    }
+    _lastDialed = number;
+    setState(() => _digits = '');
     await CallLauncher.call(context, number);
   }
 
@@ -73,7 +81,8 @@ class _DialerViewState extends State<DialerView> {
                     color: AppColors.answer,
                     icon: Icons.call,
                     tooltip: 'Anrufen',
-                    onPressed: _digits.isEmpty ? null : _call,
+                    // Empty field + call = Wahlwiederholung (fills in the last number).
+                    onPressed: _digits.isEmpty && _lastDialed.isEmpty ? null : _call,
                   ),
                   SizedBox(
                     width: keySize,

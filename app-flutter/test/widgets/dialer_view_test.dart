@@ -56,6 +56,23 @@ void main() {
     expect(find.text('ACTIVE'), findsOneWidget);
   });
 
+  testWidgets('clears after dialing and redials the last number on an empty call tap', (tester) async {
+    await pumpDialer(tester);
+    await tester.tap(find.text('1'));
+    await tester.tap(find.text('3'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('dialer-call')));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('ACTIVE'))).pop();
+    await tester.pumpAndSettle();
+    expect(display(tester), 'Nummer eingeben');
+
+    await tester.tap(find.byKey(const Key('dialer-call')));
+    await tester.pump();
+    expect(display(tester), '13');
+    expect(sip.callsTo('makeCall'), hasLength(1));
+  });
+
   testWidgets('does not dial without microphone permission', (tester) async {
     CallLauncher.requestMicrophone = () async => false;
     await pumpDialer(tester);

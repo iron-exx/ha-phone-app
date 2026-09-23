@@ -60,6 +60,14 @@ void main() {
     }
   });
 
+  test('older PBX answering with its HTML admin page counts as too old', () async {
+    http.Response html(http.Request _) => http.Response('<!DOCTYPE html><html></html>', 200, headers: {'content-type': 'text/html; charset=utf-8'});
+    final api = FakePbx({'GET /api/mobile/presence': html, 'GET /api/mobile/voicemail': html}).api;
+    for (final call in [() => api.fetchPresence(testAuth), () => api.fetchVoicemail(testAuth)]) {
+      expect((await errorOf(call)).kind, ApiErrorKind.unsupported);
+    }
+  });
+
   test('422 and 401 on PUT presence', () async {
     final e422 = await errorOf(() =>
         FakePbx({'PUT /api/mobile/presence': (_) => http.Response('', 422)}).api.setPresence(testAuth, Presence.away));

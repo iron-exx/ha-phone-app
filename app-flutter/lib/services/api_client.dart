@@ -173,6 +173,12 @@ class ApiClient {
     if (status == 404 && acceptNotFound) return response;
     if (status == 404 && notFoundIsUnsupported) throw const ApiException(ApiErrorKind.unsupported, 404);
     if (status != 200) throw ApiException(ApiErrorKind.server, status);
+    // PBX versions before an endpoint existed answer unknown /api paths with the
+    // admin web app (HTML, 200) instead of a 404.
+    final contentType = response.headers['content-type'] ?? '';
+    if (notFoundIsUnsupported && contentType.contains('text/html')) {
+      throw const ApiException(ApiErrorKind.unsupported, 200);
+    }
     return response;
   }
 
