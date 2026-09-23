@@ -32,7 +32,8 @@ class Contact {
   final bool isExtension;
 
   /// Door stations are recognised by an open code or by video capability.
-  bool get isDoorStation => doorOpenCode.isNotEmpty || video;
+  // Video alone is no door: desk phones and the app itself can be video-capable.
+  bool get isDoorStation => doorOpenCode.isNotEmpty;
 
   String get displayName => name.isNotEmpty ? name : number;
 

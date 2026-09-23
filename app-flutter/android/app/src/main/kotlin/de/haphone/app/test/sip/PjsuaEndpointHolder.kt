@@ -205,6 +205,9 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 // OPTIONAL, not MANDATORY: extensions default to media_encryption=none, which would 488 a mandatory-SRTP offer.
                 cfg.mediaConfig.srtpUse = org.pjsip.pjsua2.pjmedia_srtp_use.PJMEDIA_SRTP_OPTIONAL
                 cfg.mediaConfig.srtpSecureSignaling = 1 // T-2-10: SDES keys never sent unencrypted
+                // No UPDATE right after answer just to narrow a multi-codec answer to one codec:
+                // it adds a second offer/answer round the PBX does not need.
+                cfg.mediaConfig.lockCodecEnabled = false
                 // Receive-only video: show incoming door-station video, never send our camera.
                 cfg.videoConfig.autoShowIncoming = true
                 cfg.videoConfig.autoTransmitOutgoing = false

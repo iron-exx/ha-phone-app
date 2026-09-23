@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../services/call_events.dart';
 import '../services/directory_repository.dart';
 import '../services/favorites_store.dart';
+import '../services/provisioning_events.dart';
 import '../services/sip_channel.dart';
 import 'app_shell.dart';
 import 'onboarding_screen.dart';
@@ -28,12 +29,19 @@ class _RootScreenState extends State<RootScreen> {
     super.initState();
     CallEvents.instance.start();
     unawaited(FavoritesStore.instance.load());
+    provisioningRevision.addListener(_refresh);
     _refresh();
     // Fix: this request existed in the old native Compose MainActivity but
     // was dropped/never ported when MainActivity became a FlutterActivity
     // (Phase 1 port) -- without it, incoming-call push notifications are
     // silently suppressed on Android 13+.
     _requestPermissions();
+  }
+
+  @override
+  void dispose() {
+    provisioningRevision.removeListener(_refresh);
+    super.dispose();
   }
 
   Future<void> _requestPermissions() async {
@@ -51,8 +59,12 @@ class _RootScreenState extends State<RootScreen> {
     try {
       ok = await SipChannel.instance.hasValidCredentials();
     } catch (e) {
-      debugPrint('hasValidCredentials failed: $e');
-      ok = false;
+      // Cold start: the pre-warmed engine can ask before MainActivity has registered the
+      // channel. "Not provisioned" would be a lie here, so keep the spinner and ask again.
+      debugPrint('hasValidCredentials failed, retrying: $e');
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (mounted) unawaited(_refresh());
+      return;
     }
     if (ok) {
       SipChannel.instance.register().catchError((Object e) {

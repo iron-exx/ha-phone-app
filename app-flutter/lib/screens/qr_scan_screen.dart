@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../app_info.dart';
+import '../services/provisioning_events.dart';
 import '../services/sip_channel.dart';
 
 enum _ScreenState { checkingPermission, permissionDenied, scanning, processing, error }
@@ -169,6 +170,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
         debugPrint('provision/complete returned no device token (PBX older than 0.7.102?)');
       }
 
+      provisioningRevision.value++;
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (_) {

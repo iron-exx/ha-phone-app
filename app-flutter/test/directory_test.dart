@@ -8,7 +8,7 @@ const _json = '''
 {"self": {"number":"13","name":"Test","presence":"available"},
  "extensions": [
    {"number":"16","name":"türklingel","video":true,"door_open_code":"*1","presence":"available"},
-   {"number":"11","name":"sandro","video":false,"door_open_code":null,"presence":"lunch"},
+   {"number":"11","name":"sandro","video":true,"door_open_code":null,"presence":"lunch"},
    {"number":15,"name":"dect","video":null,"door_open_code":"","presence":null}
  ],
  "phonebook": [{"number":"0301234567","name":"Pizzeria"}]}
@@ -34,7 +34,7 @@ void main() {
     expect(directory.extensions[1].presence, Presence.lunch);
   });
 
-  test('detects door stations by code or video', () {
+  test('only a door-open code makes a door station, video alone does not', () {
     expect(directory.extensions[0].isDoorStation, isTrue);
     expect(directory.extensions[1].isDoorStation, isFalse);
   });
