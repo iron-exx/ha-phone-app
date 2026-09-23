@@ -123,7 +123,8 @@ Türstation / Klingelgruppe:
 
 Außerdem offen (unverändert):
 
-- `x86_64`-PJSIP ist **nicht** neu gebaut (hat weder TLS noch Video). BlueStacks funktioniert damit nicht, bis das Skript ohne `ANDROID_ABIS_OVERRIDE` läuft.
+- `x86_64`-PJSIP ist seit 2026-09-23 abends neu gebaut (TLS + Video). **Emulator statt Handy** (das OnePlus ist nicht mehr verfügbar): AVD `haphone_test_api35` (Android 15, Pixel 6) auf CCsrv, headless starten mit `~/android-sdk/emulator/emulator -avd haphone_test_api35 -no-window -gpu swiftshader_indirect -no-snapshot-save -no-boot-anim -memory 4096 &`, bedienen per `adb` (Screenshots `adb exec-out screencap -p`). Koppeln ohne Kamera: `adb shell am start -a android.intent.action.VIEW -d '<haphone://provision?... aus dem Admin-QR>'`.
+- **CCsrv-RAM:** Am 2026-09-23 16:57 hat der OOM-Killer des Proxmox-Hosts (62 GB, überbucht) die VM beendet, während Emulator + PJSIP-Build liefen. CCsrv ist jetzt auf 32 GB begrenzt. Schwere Builds und Emulator nicht gleichzeitig starten.
 - iOS: `ios-app/.../PjsuaBridge.mm` hat dieselbe Lücke (kein `transportCreate`), und dem iOS-PJSIP fehlen vermutlich ebenfalls TLS und Video.
 - Kaltstart-Race Dart ↔ Channel-Registrierung ist nur umgangen (`_invokeResilient`), nicht behoben.
 
