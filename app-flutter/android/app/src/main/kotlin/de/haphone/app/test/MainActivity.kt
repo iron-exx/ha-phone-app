@@ -33,6 +33,9 @@ class MainActivity : FlutterActivity() {
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, SIP_EVENT_CHANNEL)
             .setStreamHandler(handler)
 
+        flutterEngine.platformViewsController.registry
+            .registerViewFactory(RemoteVideoViewFactory.VIEW_TYPE, RemoteVideoViewFactory())
+
         deliverRouteIfAny(intent)
     }
 

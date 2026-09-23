@@ -68,6 +68,7 @@ class SipChannelHandler(
 
                 "makeCall" -> {
                     val number = call.arguments as? String ?: ""
+                    app.beginCall(number, "", "outgoing", video = false, state = "connecting")
                     // Re-homed from the old OutgoingCallActivity's onClick:
                     // report the call to Telecom first (Report-First
                     // pattern), and only fire the real SIP INVITE from
@@ -81,6 +82,7 @@ class SipChannelHandler(
                             app.sipCallController.makeCall(number)
                         } catch (e: Exception) {
                             android.util.Log.e("SipChannelHandler", "makeCall failed", e)
+                            app.endCurrentCall()
                             CallEventBus.emitCallState(number, "outgoing", "disconnected", e.message)
                             app.releaseTelecomCall(DisconnectCause.ERROR)
                         }
@@ -104,12 +106,16 @@ class SipChannelHandler(
                 }
 
                 "hold" -> {
-                    app.sipCallController.hold(call.arguments as Boolean)
+                    val onHold = call.arguments as Boolean
+                    app.sipCallController.hold(onHold)
+                    app.updateCurrentCall { it.copy(onHold = onHold) }
                     result.success(null)
                 }
 
                 "mute" -> {
-                    app.sipCallController.mute(call.arguments as Boolean)
+                    val muted = call.arguments as Boolean
+                    app.sipCallController.mute(muted)
+                    app.updateCurrentCall { it.copy(muted = muted) }
                     result.success(null)
                 }
 
@@ -122,6 +128,55 @@ class SipChannelHandler(
                     app.sipCallController.sendDtmf(call.arguments as? String ?: "")
                     result.success(null)
                 }
+
+                "saveDeviceAuth" -> {
+                    val args = call.arguments as Map<*, *>
+                    app.saveDeviceAuth(
+                        apiHost = args["apiHost"] as? String ?: "",
+                        deviceId = args["deviceId"] as? String ?: "",
+                        deviceToken = args["deviceToken"] as? String ?: "",
+                    )
+                    result.success(null)
+                }
+
+                "getDeviceAuth" -> result.success(app.getDeviceAuth())
+
+                "setDoorCodes" -> {
+                    val codes = (call.arguments as? Map<*, *>).orEmpty()
+                        .mapNotNull { (k, v) -> (k as? String)?.let { key -> (v as? String)?.let { key to it } } }
+                        .toMap()
+                    app.doorCodes.replaceAll(codes)
+                    result.success(null)
+                }
+
+                "openDoor" -> {
+                    val code = app.currentCall?.doorCode.orEmpty()
+                    if (code.isNotEmpty()) app.sipCallController.sendDtmf(code)
+                    result.success(code.isNotEmpty())
+                }
+
+                "getCurrentCall" -> result.success(app.currentCall?.toChannelMap())
+
+                "getAudioRoutes" -> result.success(de.haphone.app.test.calls.AudioRouting.snapshot())
+
+                "setAudioRoute" -> result.success(
+                    de.haphone.app.test.calls.AudioRouting.select(call.arguments as? String ?: ""),
+                )
+
+                "getCallHistory" -> result.success(app.callHistory.all().map { it.toChannelMap() })
+
+                "deleteCallHistoryEntry" -> {
+                    val id = call.arguments as? String ?: ""
+                    app.callHistory.update { de.haphone.app.test.calls.CallHistory.remove(it, id) }
+                    result.success(null)
+                }
+
+                "clearCallHistory" -> {
+                    app.callHistory.update { emptyList() }
+                    result.success(null)
+                }
+
+                "getRegistrationState" -> result.success(CallEventBus.lastRegistrationState)
 
                 "getDeviceId" -> {
                     val deviceId = Settings.Secure.getString(

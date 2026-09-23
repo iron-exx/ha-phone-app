@@ -22,12 +22,19 @@ object CallEventBus {
     // PJSIP callbacks arrive on its worker thread; EventSink must only be used on the main thread.
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
+    /** Last SIP registration state, for screens that open after the event was sent. */
+    var lastRegistrationState: String = "unknown"
+        private set
+
+    fun emit(event: Map<String, Any?>) = post(event)
+
     private fun post(event: Map<String, Any?>) {
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) sink?.success(event)
         else mainHandler.post { sink?.success(event) }
     }
 
     fun emitRegistrationState(state: String, code: Int? = null) {
+        lastRegistrationState = state
         post(mapOf("type" to "registrationState", "state" to state, "code" to code))
     }
 

@@ -120,6 +120,7 @@ class CallRegistration(private val context: Context, private val sipCallControll
                 // user actually answers.
                 liveScope = this
                 (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
+                de.haphone.app.test.calls.AudioRouting.attach(this)
                 CallEventBus.emitCallState(callId, "incoming", "ringing")
                 val receiverScope = this
                 mainScope.launch { receiverScope.onRegistered() }
@@ -164,6 +165,7 @@ class CallRegistration(private val context: Context, private val sipCallControll
                 { /* onSetInactive */ },
             ) {
                 (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
+                de.haphone.app.test.calls.AudioRouting.attach(this)
                 CallEventBus.emitCallState(callId, "outgoing", "connecting")
                 val receiverScope = this
                 mainScope.launch { receiverScope.onRegistered() }

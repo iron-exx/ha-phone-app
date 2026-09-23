@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../app_info.dart';
 import '../services/sip_channel.dart';
 
 enum _ScreenState { checkingPermission, permissionDenied, scanning, processing, error }
@@ -12,8 +13,9 @@ enum _ScreenState { checkingPermission, permissionDenied, scanning, processing, 
 /// QR-scan-to-pair flow: scans a `haphone://provision?t=<jwt>&host=<ip:port>`
 /// code shown by the HA-Phone admin UI, exchanges the one-time token for
 /// real SIP credentials via POST /api/mobile/provision/complete, and stores
-/// them via SipChannel -- same storage HomeScreen/SettingsScreen already
-/// read, so no separate "provisioned via QR" state is needed.
+/// them via SipChannel -- same storage RootScreen/SettingsScreen already
+/// read, so no separate "provisioned via QR" state is needed. The returned
+/// device id/token are stored too (SipChannel.saveDeviceAuth).
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
@@ -88,7 +90,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
           'provisioning_token': token,
           'push_token': fcmToken ?? '',
           'os_device_id': deviceId ?? '',
-          'app_version': '0.1.0',
+          'app_version': kAppVersion,
           'device_name': '',
         }),
       );
@@ -132,6 +134,21 @@ class _QrScanScreenState extends State<QrScanScreen> {
         username: sipUsername,
         password: sipPassword,
       );
+
+      // The device token authenticates every later /api/mobile/* call
+      // (directory, later presence/voicemail). apiHost is the QR's host
+      // (ip:port of the PBX web API), not the SIP domain.
+      final deviceIdRaw = body['device_id'];
+      final deviceToken = body['device_token'] as String? ?? '';
+      if (deviceIdRaw != null && deviceToken.isNotEmpty) {
+        await SipChannel.instance.saveDeviceAuth(
+          apiHost: host,
+          deviceId: deviceIdRaw.toString(),
+          deviceToken: deviceToken,
+        );
+      } else {
+        debugPrint('provision/complete returned no device token (PBX older than 0.7.102?)');
+      }
 
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);

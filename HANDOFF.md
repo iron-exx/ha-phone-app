@@ -1,6 +1,6 @@
 # HA-Phone App – Übergabe
 
-Stand: **2026-09-23**. Für die Fortsetzung in einer neuen Sitzung / auf einem anderen Rechner.
+Stand: **2026-09-23 (abends)**. Für die Fortsetzung in einer neuen Sitzung / auf einem anderen Rechner.
 Produktplan (Linkus-Vergleich, Bildschirm-Entwürfe, Phasen): [`docs/linkus-schlachtplan.html`](docs/linkus-schlachtplan.html)
 (auch online: https://claude.ai/artifact/QsGjhj72xGjUdUrx7ahFg3).
 
@@ -89,26 +89,44 @@ Anlage: Backend-Tests `ssh CCsrv-ahrens "cd /home/roto/projects/Ha-Phone/ha-phon
 
 Auf der HA-Box ist laut Nutzer 0.7.101 oder neuer installiert (TLS funktioniert). Ob 0.7.102 schon drauf ist: offen.
 
-## 5. Nächste Schritte (in dieser Reihenfolge)
+## 5. Stand 2026-09-23 abends: Phase 1 Rest + Phase 2 gebaut, nicht auf dem Gerät getestet
 
-1. **Test mit der echten Türstation.** Video für die 13 anschalten, Türklingel so konfigurieren, dass *nur* die 13 klingelt, Vorschau prüfen. Logcat: `incoming call from … video=true`, `incoming video window N`.
-2. **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
+App 0.2.0 (APK gebaut, `flutter analyze` sauber, 61 Dart-Tests + 30 Kotlin-Tests grün):
+- **Neue Oberfläche im Linkus-Stil**: Einrichtungsbildschirm (QR), dann fünf Reiter Kontakte · Anrufe · Tastatur · Voicemail · Ich. Hell/dunkel nach System, Akzent HA-Blau `#0284C7`. Code: `lib/screens/app_shell.dart`, `*_tab.dart`, `lib/theme/`.
+- **Geräte-Token** wird jetzt gespeichert (`saveDeviceAuth`, EncryptedSharedPreferences `api_host`/`device_id`/`device_token`). **Einmal neu koppeln**, sonst meldet der Kontakte-Reiter "Gerät neu koppeln".
+- **Kontakte** aus `/api/mobile/directory` (Cache + Favoriten per `shared_preferences`), Präsenz-Punkt, Tür-Symbol.
+- **Anrufliste** wird nativ geführt (`calls/CallHistoryStore.kt`, max. 200), auch wenn die Flutter-Oberfläche nicht läuft. Verpasst-Filter, Wischen = löschen, Badge.
+- **Gesprächsbildschirm** 3×2: Stumm, Tastatur, Lautsprecher, Halten, Weiterleiten, *Tür öffnen* (bei Türstationen) bzw. Konferenz (deaktiviert). Dauer, TLS-Hinweis, Video im Gespräch über Platform-View `de.haphone.app.test/remote_video` (TextureView → `VideoSurfaceBinder`).
+- **Tür öffnen**: Code kommt aus der Anlage (Feld pro Nebenstelle), Dart schreibt die Codes nach jedem Verzeichnis-Abruf per `setDoorCodes` nativ weg. Klingelbildschirm (nativ, Compose) hat die Taste "Tür öffnen": nimmt an und sendet den Code 800 ms nach CONFIRMED (`pendingDtmf`). Im Gespräch: `openDoor`.
+- **Audio-Umschaltung** über `CallControlScope.availableEndpoints/currentCallEndpoint/requestEndpointChange` (`calls/AudioRouting.kt`).
+- **Voicemail-Reiter**: vorerst nur "Mailbox anrufen" = `*97`.
+
+Anlage (gepusht auf `main`):
+| Commit | Version | Inhalt |
+|---|---|---|
+| 1014125 | 0.7.103 | Feld "Tür-Öffnen-Code (DTMF)" pro Nebenstelle (Admin → Nebenstelle bearbeiten), Directory liefert `self`, `video`, `door_open_code`, `presence` |
+| 21530e1 | 0.7.104 | `*97` = eigene Mailbox ohne PIN (Box über `${CHANNEL(endpoint)}`, nicht über fälschbare Caller-ID) |
+
+## 5a. Nächste Schritte (in dieser Reihenfolge)
+
+1. **Auf dem Handy testen** (Nutzer): Add-on auf 0.7.104 aktualisieren, bei der Türklingel (16) Video an + Tür-Öffnen-Code eintragen, bei der 13 Video an, App 0.2.0 installieren, **neu koppeln**. Dann: Kontakte laden, Anruf aus Kontakten/Anrufliste, Lautsprecher/Bluetooth, Akuvox klingelt → Vorschau → "Tür öffnen".
+2. Akuvox R20K auf Parallelruf umstellen (siehe unten, Push Button `13;11`) und Vorschau auf App + Fanvil gleichzeitig prüfen.
+3. 24-h-Dauertest (13 bleibt online bei ausgeschaltetem Display).
+4. **Phase 3**: Präsenz setzen (`GET/PUT /api/mobile/presence`), Live-Status "telefoniert" (AMI), visuelle Voicemail (`/api/mobile/voicemail`), Badges.
+5. Danach Phasen 4–8 laut Schlachtplan.
+
+Türstation / Klingelgruppe:
+- **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
    Türstation: **Akuvox R20K**, Firmware 20.30.4.147, IP `192.168.7.46`, als Nebenstelle **16** an der HA-Box registriert.
    Lösung: Web-UI → **Intercom → Basic → Push Button**: statt der Gruppe die Nebenstellen **mit `;` getrennt** eintragen (z. B. `13;11`). Die Akuvox ruft dann jedes Ziel gleichzeitig mit eigenem INVITE an. Asterisk macht dann pro Anruf einen Dial mit genau einem Ziel, und Early Media geht an jedes Gerät. Das neuere Menü (Call Type → Group Call, Dial Plan Replace) gibt es erst ab Firmware 320.x.
    Dazu auf der Akuvox H.264 als Video-Codec des Accounts aktiv lassen.
-3. **App speichert das Geräte-Token noch nicht.** `lib/screens/qr_scan_screen.dart` verwirft `device_token`/`device_id` aus `/provision/complete`. Beides nativ in EncryptedSharedPreferences speichern (per Channel), dazu die API-Adresse (`host` aus dem QR). Danach **einmal neu koppeln**.
-4. **Phase 2 der App (Linkus-Hülle):** fünf Reiter (Kontakte · Anrufe · Tastatur · Voicemail · Ich)
-   - Kontakte aus `/api/mobile/directory` (Backend fertig)
-   - Anrufliste: lokal im Nativcode führen (eingehend in `showIncomingSipCall`, ausgehend in `makeCall`, angenommen bei CONFIRMED, Ende in `onCallDisconnected`), per Channel an Dart
-5. **Lautsprecher/Bluetooth**: `CallControlScope.availableEndpoints` + `requestEndpointChange`
-6. **Video im Gespräch**: Flutter-PlatformView mit **TextureView** (nicht SurfaceView) → `VideoSurfaceBinder.setSurface`
-7. **"Tür öffnen"**: DTMF-Code pro Nebenstelle in der Anlage, per Taste im Klingel- und Gesprächsbildschirm senden
-8. Danach: Phasen 3–8 laut Schlachtplan (Präsenz, Voicemail, Profi-Gesprächsfunktionen, CDR-Sync, iOS, unterwegs)
 
-Außerdem offen:
+Außerdem offen (unverändert):
+
 - `x86_64`-PJSIP ist **nicht** neu gebaut (hat weder TLS noch Video). BlueStacks funktioniert damit nicht, bis das Skript ohne `ANDROID_ABIS_OVERRIDE` läuft.
 - iOS: `ios-app/.../PjsuaBridge.mm` hat dieselbe Lücke (kein `transportCreate`), und dem iOS-PJSIP fehlen vermutlich ebenfalls TLS und Video.
 - Kaltstart-Race Dart ↔ Channel-Registrierung ist nur umgangen (`_invokeResilient`), nicht behoben.
+
 
 ## 6. Git-Stand ha-phone-app
 

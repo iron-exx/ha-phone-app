@@ -80,6 +80,11 @@ class SipCallController(
         if (digit.isNotEmpty()) sipOps.sendDtmf(digit)
     }
 
+    fun queueDtmfOnConnect(rawDigits: String) {
+        val digits = DialString.sanitize(rawDigits)
+        if (digits.isNotEmpty()) sipOps.queueDtmfOnConnect(digits)
+    }
+
     // Registration stays up after hangup so the extension remains reachable.
     fun hangup() {
         sipOps.hangup()

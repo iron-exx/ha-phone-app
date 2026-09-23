@@ -15,5 +15,7 @@ interface SipCallOperations {
     fun mute(muted: Boolean)
     fun transfer(uri: String)
     fun sendDtmf(digit: String)
+    /** Send [digits] as soon as the current call is answered. */
+    fun queueDtmfOnConnect(digits: String) {}
     fun hangup()
 }

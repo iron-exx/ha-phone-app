@@ -5,7 +5,7 @@ description: >
   and, for iOS, a future platform-channel port of ios-app's Swift PJSIP/
   CallKit layer -- not yet built, see the Phase 1 plan).
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -17,6 +17,7 @@ dependencies:
   mobile_scanner: ^5.2.3
   http: ^1.2.2
   permission_handler: ^11.3.1
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

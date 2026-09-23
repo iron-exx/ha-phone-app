@@ -21,6 +21,8 @@ object SipCallEvents {
     var onCallDisconnected: ((reason: String) -> Unit)? = null
     /** A new SIP INVITE is ringing (already answered with 180, or 183 early media for video). */
     var onIncomingCall: ((IncomingSipCall) -> Unit)? = null
+    /** The current call was answered (SIP CONFIRMED). */
+    var onCallConfirmed: (() -> Unit)? = null
 }
 
 /** Parses `"Name" <sip:16@host>` / `<sip:16@host>` / `sip:16@host` into (number, name). */
@@ -48,6 +50,11 @@ object VideoSurfaceBinder {
     fun setSurface(s: android.view.Surface?) {
         surface = s
         apply()
+    }
+
+    /** Detach only if [s] is still the bound surface: a closing screen must not unbind the next one's. */
+    fun clearSurface(s: android.view.Surface) {
+        if (surface === s) setSurface(null)
     }
 
     fun reset() {
@@ -268,6 +275,10 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 call.xfer(uri, org.pjsip.pjsua2.CallOpParam())
             }
 
+            override fun queueDtmfOnConnect(digits: String) {
+                account?.pendingDtmf = digits
+            }
+
             override fun sendDtmf(digit: String) {
                 val call = account?.activeCall ?: return
                 val dtmfParam = org.pjsip.pjsua2.CallSendDtmfParam()
@@ -296,6 +307,8 @@ class PjsuaEndpointHolder : IpChangeNotifier {
  */
 private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
     var activeCall: HAPhoneCall? = null
+    /** DTMF to send once the active call is answered (e.g. "Tür öffnen" from the ringing screen). */
+    var pendingDtmf: String? = null
 
     override fun onRegState(prm: org.pjsip.pjsua2.OnRegStateParam) {
         val code = prm.code
@@ -400,12 +413,28 @@ private class HAPhoneCall(
         if (info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_CONFIRMED) connectAudio(info)
     }
 
+    private fun sendPendingDtmf() {
+        val digits = owner.pendingDtmf ?: return
+        if (owner.activeCall !== this) return
+        owner.pendingDtmf = null
+        runCatching {
+            val p = org.pjsip.pjsua2.CallSendDtmfParam()
+            p.method = org.pjsip.pjsua2.pjsua_dtmf_method.PJSUA_DTMF_METHOD_RFC2833
+            p.digits = digits
+            sendDtmf(p)
+        }.onFailure { android.util.Log.w("PJSIP", "pending DTMF failed", it) }
+    }
+
     override fun onCallState(prm: org.pjsip.pjsua2.OnCallStateParam) {
         val info = getInfo()
         if (info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_CONFIRMED) {
             // Media may already have gone active during early media (183), in which
             // case onCallMediaState won't fire again on answer.
             connectAudio(info)
+            val main = android.os.Handler(android.os.Looper.getMainLooper())
+            main.post { if (owner.activeCall === this) SipCallEvents.onCallConfirmed?.invoke() }
+            // Door stations ignore DTMF sent before their own media is up; give them a moment.
+            main.postDelayed({ sendPendingDtmf() }, PENDING_DTMF_DELAY_MS)
         }
         if (info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_DISCONNECTED) {
             // NOTE (Rule 1 fix): CallInfo.lastStatusCode is a plain `int` getter in
@@ -419,6 +448,7 @@ private class HAPhoneCall(
                 // A rejected second call (486 while busy) must not end the current one.
                 if (owner.activeCall === this) {
                     owner.activeCall = null
+                    owner.pendingDtmf = null
                     SipCallEvents.onCallDisconnected?.invoke(reason)
                 }
                 // Free now, not at GC time: ~Call() hangs up whatever call currently
@@ -426,5 +456,9 @@ private class HAPhoneCall(
                 delete()
             }
         }
+    }
+
+    private companion object {
+        const val PENDING_DTMF_DELAY_MS = 800L
     }
 }
