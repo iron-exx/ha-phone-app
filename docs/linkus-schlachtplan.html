@@ -1,0 +1,433 @@
+<title>HA-Phone App Schlachtplan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F3F6F9; --surface:#FFFFFF; --ink:#13202C; --muted:#5B6B7A; --line:#DCE3EA;
+  --brand:#2F7FD1; --brand-soft:#E3EFFB; --call:#1E9E63; --hang:#D64545;
+  --st-avail:#1E9E63; --st-away:#E0A21B; --st-dnd:#D64545; --st-lunch:#E07B1B; --st-off:#8A96A3;
+  --chip-done-bg:#DDF3E8; --chip-done:#12704A; --chip-be-bg:#FFF1D6; --chip-be:#8A5B00; --chip-new-bg:#E8E6FB; --chip-new:#4B3FB0; --chip-no-bg:#EEF1F4; --chip-no:#5B6B7A;
+  --phone-bg:#0F1720; --phone-ink:#E8EEF4; --phone-muted:#8FA0B2; --phone-row:#17222D;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E151C; --surface:#151F29; --ink:#E6EDF4; --muted:#9AA9B8; --line:#26333F;
+  --brand:#5AA2EA; --brand-soft:#1A2D42; --call:#35C07E; --hang:#EF6A6A;
+  --chip-done-bg:#12382A; --chip-done:#7FE0B0; --chip-be-bg:#3A2C0E; --chip-be:#F2C66B; --chip-new-bg:#2A2650; --chip-new:#B8B0FF; --chip-no-bg:#1E2833; --chip-no:#9AA9B8;
+  --phone-bg:#070B10; --phone-row:#121B24;
+  color-scheme: dark;
+}}
+:root[data-theme="dark"]{
+  --ground:#0E151C; --surface:#151F29; --ink:#E6EDF4; --muted:#9AA9B8; --line:#26333F;
+  --brand:#5AA2EA; --brand-soft:#1A2D42; --call:#35C07E; --hang:#EF6A6A;
+  --chip-done-bg:#12382A; --chip-done:#7FE0B0; --chip-be-bg:#3A2C0E; --chip-be:#F2C66B; --chip-new-bg:#2A2650; --chip-new:#B8B0FF; --chip-no-bg:#1E2833; --chip-no:#9AA9B8;
+  --phone-bg:#070B10; --phone-row:#121B24;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font:15px/1.6 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto}
+h1,h2,h3{font-family:Sora,"IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(28px,4.4vw,44px);font-weight:700;letter-spacing:-.02em}
+h2{font-size:24px;font-weight:600;margin-bottom:6px}
+h3{font-size:17px;font-weight:600}
+p{margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;font-size:.88em}
+.eyebrow{font:600 12px/1 "IBM Plex Sans",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--brand)}
+header.hero{padding-block:48px 28px;display:grid;gap:14px;max-width:780px}
+header.hero p.lead{font-size:17px;color:var(--muted);max-width:66ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:13px}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin-block:4px 32px}
+nav.toc a{color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:999px;font-size:13px}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--brand);color:var(--brand);outline:none}
+section{padding-block:30px;border-top:1px solid var(--line)}
+section > .sub{color:var(--muted);max-width:70ch;margin-bottom:20px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;display:grid;gap:8px;align-content:start}
+.panel ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.panel li::marker{color:var(--brand)}
+.chip{display:inline-block;font:500 12px/1 "IBM Plex Sans",sans-serif;padding:5px 9px;border-radius:999px;white-space:nowrap}
+.c-done{background:var(--chip-done-bg);color:var(--chip-done)}
+.c-be{background:var(--chip-be-bg);color:var(--chip-be)}
+.c-new{background:var(--chip-new-bg);color:var(--chip-new)}
+.c-no{background:var(--chip-no-bg);color:var(--chip-no)}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:14px;font-size:13px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.3 "IBM Plex Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--ground)}
+tr.group td{background:var(--brand-soft);font:600 13px/1.3 Sora,sans-serif;color:var(--ink)}
+tbody tr:last-child td{border-bottom:0}
+td.note{color:var(--muted);font-size:13px}
+
+/* phone mockups */
+.phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;justify-items:center}
+.phonecap{display:grid;gap:10px;justify-items:center;width:100%;max-width:260px}
+.phonecap p{font-size:13px;color:var(--muted);text-align:center}
+.phone{width:100%;max-width:250px;aspect-ratio:9/18.5;background:var(--phone-bg);color:var(--phone-ink);border-radius:30px;padding:14px 12px;border:6px solid #1F2A35;display:flex;flex-direction:column;gap:8px;overflow:hidden;font-size:12px;box-shadow:0 12px 30px rgba(10,20,30,.18)}
+.ph-top{display:flex;justify-content:space-between;color:var(--phone-muted);font-size:10px;padding-inline:6px}
+.ph-title{font:600 17px/1.2 Sora,sans-serif;padding:4px 6px 2px}
+.ph-search{background:var(--phone-row);border-radius:9px;padding:7px 10px;color:var(--phone-muted);font-size:11px}
+.ph-seg{display:flex;gap:6px;padding-inline:2px}
+.ph-seg span{padding:4px 9px;border-radius:999px;background:var(--phone-row);color:var(--phone-muted);font-size:10px}
+.ph-seg span.on{background:#2F7FD1;color:#fff}
+.ph-list{display:grid;gap:2px;flex:1;align-content:start}
+.row{display:flex;align-items:center;gap:9px;padding:7px 6px;border-radius:8px}
+.av{width:30px;height:30px;border-radius:50%;background:#26415C;display:grid;place-items:center;font:600 11px/1 Sora,sans-serif;position:relative;flex:none}
+.av i{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--phone-bg)}
+.row b{font-weight:500;display:block;font-size:12px}
+.row small{color:var(--phone-muted);font-size:10px}
+.row .end{margin-left:auto;color:var(--phone-muted);font-size:10px;text-align:right}
+.miss b{color:#FF7B7B}
+.tabbar{display:flex;justify-content:space-between;border-top:1px solid #22303D;padding:8px 4px 2px;color:var(--phone-muted);font-size:9px}
+.tabbar span{display:grid;justify-items:center;gap:3px}
+.tabbar span::before{content:"";width:16px;height:16px;border-radius:5px;background:#2A3947}
+.tabbar span.on{color:#6DB3F5}
+.tabbar span.on::before{background:#2F7FD1}
+.video{background:linear-gradient(160deg,#35495c,#1c2833 60%,#2b3a2f);border-radius:12px;aspect-ratio:4/3;display:grid;place-items:end start;padding:8px;color:#dfe8f0;font-size:10px;position:relative}
+.video::after{content:"LIVE";position:absolute;top:8px;right:8px;background:#D64545;color:#fff;font:600 9px/1 "IBM Plex Sans";padding:3px 6px;border-radius:4px}
+.callbtns{display:flex;justify-content:space-around;margin-top:auto;padding-bottom:8px}
+.cb{display:grid;justify-items:center;gap:5px;font-size:10px;color:var(--phone-muted)}
+.cb::before{content:"";width:46px;height:46px;border-radius:50%;background:var(--c,#2A3947)}
+.door{align-self:center;background:#2A3947;border-radius:999px;padding:7px 14px;font-size:11px}
+.ctrls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 6px;margin-top:6px}
+.ctrls span{display:grid;justify-items:center;gap:5px;font-size:10px;color:var(--phone-muted)}
+.ctrls span::before{content:"";width:40px;height:40px;border-radius:50%;background:#22303D}
+.ctrls span.on::before{background:#E8EEF4}
+.center{text-align:center}
+.big{font:600 20px/1.2 Sora,sans-serif}
+
+/* phases */
+.phases{display:grid;gap:14px}
+.phase{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;display:grid;grid-template-columns:minmax(180px,240px) 1fr;gap:16px 26px}
+.phase .ph-head{display:grid;gap:8px;align-content:start}
+.phase .ph-head .when{color:var(--muted);font-size:13px}
+.phase .ph-body{display:grid;gap:10px}
+.phase ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.phase .done-when{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.phase.now{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
+@media (max-width:720px){.phase{grid-template-columns:1fr}}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.sw{display:grid;gap:6px;width:112px;font-size:12px}
+.sw div{height:44px;border-radius:8px;border:1px solid var(--line)}
+.sw span{color:var(--muted)}
+.pres{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:14px}
+.pres span{display:flex;align-items:center;gap:7px}
+.pres i{width:10px;height:10px;border-radius:50%}
+a{color:var(--brand)}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.88em;background:var(--brand-soft);padding:1px 5px;border-radius:4px}
+.warn{border-left:3px solid var(--st-away);padding:10px 14px;background:var(--surface);border-radius:0 8px 8px 0;border:1px solid var(--line);border-left-width:3px;border-left-color:var(--st-away)}
+footer{margin-top:28px;color:var(--muted);font-size:13px;display:grid;gap:6px}
+@media (prefers-reduced-motion:no-preference){nav.toc a{transition:border-color .15s,color .15s}}
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <span class="eyebrow">Produktplan · HA-Phone Mobile</span>
+  <h1>Von der Test-App zum Linkus-Niveau</h1>
+  <p class="lead">Was Yeastar Linkus Mobile kann, was davon HA-Phone schon hat (App oder Anlage), was wir bauen, in welcher Reihenfolge, und wie die App aussehen soll. Auf Basis der Linkus-Dokumentation und des aktuellen Codes von App und Anlage.</p>
+  <div class="meta"><span>Stand 23.09.2026</span><span>Android zuerst, iOS danach</span><span>Anlage: HA-Phone 0.7.102</span></div>
+</header>
+
+<nav class="toc" aria-label="Inhalt">
+  <a href="#zielbild">Zielbild</a><a href="#vergleich">Linkus-Vergleich</a><a href="#screens">Bildschirme</a><a href="#phasen">Phasen</a><a href="#design">Design-System</a><a href="#anlage">Anlage-Erweiterungen</a><a href="#risiken">Risiken</a><a href="#nicht">Bewusst nicht</a>
+</nav>
+
+<section id="zielbild">
+  <h2>Zielbild</h2>
+  <p class="sub">Eine Telefonanlagen-App, die sich anfühlt wie das eingebaute Telefon: Sie ist immer erreichbar, klingelt wie ein normaler Anruf, zeigt die Türstation vor dem Abheben und macht alles, was ein Tischtelefon an der HA-Phone-Anlage kann. Dazu kommt, was ein Handy besser kann: Kontakte, Verlauf, Voicemail zum Anhören, Präsenz auf einen Tipp.</p>
+  <div class="grid2">
+    <div class="panel"><h3>Übernehmen von Linkus</h3><ul>
+      <li>Fünf Reiter: <b>Kontakte · Anrufe · Tastatur · Voicemail · Ich</b></li>
+      <li>Präsenz-Status mit Farbe und Weiterleitung pro Status</li>
+      <li>Nebenstellen mit Live-Status (frei, telefoniert, offline)</li>
+      <li>Visuelle Voicemail mit Rückruf per Tipp</li>
+      <li>Video-Vorschau der Türstation beim Klingeln, "Tür öffnen" per DTMF</li>
+      <li>Halten, Stumm, Lautsprecher, Weiterleiten (blind und mit Rückfrage), Konferenz</li>
+    </ul></div>
+    <div class="panel"><h3>Besser als Linkus (HA-Phone-spezifisch)</h3><ul>
+      <li>Keine Cloud: Kopplung per QR-Code direkt mit der eigenen Anlage</li>
+      <li>Home Assistant im Blick: Tür, Licht, Alarm als Schnellaktion im Gespräch mit der Türstation</li>
+      <li>Klingelgruppen und Tag/Nacht-Schaltung der Anlage in der App sichtbar</li>
+      <li>Diagnose-Seite: Registrierung, Codec, Paketverlust, Log teilen</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="vergleich">
+  <h2>Linkus-Funktionen und HA-Phone-Stand</h2>
+  <p class="sub">Jede Zeile ist eine Linkus-Funktion. Die Spalte zeigt, wo HA-Phone heute steht. Gelbe Zeilen sind schnelle Gewinne: Die Anlage kann es schon, nur die App fehlt.</p>
+  <div class="legend">
+    <span class="chip c-done">in der App</span>
+    <span class="chip c-be">Anlage kann es, App fehlt</span>
+    <span class="chip c-new">neu (App + Anlage)</span>
+    <span class="chip c-no">bewusst nicht</span>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th style="width:30%">Funktion</th><th style="width:18%">HA-Phone heute</th><th style="width:10%">Phase</th><th>Umsetzung</th></tr></thead>
+    <tbody>
+      <tr class="group"><td colspan="4">Erreichbarkeit und Anrufe</td></tr>
+      <tr><td>Anmeldung per QR-Code</td><td><span class="chip c-done">in der App</span></td><td>—</td><td class="note">Mit Geräte-Token abgesichert (0.7.102). Linkus nutzt ebenfalls QR-Login.</td></tr>
+      <tr><td>Immer erreichbar, klingelt wie ein normaler Anruf</td><td><span class="chip c-done">in der App</span></td><td>1</td><td class="note">Vordergrund-Dienst, Android-Telefonsystem, Vollbild auf dem Sperrbildschirm. Noch offen: Push-Wecken, falls Android den Dienst doch beendet.</td></tr>
+      <tr><td>Halten, Stumm, DTMF-Tastatur</td><td><span class="chip c-done">in der App</span></td><td>—</td><td class="note">Vorhanden, Oberfläche wird in Phase 2 neu gestaltet.</td></tr>
+      <tr><td>Lautsprecher, Bluetooth, Headset umschalten</td><td><span class="chip c-new">neu</span></td><td>1</td><td class="note">Über die Audio-Endpunkte des Android-Telefonsystems, als Auswahl-Blatt wie bei Linkus.</td></tr>
+      <tr><td>Weiterleiten ohne Rückfrage (blind)</td><td><span class="chip c-done">in der App</span></td><td>—</td><td class="note">SIP REFER, vorhanden.</td></tr>
+      <tr><td>Weiterleiten mit Rückfrage (attended)</td><td><span class="chip c-new">neu</span></td><td>4</td><td class="note">Zweiten Anruf aufbauen, dann REFER mit Replaces.</td></tr>
+      <tr><td>3er-Konferenz / Anrufe zusammenführen</td><td><span class="chip c-new">neu</span></td><td>4</td><td class="note">Lokal in der PJSIP-Konferenzbrücke der App, ohne Anlagenänderung.</td></tr>
+      <tr><td>Anruf heranholen (Pickup)</td><td><span class="chip c-new">neu</span></td><td>4</td><td class="note">Dialplan-Code in der Anlage plus Taste "Heranholen" bei klingelnden Kollegen.</td></tr>
+      <tr><td>Gespräch aufzeichnen</td><td><span class="chip c-new">neu</span></td><td>6</td><td class="note">MixMonitor über AMI, Ablage auf der Anlage, Abruf in der App. Rechtlich heikel, deshalb pro Nebenstelle freischaltbar.</td></tr>
+      <tr><td>Gespräch aufs andere Gerät umlegen (Call Flip)</td><td><span class="chip c-new">neu</span></td><td>6</td><td class="note">Anlage übergibt das laufende Gespräch per Attended-Transfer an die eigene Nebenstelle.</td></tr>
+
+      <tr class="group"><td colspan="4">Kontakte und Präsenz</td></tr>
+      <tr><td>Firmen-Kontakte / Nebenstellen-Verzeichnis</td><td><span class="chip c-be">Anlage kann es</span></td><td>2</td><td class="note">Endpunkt <code>/api/mobile/directory</code> ist fertig (Nebenstellen und Telefonbuch).</td></tr>
+      <tr><td>Live-Status der Kollegen (frei, telefoniert, offline)</td><td><span class="chip c-be">Anlage kann es</span></td><td>3</td><td class="note">Das Dashboard kennt den Online-Status schon. Neu: "telefoniert gerade" über AMI-Gerätestatus, per Polling oder WebSocket an die App.</td></tr>
+      <tr><td>Eigener Präsenz-Status (verfügbar, abwesend, Mittag, Feierabend, nicht stören)</td><td><span class="chip c-be">Anlage kann es</span></td><td>3</td><td class="note">HA-Phone hat fast dieselben Status wie Linkus (<code>presence_status</code>). Es fehlt nur ein Handy-Endpunkt zum Setzen.</td></tr>
+      <tr><td>Weiterleitung pro Status (intern/extern)</td><td><span class="chip c-be">Anlage kann es</span></td><td>5</td><td class="note"><code>PresenceForwardingRule</code> existiert, dazu kommt die Bearbeitung im Ich-Reiter.</td></tr>
+      <tr><td>Favoriten</td><td><span class="chip c-new">neu</span></td><td>2</td><td class="note">Lokal in der App gespeichert.</td></tr>
+      <tr><td>Handy-Adressbuch einbinden</td><td><span class="chip c-new">neu</span></td><td>5</td><td class="note">Optional, mit Android-Kontakte-Berechtigung. Suche über alle Quellen.</td></tr>
+
+      <tr class="group"><td colspan="4">Verlauf und Voicemail</td></tr>
+      <tr><td>Anrufliste mit Verpasst-Filter und Rückruf</td><td><span class="chip c-new">neu</span></td><td>2</td><td class="note">Zuerst lokal auf dem Gerät. Die Aufzeichnung in der App ist schon angefangen.</td></tr>
+      <tr><td>Anrufliste synchron mit der Anlage (auch Anrufe an anderen Geräten)</td><td><span class="chip c-new">neu</span></td><td>5</td><td class="note">Asterisk-CDR (<code>cdr_csv</code> ist aktiviert) einlesen, Endpunkt pro Nebenstelle.</td></tr>
+      <tr><td>Visuelle Voicemail (anhören, löschen, zurückrufen)</td><td><span class="chip c-be">Anlage kann es</span></td><td>3</td><td class="note">Liste, Abspielen und Löschen gibt es im Admin-Bereich. Nötig ist eine Handy-Variante mit Geräte-Token.</td></tr>
+      <tr><td>Zähler für verpasste Anrufe und neue Voicemails</td><td><span class="chip c-new">neu</span></td><td>3</td><td class="note">Badges an den Reitern und am App-Symbol.</td></tr>
+
+      <tr class="group"><td colspan="4">Türsprechstelle</td></tr>
+      <tr><td>Video-Vorschau beim Klingeln</td><td><span class="chip c-done">in der App</span></td><td>1</td><td class="note">SIP Early Media (183) mit H.264. Wie bei Linkus: Das Bild erscheint vor dem Abheben.</td></tr>
+      <tr><td>Video während des Gesprächs</td><td><span class="chip c-new">neu</span></td><td>1</td><td class="note">Video im Flutter-Gesprächsbildschirm über eine native Ansicht (TextureView).</td></tr>
+      <tr><td>Taste "Tür öffnen"</td><td><span class="chip c-new">neu</span></td><td>1</td><td class="note">Linkus sendet dafür DTMF "0". Bei uns wird der Code pro Türstation in der Anlage eingestellt und an die App geliefert.</td></tr>
+      <tr><td>Vorschau für mehrere Geräte gleichzeitig</td><td><span class="chip c-new">neu</span></td><td>1</td><td class="note">Asterisk <code>Dial()</code> reicht Early Media nur an ein einziges Ziel weiter. Lösung siehe <a href="#risiken">Risiken</a>.</td></tr>
+
+      <tr class="group"><td colspan="4">Ich-Reiter und Plattform</td></tr>
+      <tr><td>Nicht stören, Klingelton, Vibration</td><td><span class="chip c-new">neu</span></td><td>5</td><td class="note">"Nicht stören" = Präsenz-Status, damit die Anlage es kennt und nicht nur das Handy.</td></tr>
+      <tr><td>Dunkles Design</td><td><span class="chip c-new">neu</span></td><td>2</td><td class="note">Folgt der Systemeinstellung.</td></tr>
+      <tr><td>iOS mit CallKit</td><td><span class="chip c-new">neu</span></td><td>7</td><td class="note">Gleiche Flutter-Oberfläche, CallKit/PushKit nativ, PJSIP für iOS mit TLS und Video.</td></tr>
+      <tr><td>Außerhalb des WLANs erreichbar</td><td><span class="chip c-new">neu</span></td><td>8</td><td class="note">Laut bestehender Roadmap über Tailscale plus Push-Relay. Linkus löst das mit dem Yeastar-Cloud-Dienst.</td></tr>
+      <tr><td>Chat, Dateien, WhatsApp/SMS, CRM</td><td><span class="chip c-no">bewusst nicht</span></td><td>—</td><td class="note">Linkus-UC-Funktionen, die Yeastars Cloud voraussetzen. Siehe <a href="#nicht">Bewusst nicht</a>.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="screens">
+  <h2>So soll es aussehen</h2>
+  <p class="sub">Entwürfe der wichtigsten Bildschirme im Linkus-Aufbau: fünf Reiter unten, Präsenz-Punkt an jedem Kontakt, Anrufe groß und eindeutig. Die Namen sind die echten Nebenstellen deiner Anlage.</p>
+  <div class="phones">
+    <figure class="phonecap" style="margin:0">
+      <div class="phone" role="img" aria-label="Entwurf Kontakte-Reiter">
+        <div class="ph-top"><span>14:05</span><span>HA-Phone ●</span></div>
+        <div class="ph-title">Kontakte</div>
+        <div class="ph-search">Suchen nach Name oder Nummer</div>
+        <div class="ph-seg"><span class="on">Nebenstellen</span><span>Telefonbuch</span><span>Favoriten</span></div>
+        <div class="ph-list">
+          <div class="row"><div class="av">SA<i style="background:var(--st-avail)"></i></div><div><b>sandro</b><small>11 · verfügbar</small></div></div>
+          <div class="row"><div class="av">LA<i style="background:var(--st-lunch)"></i></div><div><b>larissa</b><small>12 · Mittagspause</small></div></div>
+          <div class="row"><div class="av">DE<i style="background:var(--st-off)"></i></div><div><b>dect</b><small>15 · offline</small></div></div>
+          <div class="row"><div class="av">TÜ<i style="background:var(--st-dnd)"></i></div><div><b>türklingel</b><small>16 · telefoniert</small></div></div>
+        </div>
+        <div class="tabbar"><span class="on">Kontakte</span><span>Anrufe</span><span>Tastatur</span><span>Voicemail</span><span>Ich</span></div>
+      </div>
+      <p>Kontakte: Nebenstellen mit Live-Status, Telefonbuch der Anlage, Favoriten. Ein Tipp ruft an.</p>
+    </figure>
+
+    <figure class="phonecap" style="margin:0">
+      <div class="phone" role="img" aria-label="Entwurf Anrufliste">
+        <div class="ph-top"><span>14:05</span><span>HA-Phone ●</span></div>
+        <div class="ph-title">Anrufe</div>
+        <div class="ph-seg"><span class="on">Alle</span><span>Verpasst</span></div>
+        <div class="ph-list">
+          <div class="row miss"><div class="av">TÜ</div><div><b>türklingel</b><small>verpasst · Video</small></div><div class="end">14:02</div></div>
+          <div class="row"><div class="av">01</div><div><b>0174 1814689</b><small>ausgehend · 3:12</small></div><div class="end">13:48</div></div>
+          <div class="row"><div class="av">SA</div><div><b>sandro</b><small>eingehend · 0:41</small></div><div class="end">gestern</div></div>
+          <div class="row miss"><div class="av">LA</div><div><b>larissa</b><small>verpasst</small></div><div class="end">Mo</div></div>
+        </div>
+        <div class="tabbar"><span>Kontakte</span><span class="on">Anrufe</span><span>Tastatur</span><span>Voicemail</span><span>Ich</span></div>
+      </div>
+      <p>Anrufliste: verpasste Anrufe rot, Filter oben, Rückruf per Tipp. Später mit der Anlage synchron.</p>
+    </figure>
+
+    <figure class="phonecap" style="margin:0">
+      <div class="phone" role="img" aria-label="Entwurf Klingeln mit Türvideo">
+        <div class="ph-top"><span>14:05</span><span>Sperrbildschirm</span></div>
+        <div class="center" style="padding-top:6px"><small style="color:var(--phone-muted)">Türstation klingelt</small><div class="big">türklingel</div><small style="color:var(--phone-muted)">16</small></div>
+        <div class="video">Haustür</div>
+        <div class="door">Tür öffnen</div>
+        <div class="callbtns"><span class="cb" style="--c:#D64545">Ablehnen</span><span class="cb" style="--c:#1E9E63">Annehmen</span></div>
+      </div>
+      <p>Klingeln: Live-Bild vor dem Abheben (läuft schon), dazu "Tür öffnen" direkt aus dem Klingelbildschirm.</p>
+    </figure>
+
+    <figure class="phonecap" style="margin:0">
+      <div class="phone" role="img" aria-label="Entwurf Gesprächsbildschirm">
+        <div class="ph-top"><span>14:05</span><span>Im Gespräch</span></div>
+        <div class="center" style="padding-top:8px"><div class="big">sandro</div><small style="color:var(--phone-muted)">11 · 02:37 · TLS/SRTP</small></div>
+        <div class="ctrls">
+          <span>Stumm</span><span>Tastatur</span><span class="on">Lautsprecher</span>
+          <span>Halten</span><span>Weiterleiten</span><span>Konferenz</span>
+        </div>
+        <div class="callbtns"><span class="cb" style="--c:#D64545">Auflegen</span></div>
+      </div>
+      <p>Gespräch: sechs Tasten im 3×2-Raster wie bei Linkus, dazu Dauer und Verschlüsselung sichtbar.</p>
+    </figure>
+  </div>
+</section>
+
+<section id="phasen">
+  <h2>Phasen</h2>
+  <p class="sub">Die Reihenfolge ist gewollt: erst Zuverlässigkeit, sonst ist alles andere egal. Dann das, was die Anlage schon kann (schnell sichtbarer Fortschritt), dann die aufwendigen Gesprächsfunktionen. Jede Phase endet mit einem Test auf deinem Handy.</p>
+  <div class="phases">
+    <div class="phase now"><div class="ph-head"><span class="chip c-new" style="justify-self:start">läuft gerade</span><h3>1 · Fundament und Türstation</h3><span class="when">Rest ~1–2 Sitzungen</span></div>
+      <div class="ph-body"><ul>
+        <li>Test der Video-Vorschau mit der echten Türstation, Fehler beheben</li>
+        <li>Video auch während des Gesprächs</li>
+        <li>Taste "Tür öffnen": DTMF-Code pro Türstation in der Anlage einstellbar</li>
+        <li>Lautsprecher / Bluetooth / Hörer umschalten</li>
+        <li>Klingelgruppen-Problem lösen (siehe Risiken)</li>
+        <li>Dauertest: 24 h online bei ausgeschaltetem Display</li>
+      </ul><p class="done-when">Fertig, wenn: Die Türklingel läutet auf Fanvil und App gleichzeitig mit Bild, die Tür lässt sich aus der App öffnen, und die 13 bleibt einen Tag lang online.</p></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>2 · Neue App-Hülle im Linkus-Stil</h3><span class="when">~2 Sitzungen</span></div>
+      <div class="ph-body"><ul>
+        <li>Fünf Reiter: Kontakte, Anrufe, Tastatur, Voicemail, Ich</li>
+        <li>Design-System (Farben, Schrift, Präsenzfarben), helles und dunkles Design</li>
+        <li>Kontakte: Nebenstellen und Telefonbuch aus der Anlage, Suche, Favoriten</li>
+        <li>Anrufliste lokal: Alle / Verpasst, Rückruf, Dauer</li>
+        <li>Neuer Gesprächsbildschirm (3×2-Raster), neuer Klingelbildschirm</li>
+        <li>App-Symbol und Startbildschirm</li>
+      </ul><p class="done-when">Fertig, wenn: Aus Kontakten und Anrufliste lässt sich mit einem Tipp anrufen, und die App sieht in hell und dunkel stimmig aus.</p></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>3 · Präsenz und Voicemail</h3><span class="when">~2 Sitzungen</span></div>
+      <div class="ph-body"><ul>
+        <li>Eigenen Status setzen (verfügbar, abwesend, Mittag, Feierabend, nicht stören)</li>
+        <li>Live-Status der Kollegen inklusive "telefoniert gerade"</li>
+        <li>Visuelle Voicemail: Liste, Abspielen, Löschen, Rückruf</li>
+        <li>Badges für verpasste Anrufe und neue Voicemails</li>
+      </ul><p class="done-when">Fertig, wenn: Ein Statuswechsel in der App die Anrufweiterleitung der Anlage ändert, und eine Voicemail sich in der App anhören lässt.</p></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>4 · Profi-Gesprächsfunktionen</h3><span class="when">~2–3 Sitzungen</span></div>
+      <div class="ph-body"><ul>
+        <li>Weiterleiten mit Rückfrage</li>
+        <li>3er-Konferenz / Zusammenführen</li>
+        <li>Zweiter Anruf während eines Gesprächs (Makeln)</li>
+        <li>Anruf heranholen</li>
+        <li>Wahlwiederholung, Anruf-Wartesignal</li>
+      </ul><p class="done-when">Fertig, wenn: Alles, was das Fanvil-Tischtelefon im Gespräch kann, auch die App kann.</p></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>5 · Ich-Reiter und Synchronisation</h3><span class="when">~2 Sitzungen</span></div>
+      <div class="ph-body"><ul>
+        <li>Weiterleitungsregeln pro Status bearbeiten</li>
+        <li>Anrufliste von der Anlage (CDR), also auch Anrufe an anderen Geräten</li>
+        <li>Klingelton, Vibration, Handy-Adressbuch</li>
+        <li>Diagnose: Registrierung, Codec, Qualität, Log teilen, Gerät entkoppeln</li>
+      </ul><p class="done-when">Fertig, wenn: Ein am Fanvil verpasster Anruf auch in der App-Anrufliste steht.</p></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>6 · Extras</h3><span class="when">nach Bedarf</span></div>
+      <div class="ph-body"><ul>
+        <li>Gespräch aufzeichnen (pro Nebenstelle freischaltbar)</li>
+        <li>Gespräch aufs andere Gerät umlegen</li>
+        <li>Home-Assistant-Schnellaktionen im Türgespräch (Licht, Alarm)</li>
+      </ul></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>7 · iOS</h3><span class="when">~3–4 Sitzungen</span></div>
+      <div class="ph-body"><ul>
+        <li>CallKit (echte iPhone-Anrufoberfläche) und PushKit</li>
+        <li>PJSIP für iOS mit TLS und Video, gleiche Flutter-Oberfläche</li>
+        <li>Braucht einen Mac oder macOS-CI und ein Apple-Entwicklerkonto zum Installieren</li>
+      </ul></div></div>
+
+    <div class="phase"><div class="ph-head"><h3>8 · Unterwegs erreichbar</h3><span class="when">eigene Recherche nötig</span></div>
+      <div class="ph-body"><ul>
+        <li>Außerhalb des WLANs über Tailscale (Roadmap-Phase 5 des Projekts)</li>
+        <li>Push-Relay zum Wecken, falls die App beendet wurde</li>
+      </ul></div></div>
+  </div>
+</section>
+
+<section id="design">
+  <h2>Design-System</h2>
+  <p class="sub">Ruhig, klar, mit einer Akzentfarbe: das HA-Phone-Blau aus dem Logo. Grün und Rot nur für Annehmen und Auflegen, die Präsenzfarben nur für den Status. So ist auf einen Blick klar, was eine Farbe bedeutet.</p>
+  <div class="grid2">
+    <div class="panel"><h3>Farben</h3><div class="swatches">
+      <div class="sw"><div style="background:#2F7FD1"></div><b>HA-Blau</b><span>Akzent, aktive Reiter</span></div>
+      <div class="sw"><div style="background:#1E9E63"></div><b>Annehmen</b><span>nur Anruf-Tasten</span></div>
+      <div class="sw"><div style="background:#D64545"></div><b>Auflegen</b><span>auch "verpasst"</span></div>
+      <div class="sw"><div style="background:#13202C"></div><b>Tinte</b><span>Text hell / Grund dunkel</span></div>
+      <div class="sw"><div style="background:#F3F6F9"></div><b>Papier</b><span>Grund hell</span></div>
+    </div></div>
+    <div class="panel"><h3>Präsenz (wie in der Anlage)</h3><div class="pres">
+      <span><i style="background:var(--st-avail)"></i>verfügbar</span>
+      <span><i style="background:var(--st-away)"></i>abwesend</span>
+      <span><i style="background:var(--st-lunch)"></i>Mittagspause</span>
+      <span><i style="background:var(--st-off)"></i>Feierabend / offline</span>
+      <span><i style="background:var(--st-dnd)"></i>nicht stören / telefoniert</span>
+    </div><p style="color:var(--muted);font-size:13px">Linkus hat zusätzlich "Geschäftsreise". HA-Phone kennt diesen Status nicht, er ließe sich in der Anlage leicht ergänzen.</p></div>
+    <div class="panel"><h3>Schrift und Formen</h3><ul>
+      <li>Material 3 in Flutter, eigene Farbwerte statt des Standard-Lila</li>
+      <li>Große Anruf-Tasten (mind. 64 dp), runde Aktions-Tasten im Gespräch</li>
+      <li>Initialen-Avatare mit Präsenz-Punkt</li>
+      <li>Tabellarische Ziffern für Nummern und Gesprächsdauer</li>
+    </ul></div>
+    <div class="panel"><h3>Bedienung</h3><ul>
+      <li>Jede Liste: ein Tipp ruft an, ein langer Tipp zeigt Details</li>
+      <li>Wischen in der Anrufliste: Rückruf / Löschen</li>
+      <li>Fehler sagen, was zu tun ist ("Anlage nicht erreichbar, WLAN prüfen")</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="anlage">
+  <h2>Nötige Erweiterungen an der Anlage</h2>
+  <p class="sub">Alle neuen Handy-Endpunkte laufen über das Geräte-Token aus 0.7.102. Kein Admin-Login auf dem Handy, keine SIP-Passwörter über offene Endpunkte.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th style="width:34%">Endpunkt / Änderung</th><th style="width:10%">Phase</th><th>Zweck</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /api/mobile/directory</code></td><td>2</td><td class="note">Nebenstellen und Telefonbuch. <b>Schon gebaut</b>, noch nicht veröffentlicht.</td></tr>
+      <tr><td>Nebenstelle: Feld "Tür-Öffnen-Code" (DTMF)</td><td>1</td><td class="note">Pro Türstation einstellbar, wird der App beim Klingeln mitgeliefert.</td></tr>
+      <tr><td><code>GET /api/mobile/presence</code> · <code>PUT /api/mobile/presence</code></td><td>3</td><td class="note">Status aller Nebenstellen lesen, eigenen setzen (erzeugt den Dialplan neu).</td></tr>
+      <tr><td><code>GET /api/mobile/voicemail</code> + Abspielen / Löschen</td><td>3</td><td class="note">Wie die Admin-Endpunkte, aber nur für das eigene Postfach des Geräts.</td></tr>
+      <tr><td>Live-Gerätestatus über AMI (Ruhe, klingelt, belegt)</td><td>3</td><td class="note">Für "telefoniert gerade" und "Heranholen".</td></tr>
+      <tr><td>Pickup-Code im Dialplan</td><td>4</td><td class="note">Anruf einer klingelnden Nebenstelle übernehmen.</td></tr>
+      <tr><td><code>GET /api/mobile/calls</code> (aus CDR)</td><td>5</td><td class="note">Anrufliste der eigenen Nebenstelle über alle Geräte.</td></tr>
+      <tr><td><code>GET/PUT /api/mobile/forwarding</code></td><td>5</td><td class="note">Weiterleitungsregeln pro Präsenz-Status (<code>PresenceForwardingRule</code>).</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="risiken">
+  <h2>Risiken und offene Entscheidungen</h2>
+  <div class="grid2">
+    <div class="panel"><h3>Video-Vorschau an mehrere Geräte</h3>
+      <p>Asterisk leitet Early-Media-Video in <code>Dial()</code> nur weiter, wenn genau ein Ziel klingelt (Quellcode <code>app_dial.c</code>). Heute funktioniert das Fanvil nur, weil die 12 offline ist.</p>
+      <p><b>Optionen:</b> Die Türstation ruft selbst mehrere Ziele an (am einfachsten). Oder die Anlage bekommt einen eigenen "Türklingel-Modus", der jedes Gerät als eigenen Anruf klingeln lässt. <b>Deine Entscheidung nötig:</b> Welches Türstationsmodell?</p></div>
+    <div class="panel"><h3>Android beendet Hintergrund-Apps</h3>
+      <p>Vordergrund-Dienst und Akku-Ausnahme halten die App wach. Manche Hersteller (OnePlus, Xiaomi) beenden Apps trotzdem. Die Absicherung ist ein Push-Wecken über FCM. Dafür muss die Anlage bei einem eingehenden Anruf einen Push senden, das ist Phase 8.</p></div>
+    <div class="panel"><h3>iOS braucht Apple-Infrastruktur</h3>
+      <p>CallKit/PushKit gehen nur mit einem Apple-Entwicklerkonto und einem Mac oder macOS-CI. Ohne das lässt sich die iOS-App nicht auf ein iPhone bringen.</p></div>
+    <div class="panel"><h3>App-Code liegt nicht in Git</h3>
+      <p><code>ha-phone-app/app-flutter</code> ist nicht versioniert, und die selbst gebauten PJSIP-Bibliotheken (mit OpenSSL und Video) liegen nur auf CCsrv. Bevor Phase 2 beginnt, sollten beide in ein Repository, sonst geht die Arbeit bei einem Plattenproblem verloren.</p></div>
+  </div>
+</section>
+
+<section id="nicht">
+  <h2>Bewusst nicht übernommen</h2>
+  <p class="sub">Linkus ist inzwischen eine Unified-Communications-Suite. Diese Teile hängen an Yeastars Cloud und Geschäftskunden-Funktionen und passen nicht zu einer selbst gehosteten Heim- und Kleinbüro-Anlage.</p>
+  <div class="grid2">
+    <div class="panel"><h3>Chat und Dateien</h3><p class="note" style="color:var(--muted)">Braucht einen eigenen Nachrichtendienst. Home Assistant hat dafür schon die Companion-App.</p></div>
+    <div class="panel"><h3>WhatsApp, SMS, Omnichannel</h3><p style="color:var(--muted)">Kostenpflichtige Anbieter-Schnittstellen, gehört nicht zur Telefonanlage.</p></div>
+    <div class="panel"><h3>CRM-Anbindung, Warteschlangen-Agenten</h3><p style="color:var(--muted)">Callcenter-Funktionen. Lassen sich später nachrüsten, falls HA-Phone Warteschlangen bekommt.</p></div>
+    <div class="panel"><h3>Video-Konferenzen mit vielen Teilnehmern</h3><p style="color:var(--muted)">Die 3er-Audiokonferenz (Phase 4) deckt den Alltag ab. Mehr braucht eine SFU in der Anlage.</p></div>
+  </div>
+</section>
+
+<footer>
+  <span>Quellen zu Linkus:
+    <a href="https://www.yeastar.com/linkus-softphone/mobile/" target="_blank" rel="noopener">Linkus Mobile Client</a> ·
+    <a href="https://help.yeastar.com/en/linkus_client_mobile/mobile-client-user-guide/presence-settings.html" target="_blank" rel="noopener">Präsenz-Einstellungen</a> ·
+    <a href="https://help.yeastar.com/en/linkus_client_mobile/mobile-client-user-guide/view-and-manage-call-history.html" target="_blank" rel="noopener">Anrufliste</a> ·
+    <a href="https://help.yeastar.com/en/p-series-cloud-edition/administrator-guide/enable-video-preview-of-intercom-calls-for-extensions.html" target="_blank" rel="noopener">Video-Vorschau Türstation</a> ·
+    <a href="https://help.yeastar.com/en/p-series-appliance-edition/integrations/akuvox/control-door-access-via-linkus-clients.html" target="_blank" rel="noopener">Tür öffnen per Linkus</a> ·
+    <a href="https://www.yeastar.com/blog/10-things-we-love-about-linkus-softphone-app/" target="_blank" rel="noopener">Linkus-Funktionsüberblick</a>
+  </span>
+  <span>HA-Phone-Stand: App-Code in <span class="mono">ha-phone-app/app-flutter</span>, Anlage in <span class="mono">Ha-Phone/ha-phone</span> (Commit 63a51e0).</span>
+</footer>
+</div>

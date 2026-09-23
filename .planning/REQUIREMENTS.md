@@ -1,7 +1,7 @@
 # Requirements: HA-Phone App
 
 **Defined:** 2026-07-31
-**Core Value:** Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, egal ob die App geschlossen oder das Gerät gesperrt ist — ohne dauerhaft laufende SIP-Verbindung oder VPN-Tunnel im Hintergrund.
+**Core Value:** Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche (Android Telecom / iOS CallKit), egal ob die App im Hintergrund oder das Gerät gesperrt ist.
 
 ## v1 Requirements
 
@@ -20,7 +20,7 @@ Requirements für die erste Version. Jede wird auf Roadmap-Phasen abgebildet.
 - [x] **CALL-02**: DTMF im laufenden Gespräch (RFC 2833/4733)
 - [x] **CALL-03**: Ausgehende Anrufe sind möglich
 - [x] **CALL-04**: Anruf halten und blinde Weiterverbindung
-- [x] **CALL-05**: Nach Annahme baut die App die SIP-Verbindung transient auf (kein dauerhaftes Halten der Registrierung im Hintergrund)
+- [ ] **CALL-05**: Die App hält die SIP-Registrierung dauerhaft (Vordergrund-Dienst, Neustart-Autostart, Akku-Ausnahme); die Nebenstelle ist im Dashboard durchgehend online
 
 ### Provisionierung & Geräteverwaltung (PROV)
 
@@ -31,7 +31,7 @@ Requirements für die erste Version. Jede wird auf Roadmap-Phasen abgebildet.
 
 ### Türstation (DOOR)
 
-- [ ] **DOOR-01**: Video-Vorschau/Snapshot einer Türstation (Akuvox) wird angezeigt, bevor der Anruf angenommen wird — kurzlebiger, signierter Link getrennt vom Push-Payload
+- [ ] **DOOR-01**: Live-Video der Türstation wird per SIP Early Media (183 + H.264) angezeigt, bevor der Anruf angenommen wird, wie am Fanvil-Tischtelefon
 - [ ] **DOOR-02**: Türöffner-Aktion aus der App heraus, mit optionaler Biometrie-Bestätigung (Face ID/Touch ID/Geräte-PIN)
 
 ### Betrieb & Infrastruktur (OPS)

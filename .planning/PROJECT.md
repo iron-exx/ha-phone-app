@@ -2,11 +2,11 @@
 
 ## What This Is
 
-Native Softphone-App für iOS und Android als offizielles Companion-Produkt zur selbstgehosteten HA-Phone-PBX (Asterisk-basiert, Home-Assistant-Add-on, https://github.com/iron-exx/HA-Phone). Löst zuverlässig eingehende Anrufe bei geschlossener/gesperrter App über VoIP-Push (APNs/FCM) aus, wird per QR-Code ohne manuelle SIP-Eingabe eingerichtet und zeigt bei Türstationen (z.B. Akuvox) das Kamerabild bereits vor Annahme des Anrufs. Gebaut nicht als generisches SIP-Softphone, sondern fest an HA-Phone gekoppelt — und von Anfang an so, dass auch andere HA-Phone-Betreiber (nicht nur der eigene Haushalt) die App gegen ihre eigene Box nutzen können.
+Softphone-App für iOS und Android (Flutter-Oberfläche, nativer SIP-/Anruf-Kern) als offizielles Companion-Produkt zur selbstgehosteten HA-Phone-PBX (Asterisk-basiert, Home-Assistant-Add-on, https://github.com/iron-exx/HA-Phone). Ist dauerhaft erreichbar und klingelt wie ein normaler Anruf, wird per QR-Code ohne manuelle SIP-Eingabe eingerichtet und zeigt bei Türstationen das Kamerabild per SIP Early Media bereits vor Annahme des Anrufs. UX-Vorbild: Yeastar Linkus Mobile (siehe `docs/linkus-schlachtplan.html`). Gebaut nicht als generisches SIP-Softphone, sondern fest an HA-Phone gekoppelt — und von Anfang an so, dass auch andere HA-Phone-Betreiber (nicht nur der eigene Haushalt) die App gegen ihre eigene Box nutzen können.
 
 ## Core Value
 
-Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, egal ob die App geschlossen oder das Gerät gesperrt ist — ohne dauerhaft laufende SIP-Verbindung oder VPN-Tunnel im Hintergrund.
+Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche (Android Telecom / iOS CallKit), egal ob die App im Hintergrund oder das Gerät gesperrt ist.
 
 ## Requirements
 
@@ -14,13 +14,12 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 
 - ✓ Android: High-Priority-FCM weckt die App zuverlässig, auch im Hintergrund/bei gesperrtem Gerät (inkl. echtem PIN-Sperrbildschirm und Doze) — Phase 1, verifiziert auf API-35-Emulator mit echtem Firebase-Projekt, 5 Gerätezustände, <2s Latenz
 - ✓ Android: eingehender Anruf wird über Telecom-Framework / CallStyle-Notification + Full-Screen-Intent signalisiert — Phase 1, funktioniert nachweislich auch **ohne** Play-Console-Deklaration bei Sideload (D-12-Befund)
-- ✓ Nativ getrennte Apps (Swift/Kotlin) sind der richtige Ansatz für Push-Wakeup/CallKit/Telecom — Phase 1, beide Wegwerf-Apps bauten und funktionierten wie erwartet, keine Cross-Platform-Kompromisse nötig
 
 ### Active
 
 - [ ] iOS: VoIP-Push via PushKit weckt die App zuverlässig, auch wenn sie vollständig beendet ist — Phase 1 hat dies nur auf Simulator-/Unit-Test-Ebene verifiziert (`.github/workflows/ios-ci.yml`), echtes Gerät noch ungetestet; blockiert auf Entscheidung zur Apple-Developer-Program-Mitgliedschaft (99$/Jahr, D-11)
 - [ ] iOS: eingehender Anruf wird sofort nativ über CallKit signalisiert — dito, Code korrekt (report-first-then-verify bestätigt), aber nur Simulator-verifiziert
-- [ ] Nach Annahme baut die App im Hintergrund automatisch die SIP-Verbindung zu HA-Phone auf (kein dauerhaftes Halten der Registrierung)
+- [ ] App hält die SIP-Registrierung (TLS) dauerhaft, auf Android per Vordergrund-Dienst auch im Hintergrund und nach Neustart
 - [ ] Audioanruf funktioniert stabil (Opus/G.722/G.711, Mikrofon, Lautsprecher, Bluetooth, DTMF)
 - [ ] Einrichtung der App erfolgt ausschließlich per QR-Code-Scan — keine manuelle Eingabe von SIP-Server/Port/User/Passwort
 - [ ] HA-Phone-Dashboard: neuer Dialog "Mobilgerät hinzufügen" erzeugt zeitlich begrenzten Einmal-Provisionierungs-Token + QR-Code
@@ -28,7 +27,7 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 - [ ] Zentraler Push-Relay-Dienst (eigene APNs/FCM-Credentials) nimmt signierte Call-Events von beliebigen HA-Phone-Boxen entgegen und leitet sie an Apple/Google weiter
 - [ ] Mehrere Mobilgeräte pro Nebenstelle: alle klingeln, Erstannahme gewinnt, andere werden per Abbruch-Push gestoppt
 - [ ] Ausgehende Anrufe möglich
-- [ ] Türstations-Erkennung (Akuvox): Vorschaubild/Snapshot wird angezeigt, bevor der Anruf angenommen wird
+- [ ] Türstation: Live-Video per SIP Early Media (183 + H.264) wird angezeigt, bevor der Anruf angenommen wird
 - [ ] Türöffner-Funktion aus der App heraus (mit optionaler Biometrie-Bestätigung)
 - [ ] Diagnose-Statusseite in der App (Push-Registrierung, SIP-Status, Berechtigungen, letzter Test)
 - [ ] Tailscale-Integration als Medien-Transportschicht: Nutzer trägt seinen Tailscale-Account einmal in App und HA-Phone ein, Verbindung für SIP/RTP wird dann automatisch aufgebaut (ephemer bei Bedarf, nicht dauerhaft im Hintergrund) — ersetzt manuelle STUN/TURN-Konfiguration für die Erreichbarkeit unterwegs
@@ -53,7 +52,8 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 
 ## Constraints
 
-- **Tech-Stack**: Native getrennte Apps — Swift/SwiftUI (iOS) und Kotlin/Jetpack Compose (Android), kein Flutter/React Native — Entscheidung laut Plan-Empfehlung, da CallKit/Telecom/PJSIP-Integration native Zuverlässigkeit braucht
+- **Tech-Stack**: **Flutter** für Oberfläche und App-Logik (`app-flutter/`), native Platform-Channels für alles Anruf-Kritische: PJSIP/PJSUA2, Android Telecom (self-managed) + FCM, iOS CallKit/PushKit. Der Klingelbildschirm bleibt nativ (Kaltstart, Sperrbildschirm). `android-app/` und `ios-app/` sind nur noch Referenz.
+- **Erreichbarkeit**: Dauerhafte SIP-Registrierung (TLS), auf Android per Vordergrund-Dienst wachgehalten; Push dient nur als Absicherung
 - **SIP/Media-Kern**: PJSIP/PJSUA2 als gemeinsame Grundlage auf beiden Plattformen (SIP über TLS, SRTP, ICE/STUN/TURN)
 - **Backend-Kopplung**: Push-Gateway und QR-Provisionierung werden direkt in HA-Phone (FastAPI) integriert, nicht als separater Dienst — App spricht ausschließlich mit HA-Phone
 - **Push-Architektur**: Zentraler, vom Projekt selbst betriebener Relay-Dienst hält die APNs-/FCM-App-Credentials; jede HA-Phone-Box sendet signierte Call-Events an diesen Relay. Kein Rückgriff auf Nabu Casa (an offizielle HA-App-Identität gebunden) oder Tailscale (löst Netzwerk-, nicht Push-Credential-Problem)
@@ -67,7 +67,9 @@ Ein eingehender Anruf klingelt zuverlässig über die native Anrufoberfläche, e
 |----------|-----------|---------|
 | Volle Integration in HA-Phone statt separater PBX/Dienst | Nur so lassen sich QR-Provisionierung, Gerätesperrung, Push und Anrufsteuerung sauber zentral verwalten | — Pending |
 | App für fremde HA-Phone-Nutzer gedacht, nicht nur Eigenbedarf | Größere Zielgruppe von Anfang an mitdenken, spart spätere Migration | — Pending |
-| Nativ getrennte Apps (Swift/Kotlin) statt Cross-Platform-Framework | Zuverlässigkeit bei Push-Wakeup/CallKit/Telecom hat Priorität vor gemeinsamer UI-Codebasis | ✓ Good — Phase 1 bestätigt: beide Wegwerf-Apps bauten und funktionierten unabhängig voneinander |
+| Flutter-Oberfläche + nativer SIP-/Anruf-Kern hinter Platform-Channels (2026-09-22, Nutzerentscheidung) | Eine UI-Codebasis für beide Plattformen; das Anruf-Kritische (PJSIP, Telecom, CallKit) bleibt nativ | ✓ Android läuft (`app-flutter/`), iOS offen |
+| Dauerhafte SIP-Registrierung mit Vordergrund-Dienst (2026-09-23, Nutzerentscheidung) | App soll nie einschlafen und Anrufe wie ein normales Telefon zeigen | ✓ gebaut, Langzeittest offen |
+| Türvideo per SIP Early Media wie am Fanvil-Tischtelefon (2026-09-23, Nutzerentscheidung) | Gleiche Technik wie die vorhandenen Tischtelefone, kein zusätzlicher Bildkanal | ✓ gebaut, Test mit Türstation offen |
 | Zentraler eigener Push-Relay-Dienst statt Nabu Casa/Tailscale | Push-Credentials sind an App-Identität gebunden, nicht an Netzwerk-Erreichbarkeit — Nabu Casa/Tailscale lösen das falsche Problem | — Pending (Relay kommt erst Phase 6) |
 | Phase-1-Priorität: Push-Wakeup vor QR-Provisionierung vor Video | Reihenfolge aus dem ursprünglichen Entwicklungsplan — Erreichbarkeit ist das Kernproblem, das zuerst bewiesen werden muss | ✓ Good — Phase 1 hat genau das bewiesen (Android vollständig, iOS strukturell) |
 | Tailscale als Medien-Transportschicht statt eigenem STUN/TURN | Nutzer will Erreichbarkeit unterwegs ohne eigenen TURN-Server; Tailscale übernimmt NAT-Traversal. Push bleibt strikt getrennt als Wake-up-Mechanismus, Tailscale wird nur ephemer für die SIP/Media-Verbindung genutzt | — Pending (erst Phase 5) |

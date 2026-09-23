@@ -32,7 +32,7 @@
 | Telecom framework — self-managed `ConnectionService` + `PhoneAccount` | Android SDK, API 26+ (target current API level, e.g. 35/36) | Register the app as a calling app with the OS, get audio routing / DND bypass / Bluetooth SCO handled by the platform | Recommended over CallStyle-notification-only approach — self-managed ConnectionService is what unlocks proper audio-focus arbitration with other calls, Android Auto handoff, and is what Google Play now requires apps to have if they want default full-screen-intent permission for calling. |
 | `Notification.CallStyle` (`NotificationCompat.CallStyle` in AndroidX) | AndroidX Core current | The visible incoming-call notification (Android 12+/API 31+) shown alongside/instead of a custom full-screen activity | Always on API 31+; pair with a full-screen `Intent` for lock-screen display. On API < 31, fall back to a regular high-priority notification with full-screen intent (no CallStyle template available). |
 | `USE_FULL_SCREEN_INTENT` permission | manifest permission | Show the incoming-call UI over the lock screen | Required, but as of apps targeting Android 14+ (API 34+), Play Store only auto-grants this to apps that are calling or alarm apps — self-managed ConnectionService registration is what qualifies this app as a "calling app" for that grant. |
-| WorkManager / foreground service (`ConnectionService`-bound) | AndroidX current | Keep the process alive long enough to establish SIP/media after the user answers | Use short-lived foreground service tied to the active call, not a permanently running background service — matches the project's "no permanent SIP registration" principle and avoids battery/Doze issues. |
+| Foreground service (`SipService`, type `specialUse`) | AndroidX current | Keep the process and the SIP registration alive permanently | Always-on by user decision; plus battery-optimization exemption and restart on boot. `phoneCall` type is not used because Android 15 forbids starting it from BOOT_COMPLETED. |
 | PJSUA2 Android build (official `pjsua2` Java/Kotlin JNI module, built via `configure-android` NDK build) | matches PJSIP 2.16 | SIP core, exposed to Kotlin via the JNI/SWIG Java bindings PJSIP generates | Build via PJSIP's official Android build instructions; avoid the small number of unofficial prebuilt AARs on Maven Central (e.g. `de.d0pam1n:pjsip-android`) for production — they are unverified third-party builds with unclear provenance/patch history. |
 
 ### Backend / Push-Relay Libraries (FastAPI side)
@@ -91,8 +91,7 @@ pip install aioapns firebase-admin cryptography pyjwt
 | FCM `notification`-only messages for incoming calls | Notification-block-only FCM messages are handled by the OS system tray directly and do not reliably invoke your `onMessageReceived()` when the app is backgrounded/killed, so you cannot build a custom CallStyle/ConnectionService flow from them | Data-only FCM messages with `AndroidConfig(priority='high')`, and build the CallStyle notification + ConnectionService call yourself in `onMessageReceived()`. |
 | Relying on `USE_FULL_SCREEN_INTENT` alone without registering a self-managed `ConnectionService`/being a recognized calling app | Starting with apps targeting Android 14 (API 34), Google Play auto-revokes default grant of this permission for apps that aren't calling or alarm apps; a bare notification-only softphone risks losing lock-screen call display entirely on newer Android | Register a self-managed `ConnectionService` + `PhoneAccount` so the app is recognized by the platform as a calling app, which is what preserves the full-screen-intent grant. |
 | Third-party/unofficial prebuilt PJSIP binaries (random Maven/CocoaPods artifacts) for the production build | Unclear build provenance, unknown patch/CVE status versus upstream PJSIP, and several (e.g. the CocoaPod) have known packaging limitations (static-only, no `use_frameworks!` support) | Build PJSIP from official source per `docs.pjsip.org`, pin the exact upstream tag, and vendor the build output through project CI. |
-| A permanently-registered/always-connected SIP client in the background on either platform | Contradicts the project's core design principle (no permanent SIP registration, push-first) and burns battery/violates the "connect only after push+answer" architecture already decided in PROJECT.md | Register SIP transiently after CallKit/ConnectionService reports the call and the user answers (or, for outbound calls, when the user initiates one); tear down/de-register afterward. |
-| Kotlin Multiplatform (KMP) "shared core" as suggested loosely in ENTWICKLUNGSPLAN §9 | The project's own constraints already settled on fully separate native codebases specifically because CallKit/Telecom/PJSIP integration reliability was judged more important than a shared business-logic layer; introducing KMP now would reintroduce the cross-platform abstraction risk the plan explicitly rejected | Two separate native codebases (Swift/SwiftUI, Kotlin/Compose) each linking directly to their own PJSIP build, sharing only the API contract (REST schema) with the FastAPI backend, not runtime code. |
+| Kotlin Multiplatform (KMP) as an additional shared layer | The shared layer is Flutter/Dart; a second cross-platform runtime adds nothing | Flutter for UI/logic, native per-platform code only behind platform channels. |
 
 ## Stack Patterns by Variant
 
@@ -100,13 +99,11 @@ pip install aioapns firebase-admin cryptography pyjwt
 - Consider starting the spike with a community PJSIP CocoaPod/AAR (accepting the provenance risk) to shave days off setup, then replace with an official from-source build before Phase 3.
 - Because Phase 1's abnormal-development goal is proving the push→CallKit/Telecom wake path, not shipping production SIP media; the PJSIP build pipeline is a one-time investment that shouldn't gate that specific proof.
 
-**If Video/Türstation preview (Phase 4/5) needs to move ahead of HA-Phone's own WebRTC roadmap:**
-- Use short-lived signed HTTPS snapshot/stream URLs served directly by HA-Phone (as ENTWICKLUNGSPLAN §7 already specifies), not a new WebRTC stack in the app.
-- Because introducing WebRTC in the mobile app before HA-Phone's backend supports it duplicates infrastructure that HA-Phone's own roadmap will eventually provide; a time-boxed HTTPS snapshot/stream link keeps the two roadmaps decoupled while still delivering the "see the visitor before answering" value.
+**Door-station preview:**
+- SIP early media (183 + H.264 via Android MediaCodec, receive-only), the same way the Fanvil desk phone does it, not HTTPS snapshot links. Caveat: Asterisk `Dial()` only forwards early media when exactly one destination rings.
 
-**If the project later needs cross-platform code sharing for non-call-critical logic (e.g. QR parsing, API client, diagnostics):**
-- Use a plain shared OpenAPI-generated client (generated separately for Swift and Kotlin from the same FastAPI OpenAPI schema) rather than KMP or Flutter modules.
-- Because it gets consistency without introducing a cross-platform runtime into the call-critical path.
+**Cross-platform code:**
+- Flutter/Dart is the shared layer (UI, API client, QR parsing, diagnostics); backend calls use the per-device token from QR pairing.
 
 ## Version Compatibility
 
