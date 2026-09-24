@@ -1,51 +1,40 @@
 package de.haphone.app.test
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color as AndroidColor
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.telecom.DisconnectCause
-import android.view.SurfaceHolder
-import android.view.SurfaceView
+import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.telecom.CallAttributesCompat
+import de.haphone.app.test.ring.DoorOpenClient
+import de.haphone.app.test.ring.DoorOpenMethod
+import de.haphone.app.test.ring.DoorOpenOutcome
+import de.haphone.app.test.ring.DoorSlideState
+import de.haphone.app.test.ring.DoorSlideTexts
+import de.haphone.app.test.ring.RingActions
+import de.haphone.app.test.ring.RingInput
+import de.haphone.app.test.ring.RingLayout
+import de.haphone.app.test.ring.RingLayouts
+import de.haphone.app.test.ring.RingScreen
+import de.haphone.app.test.ring.RingVariant
+import de.haphone.app.test.ring.isDraggable
 import de.haphone.app.test.sip.VideoSurfaceBinder
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
+import java.time.LocalTime
 
 /**
  * Native ringing screen for both push-woken and SIP-registered incoming calls.
@@ -53,49 +42,139 @@ import java.lang.ref.WeakReference
  * waits on the Dart engine. For door stations it shows the early-media video
  * (SIP 183) live before the call is answered; audio stays disconnected until
  * the user taps Annehmen. Hands off to the Flutter active-call screen after that.
+ * Layout ("Nachtwache" stage 3) lives in ring/RingScreen.kt, its decisions in
+ * ring/RingLayout.kt and ring/SlideToOpen.kt (JVM-tested). The door slider opens via
+ * the PBX webhook without answering, or answers and sends the DTMF code.
  */
 class IncomingCallActivity : ComponentActivity() {
 
     private val app get() = application as HAPhoneTestApplication
 
+    private val main = Handler(Looper.getMainLooper())
+    private var slideState by mutableStateOf<DoorSlideState>(DoorSlideState.Idle)
+    private var keyguardLocked by mutableStateOf(false)
+
+    /** Answered/declined from here: later taps and late webhook results are ignored. */
+    private var handled = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         current = WeakReference(this)
         ownsVideoSurface = true
-        val callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty()
         val callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
-        val isVideo = intent.getStringExtra(EXTRA_CALL_TYPE) in setOf("video", "door")
-        val doorCode = app.doorCodes.forNumber(callId)
-        val doorActions = app.doorActions.labelsFor(callId)
 
         when (intent.getStringExtra(EXTRA_ACTION)) {
             ACTION_ANSWER -> { answer(); return }
             ACTION_DECLINE -> { decline(); return }
         }
 
+        keyguardLocked = isKeyguardLocked()
+        val doorCode = app.doorCodes.forNumber(callId)
+        val doorActions = app.doorActions.labelsFor(callId)
+        val input = RingInput(
+            callType = intent.getStringExtra(EXTRA_CALL_TYPE),
+            number = callId,
+            callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty(),
+            doorCode = doorCode,
+            doorOpenRemote = app.doorCodes.hasOpenRemote(callId),
+            doorActions = doorActions,
+            keyguardLocked = false,
+        )
+        val meta = RingLayouts.meta(callId, LocalTime.now())
+        val baseLayout = RingLayouts.of(input)
+        // The door screen is a dark picture in any theme: light status bar icons.
+        if (baseLayout.variant == RingVariant.DOOR) {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
+            )
+        } else {
+            enableEdgeToEdge()
+        }
+        val actions = RingActions(
+            onAnswer = { haptic(); answer() },
+            onDecline = { haptic(); decline() },
+            onSlideOpen = { onSlideOpen(baseLayout, callId, doorCode) },
+            onDoorAction = { index ->
+                app.runDoorAction(callId, index) { error ->
+                    if (isFinishing || isDestroyed) return@runDoorAction
+                    android.widget.Toast.makeText(
+                        this, error ?: "${doorActions[index]}: erledigt", android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            },
+            ownsVideoSurface = { ownsVideoSurface },
+        )
+
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF101418)) {
-                    IncomingCallScreen(
-                        callerName = callerName.ifBlank { callId },
-                        callerNumber = callId,
-                        showVideo = isVideo,
-                        isDoor = doorCode.isNotEmpty(),
-                        onAnswer = ::answer,
-                        onDecline = ::decline,
-                        onOpenDoor = { openDoor(doorCode) },
-                        doorActions = doorActions,
-                        onDoorAction = { index ->
-                            app.runDoorAction(callId, index) { error ->
-                                android.widget.Toast.makeText(
-                                    this, error ?: "${doorActions[index]}: erledigt", android.widget.Toast.LENGTH_SHORT,
-                                ).show()
-                            }
-                        },
-                    )
-                }
+                RingScreen(baseLayout.copy(showLockedChip = keyguardLocked), meta, slideState, actions)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        keyguardLocked = isKeyguardLocked()
+    }
+
+    private fun isKeyguardLocked(): Boolean =
+        (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isKeyguardLocked == true
+
+    /** Slider released past 85 % (or the TalkBack action "Tür öffnen"). */
+    private fun onSlideOpen(layout: RingLayout, number: String, doorCode: String) {
+        if (handled || !slideState.isDraggable) return
+        main.removeCallbacksAndMessages(RESET_TOKEN)
+        when (layout.openMethod) {
+            DoorOpenMethod.WEBHOOK -> openByWebhook(number)
+            DoorOpenMethod.DTMF -> {
+                // Door stations only take DTMF in an answered call: answer, the code follows
+                // once media is up (pending-DTMF), and the call screen takes over.
+                slideState = DoorSlideState.Busy(DoorSlideTexts.ANSWERING)
+                haptic()
+                main.postDelayed({ if (!handled && !isFinishing) openDoorByDtmf(doorCode) }, DTMF_FEEDBACK_MS)
+            }
+            DoorOpenMethod.NONE -> Unit
+        }
+    }
+
+    /** Opens without answering; the screen keeps ringing so the user can still answer or decline. */
+    private fun openByWebhook(number: String) {
+        slideState = DoorSlideState.Busy(DoorSlideTexts.OPENING)
+        val auth = app.getDeviceAuth()
+        Thread {
+            val outcome = DoorOpenClient.open(
+                auth["apiHost"].orEmpty(), auth["deviceId"].orEmpty(), auth["deviceToken"].orEmpty(), number,
+            )
+            main.post {
+                if (isFinishing || isDestroyed || handled) return@post
+                val message = outcome.message
+                if (outcome == DoorOpenOutcome.OPENED || message == null) {
+                    slideState = DoorSlideState.Opened
+                    doorOpenedHaptic()
+                    resetSliderAfter(DoorSlideTexts.OPENED_MS)
+                } else {
+                    slideState = DoorSlideState.Failed(message)
+                    resetSliderAfter(DoorSlideTexts.FAILED_MS)
+                }
+            }
+        }.start()
+    }
+
+    private fun resetSliderAfter(delayMs: Long) {
+        main.removeCallbacksAndMessages(RESET_TOKEN)
+        androidx.core.os.HandlerCompat.postDelayed(main, { slideState = DoorSlideState.Idle }, RESET_TOKEN, delayMs)
+    }
+
+    private fun haptic() {
+        window.decorView.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+    }
+
+    /** Nachtwache: double pulse for "Tür geöffnet". */
+    private fun doorOpenedHaptic() {
+        val strong = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS
+        window.decorView.performHapticFeedback(strong)
+        main.postDelayed({ if (!isDestroyed) window.decorView.performHapticFeedback(strong) }, 140)
     }
 
     // singleTop: the notification's Annehmen/Ablehnen actions arrive here while the screen is open.
@@ -108,11 +187,14 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        main.removeCallbacksAndMessages(null)
         if (current?.get() === this) current = null
         super.onDestroy()
     }
 
     private fun answer() {
+        if (handled) return
+        handled = true
         // From here on the Flutter call screen owns the video; a late surfaceChanged of this
         // dying SurfaceView must not steal the window back (it would stay black).
         ownsVideoSurface = false
@@ -132,12 +214,14 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     /** Door stations only accept DTMF in an answered call: answer, then send the code once connected. */
-    private fun openDoor(code: String) {
+    private fun openDoorByDtmf(code: String) {
         app.sipCallController.queueDtmfOnConnect(code)
         answer()
     }
 
     private fun decline() {
+        if (handled) return
+        handled = true
         ownsVideoSurface = false
         runCatching { app.sipCallController.hangup() }
         app.releaseTelecomCall(DisconnectCause.LOCAL)
@@ -155,6 +239,8 @@ class IncomingCallActivity : ComponentActivity() {
         const val ACTION_DECLINE = "decline"
 
         private var current: WeakReference<IncomingCallActivity>? = null
+        private val RESET_TOKEN = Any()
+        private const val DTMF_FEEDBACK_MS = 350L
 
         /** Main thread only. False once the call was answered/declined from this screen. */
         var ownsVideoSurface = false
@@ -171,140 +257,5 @@ class IncomingCallActivity : ComponentActivity() {
         fun finishIfShowing() {
             current?.get()?.finish()
         }
-    }
-}
-
-private val HaBlue = Color(0xFF0284C7)
-private val AnswerGreen = Color(0xFF2E7D32)
-private val HangupRed = Color(0xFFD32F2F)
-private val MutedText = Color(0xFFB0BEC5)
-
-@Composable
-private fun IncomingCallScreen(
-    callerName: String,
-    callerNumber: String,
-    showVideo: Boolean,
-    isDoor: Boolean,
-    onAnswer: () -> Unit,
-    onDecline: () -> Unit,
-    onOpenDoor: () -> Unit,
-    doorActions: List<String> = emptyList(),
-    onDoorAction: (Int) -> Unit = {},
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(24.dp))
-        Text(if (isDoor) "Türstation klingelt" else "Eingehender Anruf", color = MutedText, fontSize = 16.sp)
-        if (!showVideo) {
-            Spacer(Modifier.height(24.dp))
-            InitialsAvatar(callerName)
-        }
-        Text(callerName, color = Color.White, fontSize = 30.sp, modifier = Modifier.padding(top = 12.dp))
-        if (callerName != callerNumber && callerNumber.isNotBlank()) {
-            Text(callerNumber, color = MutedText, fontSize = 18.sp)
-        }
-        Spacer(Modifier.height(24.dp))
-        if (showVideo) VideoPreview()
-        Spacer(Modifier.weight(1f))
-        if (doorActions.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                doorActions.forEachIndexed { index, label ->
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = { onDoorAction(index) },
-                        modifier = Modifier.weight(1f),
-                    ) { Text(label, color = Color.White, maxLines = 1) }
-                }
-            }
-        }
-        if (isDoor) {
-            Button(
-                onClick = onOpenDoor,
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = HaBlue),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-            ) {
-                Icon(Icons.Filled.Home, contentDescription = null)
-                Text("Tür öffnen", fontSize = 18.sp, modifier = Modifier.padding(start = 8.dp))
-            }
-            Spacer(Modifier.height(32.dp))
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            RoundCallButton("Ablehnen", HangupRed, Icons.Filled.Close, onDecline)
-            RoundCallButton("Annehmen", AnswerGreen, Icons.Filled.Call, onAnswer)
-        }
-    }
-}
-
-@Composable
-private fun InitialsAvatar(name: String) {
-    val initials = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        .take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }
-    Box(
-        modifier = Modifier
-            .size(96.dp)
-            .background(HaBlue, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(initials, color = Color.White, fontSize = 36.sp)
-    }
-}
-
-@Composable
-private fun VideoPreview() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(4f / 3f)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.Black),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("Video wird geladen…", color = Color(0xFF78909C))
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                SurfaceView(ctx).apply {
-                    holder.addCallback(object : SurfaceHolder.Callback {
-                        override fun surfaceCreated(h: SurfaceHolder) {}
-                        override fun surfaceChanged(h: SurfaceHolder, format: Int, w: Int, hgt: Int) {
-                            if (IncomingCallActivity.ownsVideoSurface) VideoSurfaceBinder.setSurface(h.surface)
-                        }
-                        override fun surfaceDestroyed(h: SurfaceHolder) {
-                            VideoSurfaceBinder.clearSurface(h.surface)
-                        }
-                    })
-                }
-            },
-        )
-    }
-}
-
-@Composable
-private fun RoundCallButton(label: String, color: Color, icon: ImageVector, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Button(
-            onClick = onClick,
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = color),
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.size(76.dp),
-        ) {
-            Icon(icon, contentDescription = label, modifier = Modifier.size(34.dp))
-        }
-        Text(label, color = Color.White, modifier = Modifier.padding(top = 8.dp))
     }
 }

@@ -159,9 +159,31 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 val prio: Short = if (codec.codecId.startsWith("H264", ignoreCase = true)) 255 else 0
                 endpoint.videoCodecSetPriority(codec.codecId, prio)
                 android.util.Log.i("PJSIP", "video codec ${codec.codecId} priority=$prio")
+                if (prio > 0) allowLargeDecodedFrames(codec.codecId)
             }
         }.onFailure { android.util.Log.w("PJSIP", "video codec setup failed", it) }
         started = true
+    }
+
+    /**
+     * PJSIP sizes the decoded-picture buffer from the codec's default decFmt (352x288). Door
+     * stations send 640x480 or 720p, which no longer fits: nearly every frame failed with
+     * PJMEDIA_CODEC_EFRMTOOSHORT and the preview froze. Allow up to 1080p and advertise
+     * level 3.1 so the door may send 720p.
+     */
+    private fun allowLargeDecodedFrames(codecId: String) {
+        runCatching {
+            val param = endpoint.getVideoCodecParam(codecId)
+            param.decFmt.width = VideoDecodeLimits.MAX_WIDTH.toLong()
+            param.decFmt.height = VideoDecodeLimits.MAX_HEIGHT.toLong()
+            val fmtp = org.pjsip.pjsua2.CodecFmtpVector()
+            VideoDecodeLimits.h264Fmtp.forEach { (name, value) ->
+                fmtp.add(org.pjsip.pjsua2.CodecFmtp().also { it.name = name; it.`val` = value })
+            }
+            param.decFmtp = fmtp
+            endpoint.setVideoCodecParam(codecId, param)
+            android.util.Log.i("PJSIP", "video codec $codecId decode up to ${VideoDecodeLimits.MAX_WIDTH}x${VideoDecodeLimits.MAX_HEIGHT}")
+        }.onFailure { android.util.Log.w("PJSIP", "video codec $codecId param failed", it) }
     }
 
     internal fun applyCodecPriorities(applier: CodecPriorityApplier) {

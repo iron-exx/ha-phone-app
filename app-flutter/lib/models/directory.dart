@@ -50,6 +50,13 @@ class Directory {
           if (e.doorOpenCode.isNotEmpty) e.number: e.doorOpenCode,
       };
 
+  /// Door stations the PBX opens by webhook (`door_open_remote`), for
+  /// SipChannel.setDoorOpenRemote (the native ringing screen's slider).
+  List<String> get doorOpenRemoteNumbers => [
+        for (final e in extensions)
+          if (e.doorOpenRemote && e.number.isNotEmpty) e.number,
+      ];
+
   /// Number -> Home Assistant action labels for SipChannel.setDoorActions.
   Map<String, List<String>> get doorActions => {
         for (final e in extensions)

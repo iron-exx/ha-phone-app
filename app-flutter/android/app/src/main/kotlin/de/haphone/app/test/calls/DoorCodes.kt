@@ -9,6 +9,7 @@ import android.content.Context
  */
 class DoorCodes(context: Context) {
     private val prefs = context.getSharedPreferences("haphone_door_codes", Context.MODE_PRIVATE)
+    private val remotePrefs = context.getSharedPreferences("haphone_door_open_remote", Context.MODE_PRIVATE)
 
     fun replaceAll(codes: Map<String, String>) {
         prefs.edit().clear().apply {
@@ -17,4 +18,16 @@ class DoorCodes(context: Context) {
     }
 
     fun forNumber(number: String): String = prefs.getString(number, "").orEmpty()
+
+    /** Doors the PBX opens by webhook (`door_open_remote`); replaces the stored set. */
+    fun replaceOpenRemote(numbers: Collection<String>) {
+        remotePrefs.edit().clear().putStringSet(KEY_REMOTE, numbers.filter { it.isNotBlank() }.toSet()).apply()
+    }
+
+    fun hasOpenRemote(number: String): Boolean =
+        remotePrefs.getStringSet(KEY_REMOTE, emptySet()).orEmpty().contains(number)
+
+    private companion object {
+        const val KEY_REMOTE = "numbers"
+    }
 }

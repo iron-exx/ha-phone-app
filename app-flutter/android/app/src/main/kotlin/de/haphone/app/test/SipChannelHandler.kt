@@ -184,6 +184,12 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
+                "setDoorOpenRemote" -> {
+                    val numbers = (call.arguments as? List<*>).orEmpty().filterIsInstance<String>()
+                    app.doorCodes.replaceOpenRemote(numbers)
+                    result.success(null)
+                }
+
                 "setDoorActions" -> {
                     val actions = (call.arguments as? Map<*, *>).orEmpty().mapNotNull { (k, v) ->
                         val number = k as? String ?: return@mapNotNull null

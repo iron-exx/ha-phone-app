@@ -57,6 +57,8 @@ void main() {
     expect(d.extensions[1].isDoorStation, isTrue);
     expect(d.extensions[2].isDoorStation, isFalse);
     expect(d.doorCodes, {'16': '*1'});
+    expect(d.doorOpenRemoteNumbers, ['16', '17']);
+    expect(directory.doorOpenRemoteNumbers, isEmpty);
     // Older PBX without the field: false.
     expect(directory.extensions[0].doorOpenRemote, isFalse);
     final cached = Directory.fromJson(jsonDecode(jsonEncode(d.toJson())) as Map<String, dynamic>);

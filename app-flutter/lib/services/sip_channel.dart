@@ -129,6 +129,10 @@ class SipChannel {
   /// Extension number -> labels of its Home Assistant door actions (from the directory).
   Future<void> setDoorActions(Map<String, List<String>> labels) => _channel.invokeMethod('setDoorActions', labels);
 
+  /// Door stations with a PBX webhook (`door_open_remote`): the native ringing
+  /// screen opens them without answering. Replaces the stored list.
+  Future<void> setDoorOpenRemote(List<String> numbers) => _channel.invokeMethod('setDoorOpenRemote', numbers);
+
   /// Runs door action [index] of [number] on the PBX; throws PlatformException with a German message on failure.
   Future<void> runDoorAction(String number, int index) =>
       _channel.invokeMethod('runDoorAction', {'number': number, 'index': index});

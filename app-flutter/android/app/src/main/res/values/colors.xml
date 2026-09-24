@@ -2,4 +2,13 @@
 <resources>
     <color name="haphone_brand">#0284C7</color>
     <color name="haphone_brand_light">#38BDF8</color>
+
+    <!-- "Nachtwache" tokens (light), same roles as lib/theme/app_colors.dart and
+         ring/NwTheme.kt. Used for the ringing screen's window background. -->
+    <color name="nw_ground">#F4F6F9</color>
+    <color name="nw_surface">#FFFFFF</color>
+    <color name="nw_text">#0F172A</color>
+    <color name="nw_answer">#1F9D57</color>
+    <color name="nw_end">#D92D32</color>
+    <color name="nw_door">#C77A00</color>
 </resources>

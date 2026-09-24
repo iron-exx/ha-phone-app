@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "Nachtwache" tokens (dark = reference). -->
+    <color name="nw_ground">#0B0F14</color>
+    <color name="nw_surface">#131A22</color>
+    <color name="nw_text">#EAF0F6</color>
+    <color name="nw_answer">#2FBF71</color>
+    <color name="nw_end">#E5484D</color>
+    <color name="nw_door">#F5A524</color>
+</resources>

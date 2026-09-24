@@ -102,8 +102,9 @@ class DirectoryRepository extends ChangeNotifier {
     try {
       await SipChannel.instance.setDoorCodes(d.doorCodes);
       await SipChannel.instance.setDoorActions(d.doorActions);
+      await SipChannel.instance.setDoorOpenRemote(d.doorOpenRemoteNumbers);
     } catch (e) {
-      debugPrint('setDoorCodes/setDoorActions failed: $e');
+      debugPrint('setDoorCodes/setDoorActions/setDoorOpenRemote failed: $e');
     }
   }
 

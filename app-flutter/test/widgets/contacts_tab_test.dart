@@ -85,6 +85,7 @@ void main() {
     expect(find.byKey(const ValueKey('door-call-16')), findsOneWidget);
     expect(find.text('Test'), findsNothing);
     expect(sip.callsTo('setDoorCodes').single.arguments, {'16': '*1'});
+    expect(sip.callsTo('setDoorOpenRemote'), hasLength(1));
   });
 
   testWidgets('call button dials, row tap opens the details sheet', (tester) async {

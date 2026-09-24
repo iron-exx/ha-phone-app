@@ -3,7 +3,10 @@
     <!-- Ported from android-app/app/src/main/res/values/themes.xml, used by
          the native IncomingCallActivity (Compose UI, MaterialTheme handles
          actual theming; this is just the window-level platform theme). -->
-    <style name="Theme.HAPhoneTest" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.HAPhoneTest" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- No white flash before Compose draws the Nachtwache ground. -->
+        <item name="android:windowBackground">@color/nw_ground</item>
+    </style>
 
     <!-- Flutter's own template themes for MainActivity/FlutterActivity. -->
     <style name="LaunchTheme" parent="android:Theme.Material.Light.NoActionBar">
