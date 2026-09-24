@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'local_store.dart';
+import 'sip_channel.dart';
 
 /// Favourite numbers, stored locally only (the PBX has no favourites).
 class FavoritesStore extends ChangeNotifier {
@@ -20,6 +21,7 @@ class FavoritesStore extends ChangeNotifier {
     final prefs = await loadPrefs();
     _numbers = {...?prefs?.getStringList(StoreKeys.favorites)};
     notifyListeners();
+    await _pushToCar();
   }
 
   Future<void> toggle(String number) async {
@@ -29,5 +31,15 @@ class FavoritesStore extends ChangeNotifier {
     notifyListeners();
     final prefs = await loadPrefs();
     await prefs?.setStringList(StoreKeys.favorites, next.toList()..sort());
+    await _pushToCar();
+  }
+
+  /// The Android Auto Favoriten tab reads a native copy.
+  Future<void> _pushToCar() async {
+    try {
+      await SipChannel.instance.setFavorites(_numbers.toList()..sort());
+    } catch (e) {
+      debugPrint('setFavorites failed: $e');
+    }
   }
 }

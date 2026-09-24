@@ -133,6 +133,15 @@ class SipChannel {
   /// screen opens them without answering. Replaces the stored list.
   Future<void> setDoorOpenRemote(List<String> numbers) => _channel.invokeMethod('setDoorOpenRemote', numbers);
 
+  // ---- Android Auto (native car screens, see android/.../car/) ----
+
+  /// Directory for the car screens: maps {number, name, ext, door, openRemote} and the own number.
+  Future<void> setCarDirectory(List<Map<String, Object>> entries, String selfNumber) =>
+      _channel.invokeMethod('setCarDirectory', {'entries': entries, 'self': selfNumber});
+
+  /// Favourite numbers for the car's Favoriten tab. Replaces the stored list.
+  Future<void> setFavorites(List<String> numbers) => _channel.invokeMethod('setFavorites', numbers);
+
   /// Runs door action [index] of [number] on the PBX; throws PlatformException with a German message on failure.
   Future<void> runDoorAction(String number, int index) =>
       _channel.invokeMethod('runDoorAction', {'number': number, 'index': index});

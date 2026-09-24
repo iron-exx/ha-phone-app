@@ -103,6 +103,7 @@ class DirectoryRepository extends ChangeNotifier {
       await SipChannel.instance.setDoorCodes(d.doorCodes);
       await SipChannel.instance.setDoorActions(d.doorActions);
       await SipChannel.instance.setDoorOpenRemote(d.doorOpenRemoteNumbers);
+      await SipChannel.instance.setCarDirectory(d.carEntries, d.self?.number ?? '');
     } catch (e) {
       debugPrint('setDoorCodes/setDoorActions/setDoorOpenRemote failed: $e');
     }

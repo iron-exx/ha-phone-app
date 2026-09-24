@@ -66,6 +66,113 @@ class HAPhoneTestApplication : Application() {
     val doorCodes by lazy { de.haphone.app.test.calls.DoorCodes(this) }
     val doorActions by lazy { de.haphone.app.test.calls.DoorActionClient(this) }
 
+    /** Directory + favourites for the Android Auto screens (pushed from Dart). */
+    val carDirectory by lazy { de.haphone.app.test.car.CarDirectoryStore(this) }
+
+    /**
+     * Starts an outgoing call, from Dart or from the Android Auto screens. Main thread.
+     * False when two calls are already up. The first call is reported to Telecom first
+     * (Report-First); the SIP INVITE only fires once Telecom has registered it.
+     */
+    fun placeCall(number: String): Boolean {
+        val secondCall = currentCall != null
+        if (!calls.beginOutgoing(number)) return false
+        if (secondCall) {
+            // Consultation call inside the running Telecom call: no new Telecom call.
+            try {
+                calls.bindOutgoing(sipCallController.makeCall(number))
+            } catch (e: Exception) {
+                android.util.Log.e("HAPhoneTestApplication", "second makeCall failed", e)
+                calls.failOutgoing()
+                CallEventBus.emitCallState(number, "outgoing", "lineEnded", e.message)
+            }
+            return true
+        }
+        val name = carDirectory.load().nameFor(number).ifBlank { number }
+        callRegistration.reportOutgoingCall(callId = number, displayName = name) {
+            // Runs later inside a coroutine, outside any caller's try/catch -- an uncaught PJSIP error here kills the process.
+            try {
+                calls.bindOutgoing(sipCallController.makeCall(number))
+            } catch (e: Exception) {
+                android.util.Log.e("HAPhoneTestApplication", "makeCall failed", e)
+                calls.failOutgoing()
+                CallEventBus.emitCallState(number, "outgoing", "disconnected", e.message)
+                endTelecomSession(android.telecom.DisconnectCause.ERROR)
+            }
+        }
+        return true
+    }
+
+    private var answeredLocallyAt = 0L
+
+    /** Our ringing screen answered; see [onAnsweredRemotely]. Main thread. */
+    fun markAnsweredLocally() {
+        answeredLocallyAt = android.os.SystemClock.elapsedRealtime()
+    }
+
+    /**
+     * Telecom asked to answer (Android Auto, Bluetooth headset, watch), not our ringing
+     * screen: close that screen and its notification and move the Flutter UI to the call.
+     */
+    fun onAnsweredRemotely() {
+        if (android.os.SystemClock.elapsedRealtime() - answeredLocallyAt < LOCAL_ANSWER_WINDOW_MS) {
+            android.util.Log.i("HAPhoneTestApplication", "answer came from our ringing screen, no remote hand-off")
+            return
+        }
+        android.util.Log.i("HAPhoneTestApplication", "answered remotely (car/headset), moving UI to the call")
+        IncomingCallActivity.finishIfShowing()
+        CallNotificationBuilder.cancel(this)
+        sipMethodChannel?.invokeMethod("navigateTo", "active_call")
+    }
+
+    /**
+     * Telecom asked to hold/resume (Android Auto's in-call view). Only with a single call:
+     * with two lines hold means swapping, which the phone UI handles. Main thread.
+     */
+    fun onTelecomHoldRequest(onHold: Boolean) {
+        if (calls.session.other != null || currentCall?.onHold == onHold) return
+        runCatching { sipCallController.hold(onHold) }
+            .onFailure { android.util.Log.w("HAPhoneTestApplication", "Telecom hold request failed", it) }
+        calls.setHold(onHold)
+        currentCall?.let { CallEventBus.emitCallState(it.number, it.direction, if (onHold) "held" else "resumed") }
+    }
+
+    /** Telecom's mute state changed (car/headset mute button mutes the mic system-wide). */
+    fun onTelecomMuteChanged(muted: Boolean) {
+        val call = currentCall ?: return
+        if (call.muted == muted) return
+        calls.setMuted(muted)
+        CallEventBus.emitCallState(call.number, call.direction, if (muted) "muted" else "unmuted")
+    }
+
+    /** In-app mute. Unmuting also lifts a system-wide mic mute a car/headset may have set via Telecom. */
+    fun setMuted(muted: Boolean) {
+        sipCallController.mute(muted)
+        calls.setMuted(muted)
+        if (!muted) {
+            runCatching { getSystemService(android.media.AudioManager::class.java)?.isMicrophoneMute = false }
+        }
+    }
+
+    /** In-app hold changed: mirror it to Telecom so the car/Bluetooth show the right state. */
+    fun syncTelecomHold(onHold: Boolean) {
+        if (calls.session.other != null) return
+        val scope = currentCallControlScope ?: return
+        scope.launch {
+            runCatching { if (onHold) scope.setInactive() else scope.setActive() }
+                .onFailure { android.util.Log.w("HAPhoneTestApplication", "Telecom hold sync failed", it) }
+        }
+    }
+
+    /** SIP call answered: an outgoing Telecom call must go from "dialling" to active (car shows it). */
+    private fun markTelecomActive() {
+        val scope = currentCallControlScope ?: return
+        scope.launch {
+            runCatching { scope.setActive() }
+                .onFailure { android.util.Log.w("HAPhoneTestApplication", "Telecom setActive failed", it) }
+        }
+    }
+
     /** Runs a door station's HA action off the main thread; [onDone] gets null or an error, on main. */
     fun runDoorAction(number: String, index: Int, onDone: (String?) -> Unit) {
         val auth = getDeviceAuth()
@@ -209,6 +316,7 @@ class HAPhoneTestApplication : Application() {
 
         de.haphone.app.test.sip.SipCallEvents.onCallDisconnected = { callId, reason ->
             val nothingLeft = calls.ended(callId)
+            de.haphone.app.test.car.CarScreens.refreshAll() // Verlauf in Android Auto
             CallNotificationBuilder.cancelWaiting(this)
             if (nothingLeft) {
                 CallEventBus.emitCallState("", "", "disconnected", reason)
@@ -219,7 +327,10 @@ class HAPhoneTestApplication : Application() {
             }
         }
         de.haphone.app.test.sip.SipCallEvents.onIncomingCall = { call -> showIncomingSipCall(call) }
-        de.haphone.app.test.sip.SipCallEvents.onCallConfirmed = { callId -> calls.confirmed(callId) }
+        de.haphone.app.test.sip.SipCallEvents.onCallConfirmed = { callId ->
+            calls.confirmed(callId)
+            if (calls.session.other == null) markTelecomActive()
+        }
 
         // D-09: mid-call network-switch resilience (RESEARCH.md Pattern 3) --
         // observe platform network changes for the app process lifetime and
@@ -333,6 +444,8 @@ class HAPhoneTestApplication : Application() {
     }
 
     companion object {
+        /** Telecom echoes our own answer within a few seconds at most. */
+        private const val LOCAL_ANSWER_WINDOW_MS = 5_000L
         const val FLUTTER_ENGINE_ID = "de.haphone.app.test.main_engine"
     }
 }

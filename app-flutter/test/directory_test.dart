@@ -69,6 +69,15 @@ void main() {
     expect(directory.doorCodes, {'16': '*1'});
   });
 
+  test('builds the compact car directory for Android Auto', () {
+    expect(directory.carEntries, [
+      {'number': '16', 'name': 'türklingel', 'ext': true, 'door': true, 'openRemote': false},
+      {'number': '11', 'name': 'sandro', 'ext': true, 'door': false, 'openRemote': false},
+      {'number': '15', 'name': 'dect', 'ext': true, 'door': false, 'openRemote': false},
+      {'number': '0301234567', 'name': 'Pizzeria', 'ext': false, 'door': false, 'openRemote': false},
+    ]);
+  });
+
   test('resolves names by number', () {
     expect(directory.nameFor('11'), 'sandro');
     expect(directory.nameFor('0301234567'), 'Pizzeria');

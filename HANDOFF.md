@@ -153,6 +153,13 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Test-Tools: `no-git/tools/door_sim.py` (Tür-Simulator, Nebenstelle 17), Webhook-Empfänger `python3 hook.py` (Port 8099; Tür 17 zeigt auf http://192.168.101.113:8099/api/webhook/haustuer), `pbx_admin.py`.
 - Hinweis: Video-Nebenstellen haben `max_contacts=1` → "Gespräch umlegen" auf derselben Video-Nebenstelle geht nicht.
 
+## 5a6. Android Auto (2026-09-24, App 0.9.0, nicht committet, nicht im Auto getestet)
+
+- Car App Library 1.7.0, `car/HaPhoneCarAppService` (Kategorie `CALLING`): Tabs Favoriten / Verlauf / Kontakte (Präsenz nativ per `GET /api/mobile/presence`) / Haustür (Anrufen, "Tür öffnen" mit Rückfrage per `POST /api/mobile/door-open`, HA-Aktionen). Unter Car-API 6 ein einfaches Menü statt Tabs.
+- Daten: Dart schiebt `setCarDirectory` (nach jedem Verzeichnis-Laden) und `setFavorites`; Verlauf aus `CallHistoryStore`. Wählen über `HAPhoneTestApplication.placeCall` (gleicher Weg wie Dart).
+- Telecom-Lücken für AA geschlossen: `setActive()` bei SIP CONFIRMED (sonst "wählt" ewig), Halten/Fortsetzen aus dem Auto (`onSetActive/onSetInactive`), Stumm aus dem Auto gespiegelt, Anzeigename statt "HA-Phone Testanruf", Adresse `sip:<nummer>`, Annehmen aus dem Auto schließt den Klingelbildschirm.
+- Google-Vorgabe: Calling-Apps in AA sind Beta, im Play Store nur Internal/Closed Testing. Seitengeladene Debug-APK läuft nur mit AA-Entwicklermodus + "Unbekannte Quellen". DHU liegt unter `~/android-sdk/extras/google/auto` (Emulator-Image hat kein Android Auto -> Test nur am echten Handy).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

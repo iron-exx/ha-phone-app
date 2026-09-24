@@ -103,6 +103,24 @@
             </intent-filter>
         </receiver>
 
+        <!-- Android Auto (Car App Library). CALLING category: Favoriten, Verlauf, Kontakte,
+             Haustür. The in-call view comes from Android Auto via our Telecom integration. -->
+        <service
+            android:name=".car.HaPhoneCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.CALLING" />
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <!-- TabTemplate needs level 6; older hosts get the plain menu (CarRootScreen.menu). -->
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+
         <service android:name=".TestFcmService" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

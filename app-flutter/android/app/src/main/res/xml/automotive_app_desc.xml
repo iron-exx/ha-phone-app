@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto: this app has a Car App Library (templated) UI, see car/HaPhoneCarAppService.kt. -->
+<automotiveApp>
+    <uses name="template" />
+</automotiveApp>

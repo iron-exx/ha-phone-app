@@ -70,6 +70,22 @@ class Directory {
           if (e.doorActions.isNotEmpty) e.number: e.doorActions,
       };
 
+  /// Compact copy for the native Android Auto screens (SipChannel.setCarDirectory):
+  /// extensions (with door flags) and phonebook numbers, for names and favourites.
+  List<Map<String, Object>> get carEntries => [
+        for (final e in extensions)
+          if (e.number.isNotEmpty)
+            {
+              'number': e.number,
+              'name': e.name,
+              'ext': true,
+              'door': e.isDoorStation,
+              'openRemote': e.doorOpenRemote,
+            },
+        for (final e in phonebook)
+          if (e.number.isNotEmpty) {'number': e.number, 'name': e.name, 'ext': false, 'door': false, 'openRemote': false},
+      ];
+
   /// Name for a number (extensions first), or '' if unknown. Exact match
   /// first, then ignoring formatting and +49 vs. 0 (phonebook numbers).
   String nameFor(String number) {

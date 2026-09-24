@@ -68,42 +68,8 @@ class SipChannelHandler(
 
                 "makeCall" -> {
                     val number = call.arguments as? String ?: ""
-                    val secondCall = app.currentCall != null
-                    if (!app.calls.beginOutgoing(number)) {
-                        result.error("SIP_BUSY", "Schon zwei Gespräche aktiv", null)
-                        return
-                    }
-                    if (secondCall) {
-                        // Consultation call inside the running Telecom call: no new Telecom call.
-                        try {
-                            app.calls.bindOutgoing(app.sipCallController.makeCall(number))
-                        } catch (e: Exception) {
-                            android.util.Log.e("SipChannelHandler", "second makeCall failed", e)
-                            app.calls.failOutgoing()
-                            CallEventBus.emitCallState(number, "outgoing", "lineEnded", e.message)
-                        }
-                        result.success(null)
-                        return
-                    }
-                    // Re-homed from the old OutgoingCallActivity's onClick:
-                    // report the call to Telecom first (Report-First
-                    // pattern), and only fire the real SIP INVITE from
-                    // inside reportOutgoingCall's onRegistered block, once
-                    // Telecom has actually registered it -- never
-                    // synchronously here, which would race
-                    // currentCallControlScope's stash (see CallRegistration).
-                    app.callRegistration.reportOutgoingCall(callId = number) {
-                        // Runs later inside a coroutine, outside this method's try/catch -- an uncaught PJSIP error here kills the process.
-                        try {
-                            app.calls.bindOutgoing(app.sipCallController.makeCall(number))
-                        } catch (e: Exception) {
-                            android.util.Log.e("SipChannelHandler", "makeCall failed", e)
-                            app.calls.failOutgoing()
-                            CallEventBus.emitCallState(number, "outgoing", "disconnected", e.message)
-                            app.endTelecomSession(DisconnectCause.ERROR)
-                        }
-                    }
-                    result.success(null)
+                    if (app.placeCall(number)) result.success(null)
+                    else result.error("SIP_BUSY", "Schon zwei Gespräche aktiv", null)
                 }
 
                 "hangup" -> {
@@ -144,13 +110,12 @@ class SipChannelHandler(
                     val onHold = call.arguments as Boolean
                     app.sipCallController.hold(onHold)
                     app.calls.setHold(onHold)
+                    app.syncTelecomHold(onHold)
                     result.success(null)
                 }
 
                 "mute" -> {
-                    val muted = call.arguments as Boolean
-                    app.sipCallController.mute(muted)
-                    app.calls.setMuted(muted)
+                    app.setMuted(call.arguments as Boolean)
                     result.success(null)
                 }
 
@@ -196,6 +161,23 @@ class SipChannelHandler(
                         number to (v as? List<*>).orEmpty().filterIsInstance<String>()
                     }.toMap()
                     app.doorActions.replaceAll(actions)
+                    result.success(null)
+                }
+
+                // Android Auto screens (car/): directory entries {number, name, ext, door, openRemote} + own number.
+                "setCarDirectory" -> {
+                    val args = call.arguments as? Map<*, *>
+                    app.carDirectory.replaceEntries(
+                        de.haphone.app.test.car.CarDirectoryStore.entriesFromChannel(args?.get("entries")),
+                        args?.get("self") as? String ?: "",
+                    )
+                    de.haphone.app.test.car.CarScreens.refreshAll()
+                    result.success(null)
+                }
+
+                "setFavorites" -> {
+                    app.carDirectory.replaceFavorites((call.arguments as? List<*>).orEmpty().filterIsInstance<String>())
+                    de.haphone.app.test.car.CarScreens.refreshAll()
                     result.success(null)
                 }
 

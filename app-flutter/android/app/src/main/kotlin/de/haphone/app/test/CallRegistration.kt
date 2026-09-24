@@ -28,6 +28,9 @@ import kotlinx.coroutines.launch
  * Positional (unnamed) arguments are used deliberately here so this code
  * does not depend on guessed named-parameter labels.
  */
+/** sip: address with the plain number, so Android Auto / Bluetooth show the number, not an app id. */
+internal fun callAddress(number: String): Uri = Uri.fromParts("sip", number.ifBlank { "unknown" }, null)
+
 class CallRegistration(private val context: Context, private val sipCallController: SipCallController) {
     private val callsManager = CallsManager(context)
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -43,6 +46,18 @@ class CallRegistration(private val context: Context, private val sipCallControll
     // routed through this main-dispatcher scope explicitly rather than
     // relying on that undocumented behavior.
     private val mainScope = CoroutineScope(Dispatchers.Main)
+
+    private val app get() = context.applicationContext as HAPhoneTestApplication
+
+    /**
+     * The car's (or a headset's) mute button goes through Telecom, which mutes the
+     * microphone system-wide; mirror it into our call state so the phone UI agrees.
+     */
+    private fun watchTelecomMute(callScope: CallControlScope) {
+        callScope.launch {
+            callScope.isMuted.collect { muted -> mainScope.launch { app.onTelecomMuteChanged(muted) } }
+        }
+    }
 
     fun registerApp() {
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
@@ -70,7 +85,7 @@ class CallRegistration(private val context: Context, private val sipCallControll
     ) {
         val attributes = CallAttributesCompat(
             displayName = displayName,
-            address = Uri.parse("haphone:$callId"),
+            address = callAddress(callId),
             direction = CallAttributesCompat.DIRECTION_INCOMING,
             callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
         )
@@ -101,15 +116,21 @@ class CallRegistration(private val context: Context, private val sipCallControll
                     // could actually be answered. Mirrors iOS's
                     // already-correct CXAnswerCallAction gating in
                     // CallProvider.swift.
-                    liveScope?.let { s -> mainScope.launch { sipCallController.answer(s) } }
+                    liveScope?.let { s ->
+                        mainScope.launch {
+                            sipCallController.answer(s)
+                            app.onAnsweredRemotely()
+                        }
+                    }
                     CallEventBus.emitCallState(callId, "incoming", "active")
                 },
                 { cause: DisconnectCause ->
                     mainScope.launch { sipCallController.hangup() }
                     CallEventBus.emitCallState(callId, "incoming", "disconnected", cause.toString())
                 },
-                { /* onSetActive */ },
-                { /* onSetInactive */ },
+                // Remote surfaces (Android Auto's in-call view, Bluetooth) hold/resume through these.
+                { mainScope.launch { app.onTelecomHoldRequest(false) } },
+                { mainScope.launch { app.onTelecomHoldRequest(true) } },
             ) {
                 // Stash the live CallControlScope BEFORE onRegistered()
                 // runs, so ActiveCallActivity (Plan 06) always has a real
@@ -121,6 +142,7 @@ class CallRegistration(private val context: Context, private val sipCallControll
                 liveScope = this
                 (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
                 de.haphone.app.test.calls.AudioRouting.attach(this)
+                watchTelecomMute(this)
                 CallEventBus.emitCallState(callId, "incoming", "ringing")
                 val receiverScope = this
                 mainScope.launch { receiverScope.onRegistered() }
@@ -140,10 +162,10 @@ class CallRegistration(private val context: Context, private val sipCallControll
      * actually reported the call (Report-First pattern, same discipline
      * as the incoming path).
      */
-    fun reportOutgoingCall(callId: String, onRegistered: CallControlScope.() -> Unit) {
+    fun reportOutgoingCall(callId: String, displayName: String = callId, onRegistered: CallControlScope.() -> Unit) {
         val attributes = CallAttributesCompat(
-            displayName = "HA-Phone Testanruf",
-            address = Uri.parse("haphone:$callId"),
+            displayName = displayName,
+            address = callAddress(callId),
             direction = CallAttributesCompat.DIRECTION_OUTGOING,
             callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
         )
@@ -161,11 +183,12 @@ class CallRegistration(private val context: Context, private val sipCallControll
                     mainScope.launch { sipCallController.hangup() }
                     CallEventBus.emitCallState(callId, "outgoing", "disconnected", cause.toString())
                 },
-                { /* onSetActive */ },
-                { /* onSetInactive */ },
+                { mainScope.launch { app.onTelecomHoldRequest(false) } },
+                { mainScope.launch { app.onTelecomHoldRequest(true) } },
             ) {
                 (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
                 de.haphone.app.test.calls.AudioRouting.attach(this)
+                watchTelecomMute(this)
                 CallEventBus.emitCallState(callId, "outgoing", "connecting")
                 val receiverScope = this
                 mainScope.launch { receiverScope.onRegistered() }

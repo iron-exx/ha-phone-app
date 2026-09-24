@@ -199,6 +199,9 @@ class IncomingCallActivity : ComponentActivity() {
         // dying SurfaceView must not steal the window back (it would stay black).
         ownsVideoSurface = false
         val scope = app.currentCallControlScope
+        // Telecom may report this answer back through onAnswer; that must not run the
+        // "answered in the car" hand-off a second time (the call screen never opened).
+        app.markAnsweredLocally()
         // Tell Telecom we answered from our own UI (if it has registered the call yet),
         // then send the SIP 200 OK either way.
         scope?.launch { runCatching { scope.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL) } }
