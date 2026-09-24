@@ -142,6 +142,17 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Anlage 0.7.116: Freizeichen nach außen (`Dial(...,r)`, Trunk-Schalter `local_ringback`, Standard an). App 0.6.1: `calls/Ringback.kt` spielt bei abgehenden Anrufen im Zustand EARLY `TONE_SUP_RINGTONE` (noch nicht per Ohr getestet).
 - Push ins App-Repo mit Token in der URL wird inzwischen blockiert, den Push macht der Nutzer.
 
+## 5a5. Stand 2026-09-24 nachmittags: App 0.8.0, Anlage 0.7.117 (alles gepusht)
+
+- Redesign "Nachtwache" Etappen 1–4 fertig und im Emulator geprüft (Screens in `docs/screenshots/`, README aktualisiert).
+- Dauerhaft erreichbar (0.7.1): `reach/` (ReachPolicy, RegistrationAlarm, WatchdogWorker, ReachabilityMonitor), Ablauf 600 s, Wecker 480 s exakt, Test 20 min Deep-Doze bestanden.
+- Klingelbildschirm nativ (Compose, `ring/`), Schieberegler → `POST /api/mobile/door-open` (Webhook, ohne Abheben), getestet.
+- **Video-Fix**: `VideoDecodeLimits` (decFmt 1920x1080, fmtp 42e01f/pm=1) — vorher fror das Türbild ein (Puffer 352x288).
+- `ring/RingPolicy`: "Klingeln auf diesem Handy" aus/stumm → 480 vor dem Klingeln, Türklingel-Ausnahme (Tür = Türcode/Webhook/HA-Aktion oder Video im INVITE).
+- Erreichbarkeit-Screen (6 Prüfpunkte + OEM-Hinweise). Offen: "Test-Anruf an mich" braucht Anlage-Endpunkt (AMI Originate an eigene Nebenstelle, 1/min).
+- Test-Tools: `no-git/tools/door_sim.py` (Tür-Simulator, Nebenstelle 17), Webhook-Empfänger `python3 hook.py` (Port 8099; Tür 17 zeigt auf http://192.168.101.113:8099/api/webhook/haustuer), `pbx_admin.py`.
+- Hinweis: Video-Nebenstellen haben `max_contacts=1` → "Gespräch umlegen" auf derselben Video-Nebenstelle geht nicht.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
