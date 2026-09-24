@@ -91,7 +91,7 @@ Auf der HA-Box ist laut Nutzer 0.7.101 oder neuer installiert (TLS funktioniert)
 
 ## 5. Stand 2026-09-23 spät (autonom weitergebaut, Nutzer will: "zieh es durch, keine Fragen")
 
-**Arbeitsweise jetzt:** Handy weg → **Emulator** `haphone_test_api35` auf CCsrv (siehe unten), gekoppelt auf **Nebenstelle 12**. Kopplungs-Links und Add-on-Updates holt Claude selbst: Zugangsdaten in `no-git/credentials.json` (HA + HA-Phone-Admin). Hilfsskripte im Scratchpad: `ha.py` (HA-Login), `hasup.py` (Supervisor über HA-Websocket), `deploy_pbx.py` (wartet auf CI-Image der Anlage, dann Update). Die Anlage baut **nicht** auf der Box: GitHub Actions baut `ghcr.io/iron-exx/ha-phone/{arch}:{version}`, die Box zieht das Image (amd64 ~10 min nach Push).
+**Arbeitsweise jetzt:** Handy weg → **Emulator** `haphone_test_api35` auf CCsrv (siehe unten), gekoppelt auf **Nebenstelle 12**. Kopplungs-Links und Add-on-Updates holt Claude selbst: Zugangsdaten in `no-git/credentials.json` (HA + HA-Phone-Admin). Hilfsskripte in **`no-git/tools/`** (nicht versioniert): `ha.py` (HA-Login), `hasup.py` (Supervisor über HA-Websocket), `deploy_pbx.py` (nach Push der Anlage: wartet auf das CI-Image, spielt es ein, prüft die Version; aus `no-git/tools/` starten), `provision_link.py [nebenstelle]` (frischer Kopplungs-Link, dann `adb shell "am start -a android.intent.action.VIEW -d '<link>' de.haphone.app.test"`). Die Anlage baut **nicht** auf der Box: GitHub Actions baut `ghcr.io/iron-exx/ha-phone/{arch}:{version}`, die Box zieht das Image (amd64 ~10 min nach Push).
 **APK für den Emulator mit `flutter build apk --debug` bauen** (`build/app/outputs/flutter-apk/`), nicht mit `./gradlew assembleDebug`: Die Gradle-APK startet im Emulator nicht ("Could not prepare isolate").
 
 App (aktuell 0.3.0+, alles gepusht, ~110 Dart- + 39 Kotlin-Tests grün):
@@ -127,10 +127,15 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Weiterleitungen im Emulator gegen die Anlage gespeichert und wieder entfernt: funktioniert.
 - `deploy_pbx.py` prüft jetzt die installierte Version (vorher meldete es Erfolg, obwohl noch die alte lief).
 
-## 5b. Nächste Schritte
+## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
-3. Anklopfen testen: zweites Gerät/Softphone auf einer anderen Nebenstelle ruft die 12 an, während sie telefoniert.
-4. Phase 8: Push-Wecken über FCM (Anlage sendet bei Anruf), Tailscale; Phase 7 iOS.
+1. **Phase 6 Extras** (Nutzer: "mach weiter"):
+   - Gesprächsaufzeichnung: Anlage `Extension.recording_allowed` (Standard aus, Hinweis zur Rechtslage im Admin), App-Endpunkt `POST /api/mobile/recording {start|stop}` → AMI `MixMonitor` / `StopMixMonitor` auf den Kanal der Nebenstelle; Aufnahmen unter `/data/recordings/<ext>/`, `GET /api/mobile/recordings` + Audio. App: Taste "Aufnehmen" im Gesprächsbildschirm (nur wenn erlaubt), Liste im Ich-Reiter.
+   - Gespräch umlegen (Call Flip): Code `*55` in der Anlage holt das laufende Gespräch der eigenen Nebenstelle auf das wählende Gerät (Bridge/Pickup des anderen Kanals derselben Nebenstelle).
+2. Anklopfen, Ton, Bluetooth und Akuvox-Video brauchen ein echtes Handy und einen zweiten Anrufer. Noch nicht getestet.
+3. Phase 8 (Push-Wecken) braucht ein Firebase-Projekt und einen Service-Account vom Nutzer, Phase 7 (iOS) einen Mac und ein Apple-Konto.
+
+Arbeitsweise: nach jeder Änderung an der Anlage `config.yaml`-Version erhöhen + CHANGELOG (Deutsch), pushen, `cd no-git/tools && python3 deploy_pbx.py` im Hintergrund. App-Tests: `flutter analyze` + `flutter test`, APK mit `flutter build apk --debug`, Emulator per adb. Emulator läuft ggf. noch (sonst starten, siehe unten). Keine schweren Builds parallel zum Emulator.
 
 Türstation / Klingelgruppe:
 - **Klingelgruppen-Problem** (siehe Fallstricke): Die Vorschau an mehrere Geräte gleichzeitig geht nur, wenn die Türstation selbst mehrere Ziele parallel anruft oder die Anlage einen eigenen Türklingel-Modus bekommt.
