@@ -224,6 +224,7 @@ class _DialerViewState extends State<DialerView> {
     return Semantics(
       button: true,
       label: '${m.displayName} anrufen, ${m.number}',
+      onTap: () => _dial(m.number),
       excludeSemantics: true,
       child: NwCard(
         key: ValueKey('dialer-match-${m.number}'),
@@ -277,6 +278,7 @@ class _DialerViewState extends State<DialerView> {
               button: true,
               enabled: canCall,
               label: _digits.isEmpty && _lastDialed.isNotEmpty ? 'Wahlwiederholung' : 'Anrufen',
+              onTap: canCall ? _call : null,
               excludeSemantics: true,
               child: Material(
                 key: const Key('dialer-call'),
@@ -301,6 +303,8 @@ class _DialerViewState extends State<DialerView> {
                 : Semantics(
                     button: true,
                     label: 'Löschen, lang drücken löscht alles',
+                    onTap: _backspace,
+                    onLongPress: () => setState(() => _digits = ''),
                     excludeSemantics: true,
                     child: InkResponse(
                       key: const Key('dialer-backspace'),

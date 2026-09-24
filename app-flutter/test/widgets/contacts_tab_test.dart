@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/screens/contacts_tab.dart';
 import 'package:ha_phone_test/services/api_client.dart';
 import 'package:ha_phone_test/services/directory_repository.dart';
+import 'package:ha_phone_test/services/door_opener.dart';
 import 'package:ha_phone_test/services/phone_contacts_repository.dart';
 import 'package:ha_phone_test/services/phone_contacts_source.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
@@ -52,6 +53,7 @@ void main() {
     DirectoryRepository r, {
     PhoneContactsRepository? phone,
     AppNavigation? navigation,
+    DoorOpener? doorOpener,
     double textScale = 1,
   }) async {
     await tester.pumpWidget(MaterialApp(
@@ -62,6 +64,7 @@ void main() {
         child: ContactsTab(
           repository: r,
           navigation: navigation ?? AppNavigation(),
+          doorOpener: doorOpener,
           phoneContacts: phone ?? PhoneContactsRepository(source: FakePhoneContactsSource()),
         ),
       ),
@@ -106,6 +109,34 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('door-call-16')));
     await tester.pumpAndSettle();
     expect(sip.callsTo('makeCall').single.arguments, '16');
+  });
+
+  testWidgets('door with webhook: "Öffnen" opens via the PBX instead of calling', (tester) async {
+    final body = {
+      ..._body,
+      'extensions': [
+        {'number': '16', 'name': 'türklingel', 'door_open_code': '', 'door_open_remote': true},
+      ],
+    };
+    final pbx = FakePbx({
+      'GET /api/mobile/directory': (_) => jsonResponse(body),
+      'POST /api/mobile/door-open': (_) => jsonResponse({'success': true}),
+    });
+    final r = DirectoryRepository(api: pbx.api, authLoader: testAuthLoader);
+    await pumpTab(tester, r, doorOpener: DoorOpener(api: pbx.api, authLoader: testAuthLoader));
+
+    // A webhook-only door (no DTMF code) is still listed as a door station.
+    expect(find.text('TÜRSTATIONEN'), findsOneWidget);
+    expect(find.byKey(const ValueKey('door-call-16')), findsNothing);
+    expect(find.bySemanticsLabel('türklingel: Tür öffnen'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('door-open-16')));
+    await tester.runAsync(() => pumpEventQueue());
+    await tester.pump();
+    expect(jsonDecode(pbx.to('POST', '/api/mobile/door-open').single.body), {'extension': '16'});
+    expect(find.text('Offen ✓'), findsOneWidget);
+    expect(sip.callsTo('makeCall'), isEmpty);
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('Öffnen'), findsOneWidget);
   });
 
   testWidgets('navigation: search request focuses the field, favourites request selects the chip', (tester) async {

@@ -10,6 +10,7 @@ import '../services/app_navigation.dart';
 import '../services/call_history_store.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
+import '../services/door_opener.dart';
 import '../services/favorites_store.dart';
 import '../services/phone_contacts_repository.dart';
 import '../services/presence_repository.dart';
@@ -36,7 +37,7 @@ String startPillText(RegistrationUi registration, Presence presence) => switch (
     };
 
 /// Start: own status (pill opens the status sheet), search, door stations
-/// with "Tür anrufen" and their Home Assistant actions, the call-flip offer,
+/// with "Tür öffnen" (webhook) or "Tür anrufen" and their Home Assistant actions, the call-flip offer,
 /// favourites with live presence and a "Neue Voicemail" card.
 class StartTab extends StatelessWidget {
   const StartTab({
@@ -49,6 +50,7 @@ class StartTab extends StatelessWidget {
     RegistrationWatcher? registration,
     AppNavigation? navigation,
     this.doorActionRunner,
+    this.doorOpener,
   })  : _directory = directory,
         _presence = presence,
         _voicemail = voicemail,
@@ -67,6 +69,9 @@ class StartTab extends StatelessWidget {
 
   /// Door-action seam for tests (default: native runDoorAction).
   final DoorActionRunner? doorActionRunner;
+
+  /// Door webhook seam for tests (default: [DoorOpener.instance]).
+  final DoorOpener? doorOpener;
 
   DirectoryRepository get _dir => _directory ?? DirectoryRepository.instance;
   PresenceRepository get _pres => _presence ?? PresenceRepository.instance;
@@ -194,7 +199,7 @@ class StartTab extends StatelessWidget {
       for (final d in doors)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: DoorCard(door: d, lastRing: _lastCallFrom(d.number), runAction: doorActionRunner),
+          child: DoorCard(door: d, lastRing: _lastCallFrom(d.number), runAction: doorActionRunner, opener: doorOpener),
         ),
     ];
   }

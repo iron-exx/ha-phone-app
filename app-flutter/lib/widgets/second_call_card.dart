@@ -3,9 +3,15 @@ import 'package:flutter/material.dart';
 import '../services/directory_repository.dart';
 import '../services/sip_channel.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
+import 'nw_widgets.dart';
+import 'presence_avatar.dart';
 
-/// The second line on the call screen: a knocking call (Annehmen / Ablehnen), the
-/// held call (Makeln, Verbinden, Konferenz) or the running 3-way conference.
+/// Compact card at the top of the call screen for the second line: the held
+/// call ("gehalten · 01:02" + "Tauschen"), a knocking call (Ablehnen /
+/// Annehmen) or the conference partner. "Zusammenführen" and "Verbinden"
+/// sit under the main caller (see ActiveCallScreen).
 class SecondCallCard extends StatelessWidget {
   const SecondCallCard({
     super.key,
@@ -14,126 +20,126 @@ class SecondCallCard extends StatelessWidget {
     required this.onAnswerWaiting,
     required this.onRejectWaiting,
     required this.onSwap,
-    required this.onTransfer,
-    required this.onMerge,
-  });
+    this.directory,
+    this.presence,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final CurrentCall other;
   final bool conference;
   final VoidCallback onAnswerWaiting;
   final VoidCallback onRejectWaiting;
   final VoidCallback onSwap;
-  final VoidCallback onTransfer;
-  final VoidCallback onMerge;
+  final DirectoryRepository? directory;
+
+  /// Presence of the other party (ring on the small avatar), null = none.
+  final AvatarPresence? presence;
+  final DateTime Function() _clock;
 
   String get _name {
     if (other.name.isNotEmpty) return other.name;
-    final fromDirectory = DirectoryRepository.instance.nameFor(other.number);
+    final fromDirectory = (directory ?? DirectoryRepository.instance).nameFor(other.number);
     return fromDirectory.isNotEmpty ? fromDirectory : other.number;
+  }
+
+  String get _status {
+    if (other.isWaiting) return 'klopft an';
+    final since = other.connectedAt;
+    final timer = since == null ? '' : ' · ${formatCallTimer(_clock().difference(since))}';
+    if (conference) return 'in Konferenz$timer';
+    return 'gehalten$timer';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.nw;
     final waiting = other.isWaiting;
-    final title = waiting
-        ? 'Anklopfen: $_name'
-        : conference
-            ? 'Konferenz mit $_name'
-            : 'Gehalten: $_name';
-    return Card(
-      key: const Key('second-call'),
-      margin: EdgeInsets.zero,
-      color: waiting ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+    final name = _name;
+    final statusColor = waiting ? c.blue : (conference ? c.okText : c.door);
+    // Large system text: actions move under the name instead of squeezing it.
+    final stacked = MediaQuery.textScalerOf(context).scale(10) / 10 >= 1.5;
+    final avatar = PresenceAvatar(name: other.name, number: other.number, presence: presence, size: 38);
+    final info = Semantics(
+      container: true,
+      label: waiting
+          ? 'Anklopfen: $name'
+          : conference
+              ? 'Konferenz mit $name'
+              : 'Gehalten: $name',
+      child: ExcludeSemantics(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Icon(waiting ? Icons.ring_volume : (conference ? Icons.groups : Icons.pause_circle),
-                    color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      if (_name != other.number)
-                        Text(other.number, style: tabular(theme.textTheme.bodySmall)),
-                    ],
-                  ),
-                ),
-              ],
+            Text(
+              waiting ? 'Anklopfen: $name' : name,
+              style: NwType.rowTitle.copyWith(fontSize: 14, fontWeight: FontWeight.w800, color: c.text),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
-            if (waiting)
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      key: const Key('reject-waiting'),
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.hangup),
-                      onPressed: onRejectWaiting,
-                      icon: const Icon(Icons.call_end),
-                      label: const Text('Ablehnen'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      key: const Key('answer-waiting'),
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.answer),
-                      onPressed: onAnswerWaiting,
-                      icon: const Icon(Icons.call),
-                      label: const Text('Annehmen'),
-                    ),
-                  ),
-                ],
-              )
-            else if (!conference)
-              Row(
-                children: [
-                  _LineAction(key: const Key('swap'), icon: Icons.swap_calls, label: 'Makeln', onPressed: onSwap),
-                  _LineAction(key: const Key('connect'), icon: Icons.call_split, label: 'Verbinden', onPressed: onTransfer),
-                  _LineAction(key: const Key('merge'), icon: Icons.call_merge, label: 'Konferenz', onPressed: onMerge),
-                ],
-              ),
+            const SizedBox(height: 2),
+            Text(_status, style: NwType.meta.copyWith(fontSize: 12, color: statusColor)),
           ],
         ),
       ),
     );
-  }
-}
-
-/// Icon above label so three actions fit side by side even on narrow phones.
-class _LineAction extends StatelessWidget {
-  const _LineAction({super.key, required this.icon, required this.label, required this.onPressed});
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(height: 2),
-              Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600), maxLines: 1),
-            ],
-          ),
+    final actions = <Widget>[
+      if (waiting) ...[
+        NwIconButton(
+          key: const Key('reject-waiting'),
+          icon: Icons.call_end,
+          label: 'Ablehnen',
+          color: c.end,
+          iconColor: c.endInk,
+          radius: 24,
+          onPressed: onRejectWaiting,
         ),
+        NwIconButton(
+          key: const Key('answer-waiting'),
+          icon: Icons.call,
+          label: 'Annehmen',
+          color: c.answer,
+          iconColor: c.answerInk,
+          radius: 24,
+          onPressed: onAnswerWaiting,
+        ),
+      ] else if (!conference)
+        NwChip(
+          key: const Key('swap'),
+          label: 'Tauschen',
+          icon: Icons.swap_horiz,
+          semanticLabel: 'Leitungen tauschen, $name nach vorn holen',
+          onTap: onSwap,
+        ),
+    ];
+    return Container(
+      key: const Key('second-call'),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: waiting ? c.blueSoft : c.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: waiting ? c.blue : c.stroke),
       ),
+      child: stacked
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: [avatar, const SizedBox(width: 12), Expanded(child: info)]),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 4, children: actions),
+                ],
+              ],
+            )
+          : Row(
+              children: [
+                avatar,
+                const SizedBox(width: 12),
+                Expanded(child: info),
+                for (final a in actions) ...[const SizedBox(width: 8), a],
+              ],
+            ),
     );
   }
 }

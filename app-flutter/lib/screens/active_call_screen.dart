@@ -1,38 +1,60 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/contact.dart';
 import '../services/api_client.dart';
 import '../services/call_events.dart';
 import '../services/directory_repository.dart';
+import '../services/door_opener.dart';
+import '../services/presence_repository.dart';
 import '../services/recordings_repository.dart';
 import '../services/sip_channel.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../utils/audio_route_ui.dart';
 import '../utils/call_status.dart';
-import '../utils/formatters.dart';
 import '../utils/recording_ui.dart';
 import '../widgets/audio_route_sheet.dart';
-import '../widgets/call_header.dart';
+import '../widgets/call_controls.dart';
+import '../widgets/call_video_card.dart';
+import '../widgets/door_card.dart' show doorActionIcon;
 import '../widgets/in_call_keypad_sheet.dart';
-import '../widgets/round_action_button.dart';
+import '../widgets/in_call_more_sheet.dart';
+import '../widgets/nw_widgets.dart';
+import '../widgets/presence_avatar.dart';
+import '../widgets/round_action_button.dart' show CallButton;
 import '../widgets/second_call_card.dart';
 import '../widgets/transfer_sheet.dart';
 
-/// Linkus-style in-call screen: caller header, optional door-station video,
-/// 3×2 action grid (3×3 with "Aufnehmen" when the admin allows recording),
-/// big red hang-up button. Reached from any tab right after placing a call,
-/// or from IncomingCallActivity's native "navigateTo: active_call" hand-off
-/// after a real Answer tap.
+/// Nachtwache in-call screen (no tab bar). Normal call: held second line as
+/// a compact card on top ("Tauschen"), 112 dp presence avatar, name, number
+/// and duration, "Zusammenführen" only with two lines, 2×3 control grid
+/// (Stumm · Lautsprecher · Halten · Tastatur · Weiterleiten · Mehr) and the
+/// red 80 dp hang-up button. Door/video call: video card with name and REC
+/// chip, grid Stumm · Lautsprecher · Tür öffnen · Tastatur · first Home
+/// Assistant action · Mehr. The rest (Konferenz, Rückfrage, Aufnehmen,
+/// Direkt weiterleiten, Audio-Ausgabe, Anruf-Info) is in the "Mehr" sheet.
+///
+/// Reached from any tab right after placing a call, or from
+/// IncomingCallActivity's native "navigateTo: active_call" hand-off.
 class ActiveCallScreen extends StatefulWidget {
-  const ActiveCallScreen({super.key, DirectoryRepository? directory, RecordingsRepository? recordings})
-      : _directory = directory,
-        _recordings = recordings;
+  const ActiveCallScreen({
+    super.key,
+    DirectoryRepository? directory,
+    RecordingsRepository? recordings,
+    PresenceRepository? presence,
+    DoorOpener? doorOpener,
+  })  : _directory = directory,
+        _recordings = recordings,
+        _presence = presence,
+        _doorOpener = doorOpener;
 
   final DirectoryRepository? _directory;
   final RecordingsRepository? _recordings;
+  final PresenceRepository? _presence;
+  final DoorOpener? _doorOpener;
 
   @override
   State<ActiveCallScreen> createState() => _ActiveCallScreenState();
@@ -42,13 +64,18 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   bool _muted = false;
   bool _onHold = false;
   bool _leaving = false;
+  bool _doorBusy = false;
+  bool _doorOpened = false;
   CurrentCall? _call;
   AudioRoutes? _routes;
   StreamSubscription<CallEvent>? _events;
   Timer? _ticker;
+  Timer? _doorOpenedTimer;
 
   DirectoryRepository get _dir => widget._directory ?? DirectoryRepository.instance;
   RecordingsRepository get _recordings => widget._recordings ?? RecordingsRepository.instance;
+  PresenceRepository get _presence => widget._presence ?? PresenceRepository.instance;
+  DoorOpener get _doorOpener => widget._doorOpener ?? DoorOpener.instance;
 
   @override
   void initState() {
@@ -60,7 +87,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       );
     }
     _events = CallEvents.instance.stream.listen(_onEvent);
-    // Only the duration text changes every second; rebuilding is cheap.
+    // Only the duration texts change every second; rebuilding is cheap.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _call?.connectedAt != null) setState(() {});
     });
@@ -72,6 +99,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   void dispose() {
     _events?.cancel();
     _ticker?.cancel();
+    _doorOpenedTimer?.cancel();
     super.dispose();
   }
 
@@ -141,6 +169,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   }
 
   Future<void> _endCall() async {
+    HapticFeedback.mediumImpact();
     final hadSecondLine = _call?.other != null;
     try {
       await SipChannel.instance.hangup();
@@ -152,15 +181,60 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     if (!hadSecondLine) _leave();
   }
 
-  Future<void> _openDoor() async {
-    final messenger = ScaffoldMessenger.of(context);
+  /// Directory entry of the party on screen (door webhook, door detection).
+  Contact? _contactOf(CurrentCall? call) => call == null ? null : _dir.directory?.contactFor(call.number);
+
+  bool _isDoor(CurrentCall? call) => (call?.isDoor ?? false) || (_contactOf(call)?.isDoorStation ?? false);
+
+  /// "Tür öffnen": the PBX webhook when the door has one (`door_open_remote`),
+  /// else (or if the webhook is missing/unreachable) the DTMF code.
+  Future<void> _openDoor(CurrentCall call) async {
+    if (_doorBusy) return;
+    if (_contactOf(call)?.doorOpenRemote ?? false) {
+      setState(() => _doorBusy = true);
+      try {
+        final result = await _doorOpener.open(call.number);
+        if (result == DoorOpenResult.opened) {
+          _showDoorOpened();
+          return;
+        }
+      } on ApiException catch (e) {
+        // With a DTMF code the call can still open the door.
+        if (call.doorCode.isEmpty) {
+          _snack('Tür nicht geöffnet: ${e.message}');
+          return;
+        }
+      } on Exception catch (e) {
+        debugPrint('door webhook failed: $e');
+        if (call.doorCode.isEmpty) {
+          _snack('Tür nicht geöffnet.');
+          return;
+        }
+      } finally {
+        if (mounted) setState(() => _doorBusy = false);
+      }
+    }
+    if (call.doorCode.isEmpty) {
+      _snack('Für diese Tür ist kein Öffnen eingerichtet.');
+      return;
+    }
     try {
       await SipChannel.instance.openDoor();
-      messenger.showSnackBar(const SnackBar(content: Text('Tür-Code gesendet')));
+      _snack('Tür-Code gesendet');
     } catch (e) {
       debugPrint('openDoor failed: $e');
-      messenger.showSnackBar(const SnackBar(content: Text('Tür-Code konnte nicht gesendet werden')));
+      _snack('Tür-Code konnte nicht gesendet werden');
     }
+  }
+
+  void _showDoorOpened() {
+    doorOpenedHaptic();
+    if (!mounted) return;
+    setState(() => _doorOpened = true);
+    _doorOpenedTimer?.cancel();
+    _doorOpenedTimer = Timer(kDoorOpenedFeedback, () {
+      if (mounted) setState(() => _doorOpened = false);
+    });
   }
 
   Future<void> _runDoorAction(String number, int index, String label) async {
@@ -190,9 +264,14 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       if (target != null) _setRoute(target);
       return;
     }
+    _showRoutePicker(routes);
+  }
+
+  void _showRoutePicker(AudioRoutes routes) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheetContext) => AudioRouteSheet(
         routes: routes,
         onSelect: (r) {
@@ -212,21 +291,25 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     );
   }
 
-  void _showTransfer() {
+  /// Weiterleiten: blind (REFER) or, with [consult], call the target first
+  /// and connect via "Verbinden" once they answered.
+  void _showTransfer({bool consult = true}) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (sheetContext) => TransferSheet(
+        title: consult ? 'Weiterleiten an' : 'Direkt weiterleiten an',
         onTransfer: (target) {
           SipChannel.instance.transfer(target);
           Navigator.of(sheetContext).pop();
         },
-        // Consultation: call the target first, then "Verbinden" on the held-call card.
-        onConsult: (target) {
-          Navigator.of(sheetContext).pop();
-          _placeSecondCall(target);
-        },
+        onConsult: consult
+            ? (target) {
+                Navigator.of(sheetContext).pop();
+                _placeSecondCall(target);
+              }
+            : null,
       ),
     );
   }
@@ -268,6 +351,8 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     await _refreshCall();
   }
 
+  void _merge() => _runSecondLine(SipChannel.instance.mergeCalls, 'Konferenz erst möglich, wenn beide angenommen haben');
+
   /// Starts/stops the recording of the line on screen ([line] = its remote party).
   Future<void> _toggleRecording(CurrentCall line) async {
     final key = lineKeyOf(line);
@@ -288,6 +373,11 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  String _nameOf(CurrentCall? call) {
+    final number = call?.number ?? '';
+    return (call?.name.isNotEmpty ?? false) ? call!.name : _dir.nameFor(number);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -296,249 +386,475 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       child: Scaffold(
         body: SafeArea(
           child: ListenableBuilder(
-            listenable: Listenable.merge([_dir, _recordings]),
-            builder: (context, _) => _layout(),
+            listenable: Listenable.merge([_dir, _recordings, _presence]),
+            builder: (context, _) => LayoutBuilder(
+              // Everything scrolls when large text or a small screen make it
+              // taller than the screen; otherwise the grid sits at the bottom.
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(child: _body(constraints)),
+                ),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _layout() {
+  Widget _body(BoxConstraints constraints) {
     final call = _call;
-    final number = call?.number ?? '';
-    final name = (call?.name.isNotEmpty ?? false) ? call!.name : _dir.nameFor(number);
-    final showVideo = call?.video ?? false;
-    final canRecord = _dir.directory?.recordingAllowed ?? false;
-    return LayoutBuilder(
-      // Short screens (or video) drop the big avatar so the grid and
-      // hang-up button always fit without scrolling.
-      builder: (context, constraints) {
-        final body = _body(
-          name: name,
-          number: number,
-          call: call,
-          showVideo: showVideo,
-          canRecord: canRecord,
-          // The third grid row (Aufnehmen) needs ~120 dp more.
-          compact: showVideo || call?.other != null || constraints.maxHeight < (canRecord ? 800 : 680),
-        );
-        // The video box flexes itself; everything else scrolls if a second-call
-        // card or a small screen makes it taller than the screen.
-        if (showVideo) return body;
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(child: body),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _body({
-    required String name,
-    required String number,
-    required CurrentCall? call,
-    required bool showVideo,
-    required bool canRecord,
-    required bool compact,
-  }) {
+    final isDoor = _isDoor(call);
+    final videoMode = isDoor || (call?.video ?? false);
+    final other = call?.other;
     final recordingSince = call == null ? null : _recordings.recordingSince(lineKeyOf(call));
+    final rec = recordingSince == null ? null : RecChip(elapsed: DateTime.now().difference(recordingSince));
+    final short = constraints.maxHeight < 640;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(height: compact ? 8 : 40),
-          CallHeader(
-            name: name,
-            number: number,
-            status: callStatusText(call, DateTime.now(), onHold: _onHold),
-            secure: call?.secure ?? false,
-            isDoor: call?.isDoor ?? false,
-            compact: compact,
-          ),
-          if (recordingSince != null) ...[
-            const SizedBox(height: 8),
-            _RecordingIndicator(elapsed: DateTime.now().difference(recordingSince)),
-          ],
-          const SizedBox(height: 16),
-          if (call?.other != null) ...[
+          if (other != null) ...[
             SecondCallCard(
-              other: call!.other!,
-              conference: call.conference,
+              other: other,
+              conference: call!.conference,
+              directory: _dir,
+              presence: avatarPresenceFor(_presence.statusFor(other.number)),
               onAnswerWaiting: () => _runSecondLine(SipChannel.instance.answerWaiting, 'Annehmen fehlgeschlagen'),
               onRejectWaiting: () async {
                 await SipChannel.instance.rejectWaiting();
                 await _refreshCall();
               },
               onSwap: () => _runSecondLine(SipChannel.instance.swapCalls, 'Makeln fehlgeschlagen'),
-              onTransfer: () => _runSecondLine(SipChannel.instance.transferAttended, 'Verbinden fehlgeschlagen'),
-              onMerge: () => _runSecondLine(SipChannel.instance.mergeCalls, 'Konferenz erst möglich, wenn beide angenommen haben'),
             ),
             const SizedBox(height: 12),
           ],
-          if (showVideo) const _RemoteVideo() else const Spacer(),
-          if (call != null && call.doorActions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final (index, label) in call.doorActions.indexed)
-                  ActionChip(
-                    key: Key('door-action-$index'),
-                    avatar: const Icon(Icons.home_outlined, size: 18),
-                    label: Text(label),
-                    onPressed: () => _runDoorAction(call.number, index, label),
-                  ),
-              ],
-            ),
-          ],
+          if (videoMode)
+            ..._videoHeader(call, isDoor: isDoor, rec: rec, constraints: constraints)
+          else
+            ..._caller(call, rec: rec, short: short || other != null),
+          ..._lineChips(call),
+          const Spacer(),
           const SizedBox(height: 16),
-          _actionGrid(call, canRecord: canRecord, compact: compact),
-          SizedBox(height: compact ? 16 : 32),
-          CallButton(
-            key: const Key('hangup'),
-            color: AppColors.hangup,
-            icon: Icons.call_end,
-            size: 80,
-            tooltip: 'Auflegen',
-            onPressed: _endCall,
+          CallControlGrid(
+            columns: callGridColumns(context),
+            children: isDoor ? _doorControls(call) : _normalControls(call),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: short ? 16 : 22),
+          Center(
+            child: Semantics(
+              button: true,
+              label: 'Auflegen',
+              onTap: _endCall,
+              excludeSemantics: true,
+              child: CallButton(
+                key: const Key('hangup'),
+                color: context.nw.end,
+                foreground: context.nw.endInk,
+                icon: Icons.call_end,
+                size: 80,
+                tooltip: 'Auflegen',
+                onPressed: _endCall,
+              ),
+            ),
+          ),
+          SizedBox(height: short ? 8 : 22),
         ],
       ),
     );
   }
 
-  Widget _actionGrid(CurrentCall? call, {required bool canRecord, required bool compact}) {
-    final routeType = _routes?.current?.type;
-    final isDoor = call?.isDoor ?? false;
-    // A third row only fits on small screens with denser buttons.
-    final dense = canRecord && compact;
-    final size = dense ? 56.0 : 68.0;
-    final recording = call != null && _recordings.recordingSince(lineKeyOf(call)) != null;
-    final buttons = <Widget>[
-      RoundActionButton(
-        icon: _muted ? Icons.mic_off : Icons.mic,
-        label: 'Stumm',
-        active: _muted,
-        size: size,
-        onPressed: _toggleMute,
-      ),
-      RoundActionButton(icon: Icons.dialpad, label: 'Tastatur', size: size, onPressed: _showKeypad),
-      RoundActionButton(
-        icon: audioRouteIcon(routeType),
-        label: audioRouteLabel(routeType),
-        active: routeType != null && routeType != 'earpiece',
-        size: size,
-        onPressed: _routes == null || _routes!.routes.isEmpty ? null : _onAudioPressed,
-      ),
-      RoundActionButton(
-        icon: _onHold ? Icons.play_arrow : Icons.pause,
-        label: _onHold ? 'Fortsetzen' : 'Halten',
-        active: _onHold,
-        size: size,
-        onPressed: _toggleHold,
-      ),
-      RoundActionButton(icon: Icons.phone_forwarded, label: 'Weiterleiten', size: size, onPressed: _showTransfer),
-      if (isDoor)
-        RoundActionButton(icon: Icons.door_front_door, label: 'Tür öffnen', size: size, onPressed: _openDoor)
-      else
-        RoundActionButton(
-          icon: Icons.person_add_alt_1,
-          label: 'Hinzufügen',
-          size: size,
-          // One second line at most: waiting, held or conference partner.
-          onPressed: call?.other == null ? _showAddCall : null,
+  /// Normal call: big presence avatar, name, number · duration (+TLS), REC.
+  List<Widget> _caller(CurrentCall? call, {required Widget? rec, required bool short}) {
+    final c = context.nw;
+    final number = call?.number ?? '';
+    final name = _nameOf(call);
+    final avatar = short ? 88.0 : 112.0;
+    return [
+      SizedBox(height: short ? 8 : 32),
+      Center(
+        child: PresenceAvatar(
+          name: name,
+          number: number,
+          presence: avatarPresenceFor(_presence.statusFor(number)),
+          size: avatar,
+          background: c.blueSoft,
+          foreground: c.blueOnSoft,
         ),
-      if (canRecord)
-        RoundActionButton(
-          key: const Key('record'),
-          icon: recording ? Icons.stop : Icons.fiber_manual_record,
-          label: recording ? 'Stopp' : 'Aufnehmen',
-          active: recording,
-          size: size,
-          // Only an answered call can be recorded; one request at a time.
-          onPressed: call?.connectedAt == null || _recordings.isSwitching ? null : () => _toggleRecording(call!),
+      ),
+      const SizedBox(height: 18),
+      Semantics(
+        header: true,
+        child: Text(
+          name.isNotEmpty ? name : (number.isNotEmpty ? number : 'Verbinde…'),
+          style: NwType.display(30).copyWith(color: c.text),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
+      ),
+      const SizedBox(height: 6),
+      _statusLine(call, number: name.isNotEmpty ? number : ''),
+      if (rec != null) ...[const SizedBox(height: 10), Center(child: rec)],
     ];
-    const columns = 3;
-    return Column(
+  }
+
+  /// Door/video call: video card with name + REC chip, then name and duration.
+  List<Widget> _videoHeader(
+    CurrentCall? call, {
+    required bool isDoor,
+    required Widget? rec,
+    required BoxConstraints constraints,
+  }) {
+    final c = context.nw;
+    final name = _nameOf(call);
+    final label = name.isNotEmpty ? name : (call?.number ?? '');
+    final maxVideo = (constraints.maxWidth * 0.8).clamp(140.0, 300.0);
+    final reserved = 440.0 + (call?.other != null ? 76 : 0);
+    final height = (constraints.maxHeight - reserved).clamp(140.0, maxVideo);
+    return [
+      CallVideoCard(
+        label: label,
+        height: height,
+        showVideo: call?.video ?? false,
+        isDoor: isDoor,
+        trailingChip: rec,
+      ),
+      const SizedBox(height: 16),
+      Semantics(
+        header: true,
+        child: Text(
+          label.isNotEmpty ? label : 'Verbinde…',
+          style: NwType.display(26).copyWith(color: c.text),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      const SizedBox(height: 4),
+      _statusLine(call, number: isDoor ? 'Türstation' : ''),
+    ];
+  }
+
+  /// "16 · 02:37 · 🔒 TLS" (wraps with large text).
+  Widget _statusLine(CurrentCall? call, {required String number}) {
+    final c = context.nw;
+    final style = NwType.meta.copyWith(fontSize: 15, fontWeight: FontWeight.w600, color: c.muted);
+    final secure = call?.secure ?? false;
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      runSpacing: 2,
       children: [
-        for (var start = 0; start < buttons.length; start += columns)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: dense ? 4 : 10),
-            child: _gridRow(buttons.sublist(start, (start + columns).clamp(0, buttons.length)), columns),
+        if (number.isNotEmpty) ...[
+          Text(number, style: style),
+          Text('·', style: style),
+        ],
+        Text(callStatusText(call, DateTime.now(), onHold: _onHold), key: const Key('call-status'), style: style),
+        if (secure)
+          Semantics(
+            label: 'verschlüsselt (TLS)',
+            excludeSemantics: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock, size: 14, color: c.muted),
+                const SizedBox(width: 2),
+                Text('TLS', style: style.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700)),
+              ],
+            ),
           ),
       ],
     );
   }
 
-  /// One grid row; a shorter last row is centred on the same column width.
-  Widget _gridRow(List<Widget> row, int columns) {
-    final gap = columns - row.length;
-    return Row(
-      children: [
-        if (gap > 0) Spacer(flex: gap),
-        for (final b in row) Expanded(flex: 2, child: Center(child: b)),
-        if (gap > 0) Spacer(flex: gap),
-      ],
+  /// "Zusammenführen" + "Verbinden", only with a held second line.
+  List<Widget> _lineChips(CurrentCall? call) {
+    final other = call?.other;
+    if (call == null || other == null || other.isWaiting || call.conference) return const [];
+    return [
+      const SizedBox(height: 10),
+      Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        children: [
+          NwChip(
+            key: const Key('merge'),
+            label: 'Zusammenführen',
+            icon: Icons.call_merge,
+            selected: true,
+            semanticLabel: 'Zusammenführen zur Konferenz',
+            onTap: _merge,
+          ),
+          NwChip(
+            key: const Key('connect'),
+            label: 'Verbinden',
+            icon: Icons.call_split,
+            semanticLabel: 'Beide Leitungen verbinden und selbst auflegen',
+            onTap: () => _runSecondLine(SipChannel.instance.transferAttended, 'Verbinden fehlgeschlagen'),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  CallControlButton _muteButton() => CallControlButton(
+        key: const Key('mute'),
+        icon: _muted ? Icons.mic_off : Icons.mic_off_outlined,
+        label: 'Stumm',
+        toggled: _muted,
+        tone: _muted ? CallControlTone.active : CallControlTone.normal,
+        onPressed: _toggleMute,
+      );
+
+  CallControlButton _audioButton() {
+    final routes = _routes;
+    final type = routes?.current?.type;
+    final picker = routes != null && needsRoutePicker(routes);
+    final on = type != null && type != 'earpiece';
+    final current = routes?.current;
+    return CallControlButton(
+      key: const Key('audio'),
+      icon: picker ? audioRouteIcon(type) : Icons.volume_up,
+      label: picker ? 'Audio' : 'Lautsprecher',
+      semanticLabel: picker ? 'Audio-Ausgabe: ${current == null ? '' : audioRouteName(current)}' : 'Lautsprecher',
+      toggled: picker ? null : on,
+      tone: on ? CallControlTone.active : CallControlTone.normal,
+      onPressed: routes == null || routes.routes.isEmpty ? null : _onAudioPressed,
     );
   }
-}
 
-/// Red "● Aufnahme 01:23" pill under the caller while the line on screen is recorded.
-class _RecordingIndicator extends StatelessWidget {
-  const _RecordingIndicator({required this.elapsed});
+  CallControlButton _keypadButton() => CallControlButton(
+        key: const Key('keypad'),
+        icon: Icons.dialpad,
+        label: 'Tastatur',
+        onPressed: _showKeypad,
+      );
 
-  final Duration elapsed;
+  CallControlButton _transferButton() => CallControlButton(
+        key: const Key('transfer'),
+        icon: Icons.phone_forwarded,
+        label: 'Weiterleiten',
+        onPressed: _call == null ? null : _showTransfer,
+      );
 
-  @override
-  Widget build(BuildContext context) {
-    final style = tabular(Theme.of(context).textTheme.labelLarge)
-        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600);
-    return Semantics(
-      label: 'Aufnahme läuft, ${formatCallTimer(elapsed)}',
-      excludeSemantics: true,
-      child: Container(
-        key: const Key('recording-indicator'),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(color: AppColors.recording, borderRadius: BorderRadius.circular(16)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.fiber_manual_record, size: 14, color: Colors.white),
-            const SizedBox(width: 6),
-            Text('Aufnahme ${formatCallTimer(elapsed)}', style: style),
+  CallControlButton _moreButton() => CallControlButton(
+        key: const Key('more'),
+        icon: Icons.more_horiz,
+        label: 'Mehr',
+        semanticLabel: 'Mehr Funktionen',
+        onPressed: _showMore,
+      );
+
+  List<Widget> _normalControls(CurrentCall? call) => [
+        _muteButton(),
+        _audioButton(),
+        CallControlButton(
+          key: const Key('hold'),
+          icon: _onHold ? Icons.play_arrow : Icons.pause,
+          label: _onHold ? 'Fortsetzen' : 'Halten',
+          toggled: _onHold,
+          tone: _onHold ? CallControlTone.active : CallControlTone.normal,
+          onPressed: _toggleHold,
+        ),
+        _keypadButton(),
+        _transferButton(),
+        _moreButton(),
+      ];
+
+  List<Widget> _doorControls(CurrentCall? call) {
+    final actions = call?.doorActions ?? const <String>[];
+    return [
+      _muteButton(),
+      _audioButton(),
+      CallControlButton(
+        key: const Key('door-open'),
+        icon: _doorOpened ? Icons.check_rounded : Icons.door_front_door_outlined,
+        label: _doorOpened ? 'Tür geöffnet ✓' : 'Tür öffnen',
+        semanticLabel: _doorOpened ? 'Tür geöffnet' : 'Tür öffnen',
+        tone: _doorOpened ? CallControlTone.done : CallControlTone.door,
+        busy: _doorBusy,
+        onPressed: call == null ? null : () => _openDoor(call),
+      ),
+      _keypadButton(),
+      // First Home Assistant action of the door; without any, Weiterleiten.
+      if (call != null && actions.isNotEmpty)
+        CallControlButton(
+          key: const Key('door-action-0'),
+          icon: doorActionIcon(actions.first),
+          label: actions.first,
+          onPressed: () => _runDoorAction(call.number, 0, actions.first),
+        )
+      else
+        _transferButton(),
+      _moreButton(),
+    ];
+  }
+
+  // ---------------------------------------------------------------- Mehr
+
+  void _showMore() {
+    final call = _call;
+    final isDoor = _isDoor(call);
+    final actions = call?.doorActions ?? const <String>[];
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        void run(VoidCallback action) {
+          Navigator.of(sheetContext).pop();
+          action();
+        }
+
+        return InCallMoreSheet(
+          tiles: _moreTiles(call, isDoor: isDoor, run: run),
+          routes: _routes,
+          onRoute: (r) => run(() => _setRoute(r)),
+          doorActions: [
+            if (call != null && isDoor)
+              for (final (i, label) in actions.indexed)
+                if (i > 0) (i, label),
           ],
+          onDoorAction: call == null ? null : (i, label) => run(() => _runDoorAction(call.number, i, label)),
+        );
+      },
+    );
+  }
+
+  List<MoreTile> _moreTiles(CurrentCall? call, {required bool isDoor, required void Function(VoidCallback) run}) {
+    final c = context.nw;
+    final other = call?.other;
+    final canRecord = _dir.directory?.recordingAllowed ?? false;
+    final recording = call != null && _recordings.recordingSince(lineKeyOf(call)) != null;
+    final routes = _routes;
+    final String? conferenceReason = switch ((call, other)) {
+      (null, _) => 'Verbinde…',
+      (final CurrentCall line, _) when line.conference => 'Läuft bereits',
+      (_, null) => 'Erst Rückfrage starten',
+      (_, final CurrentCall o) when o.isWaiting => 'Erst annehmen',
+      _ => null,
+    };
+    return [
+      MoreTile(
+        key: const Key('more-conference'),
+        label: 'Konferenz',
+        icon: Icons.group_add_outlined,
+        disabledReason: conferenceReason,
+        onTap: conferenceReason == null ? () => run(_merge) : null,
+      ),
+      MoreTile(
+        key: const Key('more-add-call'),
+        label: 'Rückfrage',
+        icon: Icons.add_call,
+        semanticLabel: 'Rückfrage: zweiten Anruf starten',
+        // One second line at most: waiting, held or conference partner.
+        disabledReason: call == null ? 'Verbinde…' : (other != null ? 'Zweite Leitung belegt' : null),
+        onTap: call != null && other == null ? () => run(_showAddCall) : null,
+      ),
+      if (canRecord)
+        MoreTile(
+          key: const Key('record'),
+          label: recording ? 'Stopp' : 'Aufnehmen',
+          semanticLabel: recording ? 'Aufnahme stoppen' : 'Gespräch aufnehmen',
+          icon: recording ? Icons.stop_circle_outlined : Icons.radio_button_checked,
+          iconColor: c.end,
+          // Only an answered call can be recorded; one request at a time.
+          disabledReason: call?.connectedAt == null
+              ? 'Erst nach dem Annehmen'
+              : (_recordings.isSwitching ? 'Einen Moment…' : null),
+          onTap: call?.connectedAt == null || _recordings.isSwitching ? null : () => run(() => _toggleRecording(call!)),
         ),
+      MoreTile(
+        key: const Key('more-blind-transfer'),
+        label: 'Direkt weiterleiten',
+        icon: Icons.alt_route,
+        disabledReason: call == null ? 'Verbinde…' : null,
+        onTap: call == null ? null : () => run(() => _showTransfer(consult: false)),
+      ),
+      if (isDoor) ...[
+        MoreTile(
+          key: const Key('more-hold'),
+          label: _onHold ? 'Fortsetzen' : 'Halten',
+          icon: _onHold ? Icons.play_arrow : Icons.pause,
+          onTap: () => run(_toggleHold),
+        ),
+        if ((call?.doorActions ?? const []).isNotEmpty)
+          MoreTile(
+            key: const Key('more-transfer'),
+            label: 'Weiterleiten',
+            icon: Icons.phone_forwarded,
+            onTap: call == null ? null : () => run(_showTransfer),
+          ),
+      ],
+      MoreTile(
+        key: const Key('more-audio'),
+        label: 'Audio-Ausgabe',
+        icon: Icons.headphones_outlined,
+        disabledReason: routes == null || routes.routes.isEmpty ? 'Nicht verfügbar' : null,
+        onTap: routes == null || routes.routes.isEmpty ? null : () => run(() => _showRoutePicker(routes)),
+      ),
+      MoreTile(
+        key: const Key('more-info'),
+        label: 'Anruf-Info',
+        icon: Icons.info_outline,
+        onTap: () => run(_showCallInfo),
+      ),
+    ];
+  }
+
+  void _showCallInfo() {
+    final call = _call;
+    final name = _nameOf(call);
+    final rows = <(String, String)>[
+      ('Name', name.isNotEmpty ? name : '–'),
+      ('Nummer', call?.number ?? '–'),
+      ('Richtung', call?.direction == 'outgoing' ? 'ausgehend' : 'eingehend'),
+      ('Status', callStatusText(call, DateTime.now(), onHold: _onHold)),
+      ('Verbindung', (call?.secure ?? false) ? 'TLS-verschlüsselt' : 'unverschlüsselt'),
+      ('Video', (call?.video ?? false) ? 'ja' : 'nein'),
+      if (_isDoor(call)) ('Art', 'Türstation'),
+      if (call?.other != null) ('Zweite Leitung', _nameOrNumber(call!.other!)),
+      if (_routes?.current != null) ('Audio', audioRouteName(_routes!.current!)),
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Anruf-Info'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (label, value) in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: MergeSemantics(
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        Text('$label:', style: NwType.meta.copyWith(color: dialogContext.nw.faint)),
+                        Text(value, style: tabular(NwType.rowTitle)?.copyWith(color: dialogContext.nw.text)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Schließen')),
+        ],
       ),
     );
   }
-}
 
-/// Native TextureView with the call's incoming video (door station).
-class _RemoteVideo extends StatelessWidget {
-  const _RemoteVideo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Flexible(
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: ColoredBox(
-            color: Colors.black,
-            child: defaultTargetPlatform == TargetPlatform.android
-                ? const AndroidView(viewType: remoteVideoViewType)
-                : const Center(child: Icon(Icons.videocam_off, color: Colors.white54)),
-          ),
-        ),
-      ),
-    );
+  String _nameOrNumber(CurrentCall line) {
+    if (line.name.isNotEmpty) return line.name;
+    final n = _dir.nameFor(line.number);
+    return n.isNotEmpty ? '$n (${line.number})' : line.number;
   }
 }

@@ -60,6 +60,8 @@ class AppNavBar extends StatelessWidget {
         button: true,
         selected: on,
         label: semantic,
+        // excludeSemantics drops the InkWell's action, so TalkBack needs it here.
+        onTap: () => onSelect(tab),
         excludeSemantics: true,
         child: InkWell(
           key: ValueKey('tab-${tab.name}'),
@@ -122,6 +124,7 @@ class AppNavBar extends StatelessWidget {
         button: true,
         selected: on,
         label: 'Wählen',
+        onTap: () => onSelect(AppTab.dial),
         excludeSemantics: true,
         child: Container(
           key: const ValueKey('tab-dial'),

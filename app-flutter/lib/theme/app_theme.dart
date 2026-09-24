@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 
@@ -69,6 +70,23 @@ abstract final class AppTheme {
   static ThemeData light() => build(NwColors.light, Brightness.light);
   static ThemeData dark() => build(NwColors.dark, Brightness.dark);
 
+  /// Android status and navigation bar for a theme brightness: transparent
+  /// bars over `ground`, dark icons on the light theme, light icons on the
+  /// dark one (without this the light theme had white, unreadable icons).
+  static SystemUiOverlayStyle overlayStyle(Brightness brightness) {
+    final icons = brightness == Brightness.light ? Brightness.dark : Brightness.light;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: icons,
+      // iOS: brightness of the bar background.
+      statusBarBrightness: brightness,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: icons,
+      systemNavigationBarContrastEnforced: false,
+    );
+  }
+
   static ThemeData build(NwColors c, Brightness brightness) {
     final scheme = ColorScheme(
       brightness: brightness,
@@ -126,6 +144,7 @@ abstract final class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: NwType.display(24).copyWith(color: c.text),
+        systemOverlayStyle: overlayStyle(brightness),
       ),
       cardTheme: CardTheme(
         color: c.surface,
@@ -299,4 +318,19 @@ abstract final class AppTheme {
       labelSmall: u(11, FontWeight.w700),
     );
   }
+}
+
+/// Applies [AppTheme.overlayStyle] of the current theme to every screen,
+/// also those without an AppBar (Start, call screen, sheets). Used in
+/// MaterialApp.builder so it follows live light/dark switches.
+class NwSystemUi extends StatelessWidget {
+  const NwSystemUi({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.overlayStyle(Theme.of(context).brightness),
+        child: child,
+      );
 }

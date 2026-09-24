@@ -41,6 +41,9 @@ const kMinPbxVersionPhase5 = '0.7.110';
 /// First HA-Phone version with call recording and call flip (*55).
 const kMinPbxVersionPhase6 = '0.7.114';
 
+/// First HA-Phone version with the door-open webhook (POST /api/mobile/door-open).
+const kMinPbxVersionDoorOpen = '0.7.117';
+
 /// Error with a German message that tells the user what to do.
 class ApiException implements Exception {
   const ApiException(this.kind, [this.statusCode, this.minPbxVersion = kMinPbxVersionPhase3]);
@@ -205,6 +208,23 @@ class ApiClient {
         minVersion: kMinPbxVersionPhase6,
         forbiddenIsNotAllowed: true,
       );
+
+  /// Opens door station [extension] through its webhook on the PBX (no call
+  /// needed). Returns false on 404: the door has no webhook configured (or
+  /// the PBX predates 0.7.117), so the caller falls back to the DTMF code.
+  Future<bool> openDoorRemote(DeviceAuth auth, String extension) async {
+    // The PBX only knows numeric extensions; anything else never leaves the app.
+    if (!RegExp(r'^\d{1,10}$').hasMatch(extension)) throw const ApiException(ApiErrorKind.server);
+    final response = await _send(
+      auth,
+      'POST',
+      '/api/mobile/door-open',
+      body: {'extension': extension},
+      acceptNotFound: true,
+      minVersion: kMinPbxVersionDoorOpen,
+    );
+    return response.statusCode != 404;
+  }
 
   /// URL of a recording's WAV file; needs [authHeaders].
   Uri recordingAudioUri(DeviceAuth auth, CallRecording recording) =>

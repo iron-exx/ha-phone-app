@@ -46,6 +46,23 @@ void main() {
     expect(cached.doorActions, {'16': ['Licht', 'Garage']});
   });
 
+  test('door_open_remote (PBX 0.7.117) is parsed, cached and makes a door station', () {
+    final d = Directory.fromJson(jsonDecode('''{"extensions":[
+      {"number":"16","name":"Haustür","door_open_code":"*1","door_open_remote":true},
+      {"number":"17","name":"Tor","door_open_code":"","door_open_remote":true},
+      {"number":"11","name":"sandro","door_open_remote":null}
+    ]}''') as Map<String, dynamic>);
+    expect([for (final e in d.extensions) e.doorOpenRemote], [true, true, false]);
+    // Webhook only, no DTMF code: still a door, but no entry for setDoorCodes.
+    expect(d.extensions[1].isDoorStation, isTrue);
+    expect(d.extensions[2].isDoorStation, isFalse);
+    expect(d.doorCodes, {'16': '*1'});
+    // Older PBX without the field: false.
+    expect(directory.extensions[0].doorOpenRemote, isFalse);
+    final cached = Directory.fromJson(jsonDecode(jsonEncode(d.toJson())) as Map<String, dynamic>);
+    expect([for (final e in cached.extensions) e.doorOpenRemote], [true, true, false]);
+  });
+
   test('builds the door-code map for setDoorCodes', () {
     expect(directory.doorCodes, {'16': '*1'});
   });

@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/contact.dart';
-import '../services/call_launcher.dart';
+import '../services/door_opener.dart';
 import '../services/sip_channel.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'door_open_button.dart';
 import 'nw_widgets.dart';
 
 /// Icon for a Home Assistant door action by its label ("Licht", "Garage").
@@ -29,12 +30,16 @@ Future<void> _runOnPbx(String number, int index) => SipChannel.instance.runDoorA
 
 /// Start card of a door station: picture area (placeholder until the PBX
 /// keeps a last picture), name + last ring, and the amber main action.
-/// Opening needs the DTMF code inside a call, so the main action calls the
-/// door ("Tür anrufen", then "Tür öffnen" on the call screen); the door's
+/// With a door webhook (`door_open_remote`) the main action opens the door
+/// directly; otherwise opening needs the DTMF code inside a call, so it calls
+/// the door ("Tür anrufen", then "Tür öffnen" on the call screen). The door's
 /// Home Assistant actions run directly as icon buttons.
 class DoorCard extends StatefulWidget {
-  const DoorCard({super.key, required this.door, this.lastRing, DoorActionRunner? runAction})
+  const DoorCard({super.key, required this.door, this.lastRing, DoorActionRunner? runAction, this.opener})
       : _runAction = runAction ?? _runOnPbx;
+
+  /// Webhook door opener (test seam, default [DoorOpener.instance]).
+  final DoorOpener? opener;
 
   final Contact door;
 
@@ -64,8 +69,7 @@ class _DoorCardState extends State<DoorCard> {
     setState(() => _running = index);
     try {
       await widget._runAction(widget.door.number, index);
-      HapticFeedback.heavyImpact();
-      unawaited(Future<void>.delayed(const Duration(milliseconds: 120), HapticFeedback.heavyImpact));
+      doorOpenedHaptic();
       if (!mounted) return;
       setState(() => _done = index);
       _doneTimer?.cancel();
@@ -102,16 +106,7 @@ class _DoorCardState extends State<DoorCard> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Expanded(
-                  child: NwPillButton(
-                    key: ValueKey('door-call-${door.number}'),
-                    label: 'Tür anrufen',
-                    icon: Icons.door_front_door_outlined,
-                    background: c.door,
-                    foreground: c.doorInk,
-                    onPressed: () => CallLauncher.call(context, door.number),
-                  ),
-                ),
+                Expanded(child: DoorOpenButton(door: door, opener: widget.opener)),
                 for (var i = 0; i < shown; i++) ...[
                   const SizedBox(width: 10),
                   _actionButton(c, i, actions[i]),
@@ -201,6 +196,7 @@ class _DoorCardState extends State<DoorCard> {
       child: Semantics(
         button: true,
         label: done ? '$label ausgeführt' : label,
+        onTap: () => _run(index, label),
         excludeSemantics: true,
         child: Material(
           key: ValueKey('door-action-${widget.door.number}-$index'),

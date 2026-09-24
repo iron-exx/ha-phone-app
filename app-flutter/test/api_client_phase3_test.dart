@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/models/presence.dart';
 import 'package:ha_phone_test/models/voicemail.dart';
 import 'package:ha_phone_test/services/api_client.dart';
+import 'package:ha_phone_test/services/door_opener.dart';
 import 'package:http/http.dart' as http;
 
 import 'helpers/fake_api.dart';
@@ -103,5 +104,56 @@ void main() {
     final bad = VoicemailMessage(id: '../etc', isNew: false, receivedAt: DateTime(2026));
     expect((await errorOf(() => pbx.api.deleteVoicemail(testAuth, bad))).kind, ApiErrorKind.server);
     expect(pbx.requests, isEmpty);
+  });
+
+  group('POST door-open (webhook, 0.7.117)', () {
+    test('sends the extension with device headers; 200 = opened', () async {
+      final pbx = FakePbx({'POST /api/mobile/door-open': (_) => jsonResponse({'success': true})});
+      expect(await pbx.api.openDoorRemote(testAuth, '16'), isTrue);
+      final req = pbx.requests.single;
+      expect(req.url.toString(), 'http://box/api/mobile/door-open');
+      expect(jsonDecode(req.body), {'extension': '16'});
+      expect(req.headers['X-Device-Id'], '1');
+      expect(req.headers['X-Device-Token'], 't');
+    });
+
+    test('404 means no webhook for this door (fall back to DTMF)', () async {
+      final pbx = FakePbx({'POST /api/mobile/door-open': (_) => http.Response('{"detail":"x"}', 404)});
+      expect(await pbx.api.openDoorRemote(testAuth, '16'), isFalse);
+    });
+
+    test('401 asks for re-pairing, 502 is a server error', () async {
+      var status = 401;
+      final pbx = FakePbx({'POST /api/mobile/door-open': (_) => http.Response('{}', status)});
+      expect((await errorOf(() => pbx.api.openDoorRemote(testAuth, '16'))).kind, ApiErrorKind.unauthorized);
+      status = 502;
+      expect((await errorOf(() => pbx.api.openDoorRemote(testAuth, '16'))).kind, ApiErrorKind.server);
+    });
+
+    test('an old PBX answering with HTML counts as too old', () async {
+      final pbx = FakePbx({
+        'POST /api/mobile/door-open': (_) => http.Response('<html></html>', 200, headers: {'content-type': 'text/html'}),
+      });
+      final e = await errorOf(() => pbx.api.openDoorRemote(testAuth, '16'));
+      expect(e.kind, ApiErrorKind.unsupported);
+      expect(e.message, contains(kMinPbxVersionDoorOpen));
+    });
+
+    test('non-numeric extensions never reach the network', () async {
+      final pbx = FakePbx({});
+      for (final bad in ['', '16/../x', 'abc', '1 6']) {
+        expect((await errorOf(() => pbx.api.openDoorRemote(testAuth, bad))).kind, ApiErrorKind.server, reason: bad);
+      }
+      expect(pbx.requests, isEmpty);
+    });
+
+    test('DoorOpener maps the result', () async {
+      var status = 200;
+      final pbx = FakePbx({'POST /api/mobile/door-open': (_) => http.Response('{}', status)});
+      final opener = DoorOpener(api: pbx.api, authLoader: testAuthLoader);
+      expect(await opener.open('16'), DoorOpenResult.opened);
+      status = 404;
+      expect(await opener.open('16'), DoorOpenResult.noWebhook);
+    });
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/models/presence.dart';
@@ -6,6 +8,7 @@ import 'package:ha_phone_test/services/app_navigation.dart';
 import 'package:ha_phone_test/services/call_history_store.dart';
 import 'package:ha_phone_test/services/call_launcher.dart';
 import 'package:ha_phone_test/services/directory_repository.dart';
+import 'package:ha_phone_test/services/door_opener.dart';
 import 'package:ha_phone_test/services/favorites_store.dart';
 import 'package:ha_phone_test/services/phone_contacts_repository.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
@@ -46,7 +49,7 @@ void main() {
   });
   tearDown(() => sip.uninstall());
 
-  FakePbx pbx({String ownLine = 'idle', bool voicemail = true}) => FakePbx({
+  FakePbx pbx({String ownLine = 'idle', bool voicemail = true, bool doorRemote = false, int doorOpenStatus = 200}) => FakePbx({
         'GET /api/mobile/directory': (_) => jsonResponse({
               'self': {'number': '18', 'name': 'Emulator-Test', 'presence': 'available'},
               'extensions': [
@@ -56,6 +59,7 @@ void main() {
                   'number': '16',
                   'name': 'Haustür',
                   'door_open_code': '*1',
+                  'door_open_remote': doorRemote,
                   'video': true,
                   'door_actions': [
                     {'index': 0, 'label': 'Licht'},
@@ -66,6 +70,7 @@ void main() {
                 {'number': '0171555', 'name': 'Oma Erika'},
               ],
             }),
+        'POST /api/mobile/door-open': (_) => jsonResponse({'success': true}, doorOpenStatus),
         'GET /api/mobile/presence': (_) => jsonResponse({
               'self': {'number': '18', 'presence': 'available', 'line': ownLine},
               'extensions': [
@@ -120,6 +125,7 @@ void main() {
           navigation: nav,
           phoneContacts: PhoneContactsRepository(source: FakePhoneContactsSource()),
           doorActionRunner: (n, i) async => actions.add((n, i)),
+          doorOpener: DoorOpener(api: fake.api, authLoader: testAuthLoader),
         ),
       ),
     ));
@@ -165,6 +171,38 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('door-call-16')));
+    await tester.pumpAndSettle();
+    expect(sip.callsTo('makeCall').single.arguments, '16');
+  });
+
+  testWidgets('door card with webhook: "Tür öffnen" opens without a call, green for 2 s', (tester) async {
+    final fake = pbx(doorRemote: true);
+    await pump(tester, fake);
+
+    expect(find.byKey(const ValueKey('door-call-16')), findsNothing);
+    expect(find.text('Tür öffnen'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('door-open-16')));
+    await tester.runAsync(() => pumpEventQueue());
+    await tester.pump();
+    expect(jsonDecode(fake.to('POST', '/api/mobile/door-open').single.body), {'extension': '16'});
+    expect(find.text('Tür geöffnet ✓'), findsOneWidget);
+    expect(sip.callsTo('makeCall'), isEmpty);
+
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('Tür öffnen'), findsOneWidget);
+  });
+
+  testWidgets('door card with webhook: 404 offers calling the door instead', (tester) async {
+    final fake = pbx(doorRemote: true, doorOpenStatus: 404);
+    await pump(tester, fake);
+
+    await tester.tap(find.byKey(const ValueKey('door-open-16')));
+    await tester.runAsync(() => pumpEventQueue());
+    await tester.pump();
+    expect(find.text('Für diese Tür ist kein Öffnen ohne Anruf eingerichtet.'), findsOneWidget);
+    expect(find.text('Tür geöffnet ✓'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Anrufen'));
     await tester.pumpAndSettle();
     expect(sip.callsTo('makeCall').single.arguments, '16');
   });

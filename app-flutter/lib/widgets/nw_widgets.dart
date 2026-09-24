@@ -102,6 +102,8 @@ class NwChip extends StatelessWidget {
       button: onTap != null,
       selected: onTap != null ? selected : null,
       label: semanticLabel,
+      // With excludeSemantics the InkWell's action is dropped, so add it here.
+      onTap: semanticLabel != null ? onTap : null,
       excludeSemantics: semanticLabel != null,
       child: InkWell(
         onTap: onTap,
@@ -231,6 +233,8 @@ class NwIconButton extends StatelessWidget {
       child: Semantics(
         button: true,
         label: label,
+        enabled: onPressed != null,
+        onTap: onPressed,
         excludeSemantics: true,
         child: Material(
           color: color ?? c.raised,

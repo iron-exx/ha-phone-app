@@ -4,6 +4,7 @@ import '../models/contact.dart';
 import '../services/app_navigation.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
+import '../services/door_opener.dart';
 import '../services/favorites_store.dart';
 import '../services/phone_contacts_repository.dart';
 import '../services/phone_contacts_source.dart';
@@ -13,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../utils/contact_filter.dart';
 import '../widgets/contact_details_sheet.dart';
 import '../widgets/contact_tile.dart';
+import '../widgets/door_open_button.dart';
 import '../widgets/nw_widgets.dart';
 import '../widgets/presence_avatar.dart';
 import '../widgets/status_message.dart';
@@ -29,7 +31,7 @@ enum ContactSegment {
 }
 
 /// Kontakte: search over all sources, source chips Alle · Nebenstellen ·
-/// Handy · Telefonbuch · Favoriten, sections Türstationen (call the door) ·
+/// Handy · Telefonbuch · Favoriten, sections Türstationen (open via webhook or call the door) ·
 /// Kolleg:innen (live presence) · Handy · Telefonbuch. Row tap opens the
 /// details sheet (Favorit), the green button calls.
 class ContactsTab extends StatefulWidget {
@@ -39,6 +41,7 @@ class ContactsTab extends StatefulWidget {
     PresenceRepository? presence,
     PhoneContactsRepository? phoneContacts,
     AppNavigation? navigation,
+    this.doorOpener,
   })  : _repository = repository,
         _presence = presence,
         _phoneContacts = phoneContacts,
@@ -52,6 +55,9 @@ class ContactsTab extends StatefulWidget {
   /// Live presence/line state merged over the directory by number.
   final PresenceRepository? _presence;
   final AppNavigation? _navigation;
+
+  /// Door webhook seam for tests (default: [DoorOpener.instance]).
+  final DoorOpener? doorOpener;
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
@@ -273,7 +279,7 @@ class _ContactsTabState extends State<ContactsTab> {
 
   void _details(Contact c) => ContactDetailsSheet.show(context, c, onCall: () => _call(c), presence: _presence);
 
-  /// Door station row: amber door symbol, "türklingel · 16 · Video", call button.
+  /// Door station row: amber door symbol, "türklingel · 16 · Video", Öffnen/Anrufen.
   Widget _doorRow(BuildContext context, Contact door) {
     final c = context.nw;
     final meta = [door.number, if (door.video) 'Video'].join(' · ');
@@ -300,25 +306,7 @@ class _ContactsTabState extends State<ContactsTab> {
                 ),
               ),
               const SizedBox(width: 8),
-              Semantics(
-                button: true,
-                label: '${door.displayName} anrufen',
-                excludeSemantics: true,
-                child: FilledButton.icon(
-                  key: ValueKey('door-call-${door.number}'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: c.doorSoft,
-                    foregroundColor: c.door,
-                    minimumSize: const Size(48, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    textStyle: NwType.chip.copyWith(fontWeight: FontWeight.w800, fontSize: 12.5),
-                  ),
-                  onPressed: () => _call(door),
-                  icon: const Icon(Icons.door_front_door_outlined, size: 16),
-                  label: const Text('Anrufen'),
-                ),
-              ),
+              DoorOpenButton(door: door, compact: true, opener: widget.doorOpener, onCall: () => _call(door)),
             ],
           ),
         ),

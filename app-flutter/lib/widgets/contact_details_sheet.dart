@@ -6,6 +6,7 @@ import '../services/favorites_store.dart';
 import '../services/presence_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'door_open_button.dart';
 import 'presence_avatar.dart';
 
 /// Long-press details: big avatar, number, live status (like the list rows:
@@ -77,6 +78,10 @@ class ContactDetailsSheet extends StatelessWidget {
               Text('Türstation', style: theme.textTheme.bodySmall),
             ],
             const SizedBox(height: 24),
+            if (contact.doorOpenRemote) ...[
+              SizedBox(width: double.infinity, child: DoorOpenButton(door: contact)),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(

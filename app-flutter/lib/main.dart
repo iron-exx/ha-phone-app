@@ -12,6 +12,10 @@ import 'services/sip_channel.dart';
 import 'theme/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Draw behind transparent status/navigation bars (Android 15 does this
+  // anyway); NwSystemUi sets their icon colours per theme.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   LicenseRegistry.addLicense(_fontLicenses);
   runApp(const HAPhoneApp());
 }
@@ -70,6 +74,7 @@ class _HAPhoneAppState extends State<HAPhoneApp> {
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => NwSystemUi(child: child ?? const SizedBox.shrink()),
       initialRoute: '/',
       routes: {
         '/': (_) => const RootScreen(),
