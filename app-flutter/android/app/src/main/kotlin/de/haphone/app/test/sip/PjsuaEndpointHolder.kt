@@ -104,6 +104,8 @@ class PjsuaEndpointHolder : IpChangeNotifier {
             epConfig.logConfig.level = 4
             epConfig.logConfig.consoleLevel = 4
             epConfig.logConfig.writer = logWriter
+            // A PBX without STUN must not block calls (see useStunServer).
+            epConfig.uaConfig.stunIgnoreFailure = true
             endpoint.libInit(epConfig)
             endpoint.libStart()
             libInitialized = true
@@ -184,6 +186,21 @@ class PjsuaEndpointHolder : IpChangeNotifier {
      * generated bindings at build time, same as any other
      * SWIG-generated API surface.
      */
+    /**
+     * Points PJSIP at the PBX's STUN server (see [StunServer]). Non-blocking; a PBX without
+     * STUN (older than 0.7.115) just fails the check and media falls back to the local address.
+     */
+    private fun useStunServer(domain: String) {
+        val server = StunServer.forDomain(domain) ?: return
+        try {
+            val servers = org.pjsip.pjsua2.StringVector()
+            servers.add(server)
+            endpoint.natUpdateStunServers(servers, false)
+        } catch (e: Exception) {
+            android.util.Log.w("PJSIP", "STUN server $server not set: ${e.message}")
+        }
+    }
+
     fun asSipCallOperations(username: String, password: String, domain: String): SipCallOperations =
         object : SipCallOperations {
             private var account: HAPhoneAccount? = null
@@ -198,8 +215,13 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                     account = null
                     existing.delete()
                 }
+                useStunServer(domain)
                 val cfg = org.pjsip.pjsua2.AccountConfig()
                 cfg.idUri = "sip:$username@$domain"
+                // STUN for media only: SIP runs over TLS, and the PBX fixes the Contact itself
+                // (rewrite_contact). The SDP needs the reachable address for early-media video.
+                cfg.natConfig.sipStunUse = org.pjsip.pjsua2.pjsua_stun_use.PJSUA_STUN_USE_DISABLED
+                cfg.natConfig.mediaStunUse = org.pjsip.pjsua2.pjsua_stun_use.PJSUA_STUN_USE_DEFAULT
                 // Without ;transport=tls PJSIP resolves the registrar to UDP, for which no transport exists.
                 cfg.regConfig.registrarUri = "sip:$domain;transport=tls"
                 // After a PBX restart / add-on update, come back within seconds, not after the
@@ -547,6 +569,13 @@ private class HAPhoneCall(
     override fun onCallState(prm: org.pjsip.pjsua2.OnCallStateParam) {
         val info = getInfo()
         val myId = info.id
+        val ringback = de.haphone.app.test.calls.Ringback.shouldPlay(
+            isOutgoing = info.role == org.pjsip.pjsua2.pjsip_role_e.PJSIP_ROLE_UAC,
+            isEarly = info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_EARLY,
+        )
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            if (ringback) de.haphone.app.test.calls.Ringback.start() else de.haphone.app.test.calls.Ringback.stop()
+        }
         if (info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_CONFIRMED) {
             answered = true
             // Media may already have gone active during early media (183), in which

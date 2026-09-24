@@ -126,6 +126,11 @@ grep -q "PJ_DEBUG" pjlib/include/pj/config_site.h || \
 # via Android MediaCodec, receive-only in the app).
 grep -q "PJMEDIA_HAS_VIDEO" pjlib/include/pj/config_site.h || \
     echo "#define PJMEDIA_HAS_VIDEO 1" >> pjlib/include/pj/config_site.h
+# RTP keep-alive: every stream sends an empty RTP packet when it starts. That punches
+# the NAT hole towards Asterisk's RTP port, so the door station's early-media video
+# reaches a phone behind NAT before it answers (it sends no media of its own until then).
+grep -q "PJMEDIA_STREAM_ENABLE_KA" pjlib/include/pj/config_site.h || \
+    echo "#define PJMEDIA_STREAM_ENABLE_KA PJMEDIA_STREAM_KA_EMPTY_RTP" >> pjlib/include/pj/config_site.h
 
 # Discard any stale/partial .depend files from an earlier interrupted or
 # failed build attempt. GNU make `-include`s these at Makefile-parse time

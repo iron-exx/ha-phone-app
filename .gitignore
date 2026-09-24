@@ -35,3 +35,4 @@ ios-app/Secrets.xcconfig
 # generated, large (includes vendored third_party source node counts), never committed
 graphify-out/
 *.hprof
+app-flutter/android/.kotlin/
