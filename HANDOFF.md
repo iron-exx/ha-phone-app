@@ -133,6 +133,15 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - `*55` Gespräch umlegen: Dialplan ohne `While` (app_while nicht gebaut): `CHANNELS(^PJSIP/<ext>-)` per `SHIFT(…, )` durchlaufen, eigenen Kanal überspringen, `IMPORT(<kanal>,BRIDGEPEER)`, dann `Bridge(peer)`. Asterisk löst die alte Bridge auf ("stolen channel"), das andere Gerät legt auf. **Noch nicht live getestet** (braucht zweites Gerät auf derselben Nebenstelle; Plan: Host-`pjsua` aus `android-app/third_party/pjproject` in eine Kopie bauen, per UDP als zweites Gerät der 12 registrieren).
 - App 0.6.0 (in Arbeit): Taste „Aufnehmen" im Gespräch, Liste „Aufnahmen" im Ich-Reiter, Banner „Gespräch auf anderem Gerät → Hierher holen" (wählt `*55`, wenn `presence.self.line == busy` und die App selbst kein Gespräch hat).
 
+## 5a4. Türvideo bei gesperrtem Handy (2026-09-24, im Emulator getestet)
+
+- Test: Emulator mit PIN 1234 gesperrt, Bildschirm aus, `no-git/tools/door_sim.py --to 18 --pbx 192.168.7.10` (Tür-Simulator = Nebenstelle 17: SIP/UDP, PCMA + H.264 per GStreamer, Testbild mit Uhr). Ergebnis: Bildschirm wacht auf, `IncomingCallActivity` über der Sperre, **Live-Bild nach ca. 5 s** (dekodiert ab ca. 1 s, Rest Emulator-Rendering).
+- Ursache fürs schwarze Bild war **NAT**: App schickt vor dem Abheben kein RTP, SDP hatte die private Adresse (10.0.2.16). Zwischen CCsrv und HA-Box liegt zusätzlich ein NAT (Box sieht CCsrv als 192.168.178.22). Fix: Anlage 0.7.115 STUN-Server (3478/udp, `backend/stun_server.py`), App 0.6.1 `natUpdateStunServers` + `mediaStunUse` (SIP ohne STUN), und PJSIP mit `PJMEDIA_STREAM_ENABLE_KA PJMEDIA_STREAM_KA_EMPTY_RTP` (leeres RTP beim Stream-Start öffnet das NAT; im Build-Skript). Beides zusammen nötig.
+- Emulator mit PIN: nach jedem Emulator-Neustart erst entsperren (Direct Boot, sonst "Activity class does not exist"). Entsperren: `input keyevent 82`, dann Ziffern antippen (1: 266,1148 · 2: 540,1148 · 3: 814,1148 · 4: 266,1400 · OK: 814,1904).
+- Emulator ist auf **Nebenstelle 18** gekoppelt (nicht mehr 12, die steckt in der Klingelgruppe "klingel" und hätte echte Klingelrufe mitgenommen). Test-Nebenstellen 17/18 samt Passwörtern in `no-git/test_extensions.json`. Admin-API: `no-git/tools/pbx_admin.py GET /api/extensions`.
+- Anlage 0.7.116: Freizeichen nach außen (`Dial(...,r)`, Trunk-Schalter `local_ringback`, Standard an). App 0.6.1: `calls/Ringback.kt` spielt bei abgehenden Anrufen im Zustand EARLY `TONE_SUP_RINGTONE` (noch nicht per Ohr getestet).
+- Push ins App-Repo mit Token in der URL wird inzwischen blockiert, den Push macht der Nutzer.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 1. **Phase 6 Extras** (Nutzer: "mach weiter"):
