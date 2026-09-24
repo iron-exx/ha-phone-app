@@ -5,7 +5,7 @@ description: >
   and, for iOS, a future platform-channel port of ios-app's Swift PJSIP/
   CallKit layer -- not yet built, see the Phase 1 plan).
 publish_to: 'none'
-version: 0.6.1+7
+version: 0.7.0+8
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -28,3 +28,26 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/BricolageGrotesque-OFL.txt
+    - assets/fonts/Manrope-OFL.txt
+  # "Nachtwache" design system fonts (SIL OFL, licences next to the files).
+  # Static instances cut from the google/fonts variable TTFs (Bricolage at
+  # opsz 32, wdth 100) so every weight renders without variation axes.
+  fonts:
+    - family: Bricolage
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BricolageGrotesque-ExtraBold.ttf
+          weight: 800
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-ExtraBold.ttf
+          weight: 800

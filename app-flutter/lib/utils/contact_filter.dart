@@ -64,3 +64,23 @@ String initialsFor(String name, String number) {
   if (n.isEmpty) return '?';
   return n.length >= 2 ? n.substring(0, 2) : n;
 }
+
+/// Favourite contacts from all sources (extensions first, then PBX
+/// phonebook, then the phone's address book), one per number, sorted by
+/// name. [self] (own extension) is never a favourite tile.
+List<Contact> resolveFavorites(
+  Set<String> numbers, {
+  List<Contact> extensions = const [],
+  List<Contact> phonebook = const [],
+  List<Contact> phone = const [],
+  String? self,
+}) {
+  if (numbers.isEmpty) return const [];
+  final seen = <String>{};
+  final hits = <Contact>[];
+  for (final c in [...extensions, ...phonebook, ...phone]) {
+    if (!numbers.contains(c.number) || c.number == self || !seen.add(c.number)) continue;
+    hits.add(c);
+  }
+  return sortContacts(hits);
+}

@@ -40,7 +40,7 @@ class MergedCall {
     return l.missed && p.answered;
   }
 
-  /// Entry for CallHistoryTile / callSubtitle (answered state merged).
+  /// Entry for the Verlauf row / callSubtitle (answered state merged).
   CallHistoryEntry get entry {
     final l = local;
     final p = pbx;

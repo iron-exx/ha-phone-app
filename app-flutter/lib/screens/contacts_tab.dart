@@ -1,31 +1,48 @@
 import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
+import '../services/app_navigation.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
 import '../services/favorites_store.dart';
 import '../services/phone_contacts_repository.dart';
 import '../services/phone_contacts_source.dart';
 import '../services/presence_repository.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../utils/contact_filter.dart';
 import '../widgets/contact_details_sheet.dart';
 import '../widgets/contact_tile.dart';
+import '../widgets/nw_widgets.dart';
+import '../widgets/presence_avatar.dart';
 import '../widgets/status_message.dart';
 
-enum ContactSegment { extensions, phonebook, phone, favorites }
+enum ContactSegment {
+  all('Alle'),
+  extensions('Nebenstellen'),
+  phone('Handy'),
+  phonebook('Telefonbuch'),
+  favorites('Favoriten');
 
-/// Kontakte tab: PBX extensions (with presence), PBX phonebook, the phone's
-/// own address book (optional, asks for permission), local favourites. A
-/// search looks through all sources at once, grouped by source.
+  const ContactSegment(this.label);
+  final String label;
+}
+
+/// Kontakte: search over all sources, source chips Alle · Nebenstellen ·
+/// Handy · Telefonbuch · Favoriten, sections Türstationen (call the door) ·
+/// Kolleg:innen (live presence) · Handy · Telefonbuch. Row tap opens the
+/// details sheet (Favorit), the green button calls.
 class ContactsTab extends StatefulWidget {
   const ContactsTab({
     super.key,
     DirectoryRepository? repository,
     PresenceRepository? presence,
     PhoneContactsRepository? phoneContacts,
+    AppNavigation? navigation,
   })  : _repository = repository,
         _presence = presence,
-        _phoneContacts = phoneContacts;
+        _phoneContacts = phoneContacts,
+        _navigation = navigation;
 
   final DirectoryRepository? _repository;
 
@@ -34,6 +51,7 @@ class ContactsTab extends StatefulWidget {
 
   /// Live presence/line state merged over the directory by number.
   final PresenceRepository? _presence;
+  final AppNavigation? _navigation;
 
   @override
   State<ContactsTab> createState() => _ContactsTabState();
@@ -41,16 +59,21 @@ class ContactsTab extends StatefulWidget {
 
 class _ContactsTabState extends State<ContactsTab> {
   final _search = TextEditingController();
-  ContactSegment _segment = ContactSegment.extensions;
+  final _searchFocus = FocusNode();
+  ContactSegment _segment = ContactSegment.all;
   late final AppLifecycleListener _lifecycle;
+  late int _searchRequests;
 
   DirectoryRepository get _repo => widget._repository ?? DirectoryRepository.instance;
   PresenceRepository get _presence => widget._presence ?? PresenceRepository.instance;
   PhoneContactsRepository get _phone => widget._phoneContacts ?? PhoneContactsRepository.instance;
+  AppNavigation get _nav => widget._navigation ?? AppNavigation.instance;
 
   @override
   void initState() {
     super.initState();
+    _searchRequests = _nav.contactSearchRequests;
+    _nav.addListener(_onNavigation);
     // Back from the system settings: the permission may have changed.
     _lifecycle = AppLifecycleListener(onResume: () {
       if (_phone.access != PhoneContactsAccess.granted && _phone.access != PhoneContactsAccess.unknown) {
@@ -59,24 +82,38 @@ class _ContactsTabState extends State<ContactsTab> {
     });
   }
 
+  @override
+  void dispose() {
+    _nav.removeListener(_onNavigation);
+    _lifecycle.dispose();
+    _search.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  void _onNavigation() {
+    if (_nav.takeFavoritesRequest()) _selectSegment(ContactSegment.favorites);
+    if (_nav.contactSearchRequests != _searchRequests) {
+      _searchRequests = _nav.contactSearchRequests;
+      // After the shell has made this tab visible (focus needs it on stage).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchFocus.requestFocus();
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    }
+  }
+
   Future<void> _refreshAll() async {
     await Future.wait([
       _repo.refresh(),
       _presence.refresh(),
-      if (_segment == ContactSegment.phone || _search.text.trim().isNotEmpty) _phone.refresh(),
+      if (_phone.access == PhoneContactsAccess.granted) _phone.refresh(),
     ]);
-  }
-
-  @override
-  void dispose() {
-    _lifecycle.dispose();
-    _search.dispose();
-    super.dispose();
   }
 
   void _selectSegment(ContactSegment segment) {
     setState(() => _segment = segment);
-    if (segment == ContactSegment.phone || segment == ContactSegment.favorites) _phone.ensureLoaded();
+    _phone.ensureLoaded();
   }
 
   void _onSearchChanged(String query) {
@@ -84,137 +121,223 @@ class _ContactsTabState extends State<ContactsTab> {
     if (query.trim().isNotEmpty) _phone.ensureLoaded();
   }
 
-  List<Contact> _source() {
+  void _call(Contact c) => CallLauncher.call(context, c.number);
+
+  List<Contact> get _extensions {
     final d = _repo.directory;
     if (d == null) return const [];
-    return switch (_segment) {
-      // Own extension is shown in the Ich tab, not as a callable contact.
-      ContactSegment.extensions =>
-        sortContacts(d.extensions.where((c) => c.number != d.self?.number).toList()),
-      ContactSegment.phonebook => sortContacts(d.phonebook),
-      ContactSegment.phone => _phone.contacts ?? const [],
-      ContactSegment.favorites => sortContacts([
-          ...d.extensions,
-          ...d.phonebook,
-          ...?_phone.contacts,
-        ].where((c) => FavoritesStore.instance.isFavorite(c.number)).toList()),
-    };
+    // Own extension is shown on Start/Ich, not as a callable contact.
+    return sortContacts(d.extensions.where((c) => c.number != d.self?.number).toList());
   }
-
-  void _call(Contact c) => CallLauncher.call(context, c.number);
 
   @override
   Widget build(BuildContext context) {
+    final c = context.nw;
     return Scaffold(
-      appBar: AppBar(title: const Text('Kontakte')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: TextField(
-              controller: _search,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Suchen nach Name oder Nummer',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Suche leeren',
-                        icon: const Icon(Icons.close),
-                        onPressed: () => setState(_search.clear),
-                      ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const PageHeader('Kontakte'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              child: TextField(
+                controller: _search,
+                focusNode: _searchFocus,
+                onChanged: _onSearchChanged,
+                style: NwType.rowTitle.copyWith(color: c.text, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  hintText: 'Name, Nummer oder Nebenstelle',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Suche leeren',
+                          icon: const Icon(Icons.close),
+                          onPressed: () => setState(_search.clear),
+                        ),
+                ),
               ),
             ),
-          ),
-          _SegmentChips(selected: _segment, onSelected: _selectSegment),
-          Expanded(
-            child: ListenableBuilder(
-              listenable: Listenable.merge([_repo, _presence, _phone, FavoritesStore.instance]),
-              builder: (context, _) => _buildList(context),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: NwChipRow(children: [
+                for (final s in ContactSegment.values)
+                  NwChip(
+                    key: ValueKey('segment-${s.name}'),
+                    label: s.label,
+                    selected: _segment == s,
+                    onTap: () => _selectSegment(s),
+                  ),
+              ]),
             ),
-          ),
-        ],
+            Expanded(
+              child: ListenableBuilder(
+                listenable: Listenable.merge([_repo, _presence, _phone, FavoritesStore.instance]),
+                builder: (context, _) => _buildList(context),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget? _banner(BuildContext context) {
+    final error = _repo.error;
+    if (error == null) return null;
+    return ErrorBanner(
+      message: error.message,
+      actionLabel: error.needsRepairing ? 'Neu koppeln' : 'Erneut',
+      onAction: error.needsRepairing
+          ? () async {
+              await Navigator.of(context).pushNamed('/qr-scan');
+              await _repo.refresh();
+            }
+          : _repo.refresh,
     );
   }
 
   Widget _buildList(BuildContext context) {
-    final error = _repo.error;
-    final hasData = _repo.directory != null;
     final searching = _search.text.trim().isNotEmpty;
     if (!searching && _segment == ContactSegment.phone) return _buildPhoneSegment(context);
+    final hasData = _repo.directory != null;
     if (!hasData && _repo.isLoading && !searching) {
       return const Center(child: CircularProgressIndicator());
     }
-    final banner = error == null
-        ? null
-        : ErrorBanner(
-            message: error.message,
-            actionLabel: error.needsRepairing ? 'Neu koppeln' : 'Erneut',
-            onAction: error.needsRepairing
-                ? () async {
-                    await Navigator.of(context).pushNamed('/qr-scan');
-                    await _repo.refresh();
-                  }
-                : _repo.refresh,
-          );
-    if (searching) return _buildSearchResults(context, banner);
-    final contacts = filterContacts(_source(), _search.text);
+    final banner = _banner(context);
+    final children = <Widget>[
+      if (banner != null) banner,
+      ...(searching ? _searchResults(context) : _segmentSections(context)),
+    ];
+    if (children.length == (banner == null ? 0 : 1)) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(top: 48),
+        child: StatusMessage(icon: _emptyIcon(), message: _emptyText(hasData)),
+      ));
+    }
+    children.add(const SizedBox(height: 24));
     return RefreshIndicator(
       onRefresh: _refreshAll,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: contacts.isEmpty ? 2 : contacts.length + 1,
-        itemBuilder: (context, i) {
-          if (i == 0) return banner ?? const SizedBox.shrink();
-          if (contacts.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 48),
-              child: StatusMessage(icon: _emptyIcon(), message: _emptyText(hasData)),
-            );
-          }
-          return _tile(context, contacts[i - 1]);
-        },
-      ),
+      child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: children),
     );
+  }
+
+  List<Widget> _section(String title, List<Contact> contacts) => contacts.isEmpty
+      ? const []
+      : [
+          SectionHeader(title),
+          for (final c in contacts) c.isDoorStation ? _doorRow(context, c) : _tile(context, c),
+        ];
+
+  List<Widget> _segmentSections(BuildContext context) {
+    final d = _repo.directory;
+    final ext = _extensions;
+    final doors = ext.where((c) => c.isDoorStation).toList();
+    final colleagues = ext.where((c) => !c.isDoorStation).toList();
+    final phonebook = sortContacts(d?.phonebook ?? const []);
+    final phone = _phone.access == PhoneContactsAccess.granted ? (_phone.contacts ?? const <Contact>[]) : const <Contact>[];
+    switch (_segment) {
+      case ContactSegment.all:
+        return [
+          ..._section('Türstationen', doors),
+          ..._section('Kolleg:innen', colleagues),
+          ..._section('Handy', phone),
+          ..._section('Telefonbuch', phonebook),
+        ];
+      case ContactSegment.extensions:
+        return [..._section('Türstationen', doors), ..._section('Kolleg:innen', colleagues)];
+      case ContactSegment.phonebook:
+        return _section('Telefonbuch', phonebook);
+      case ContactSegment.favorites:
+        final favs = resolveFavorites(
+          FavoritesStore.instance.numbers,
+          extensions: ext,
+          phonebook: phonebook,
+          phone: _phone.contacts ?? const [],
+        );
+        return _section('Favoriten', favs);
+      case ContactSegment.phone:
+        return _section('Handy', phone);
+    }
   }
 
   Widget _tile(BuildContext context, Contact c) => ContactTile(
         contact: c,
         isFavorite: FavoritesStore.instance.isFavorite(c.number),
         status: c.isExtension ? _presence.statusFor(c.number) : null,
-        onTap: () => _call(c),
-        onLongPress: () => ContactDetailsSheet.show(context, c, onCall: () => _call(c), presence: _presence),
+        onTap: () => _details(c),
+        onLongPress: () => _details(c),
+        onCall: () => _call(c),
       );
 
+  void _details(Contact c) => ContactDetailsSheet.show(context, c, onCall: () => _call(c), presence: _presence);
+
+  /// Door station row: amber door symbol, "türklingel · 16 · Video", call button.
+  Widget _doorRow(BuildContext context, Contact door) {
+    final c = context.nw;
+    final meta = [door.number, if (door.video) 'Video'].join(' · ');
+    return InkWell(
+      key: ValueKey('door-${door.number}'),
+      onTap: () => _details(door),
+      onLongPress: () => _details(door),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            children: [
+              const PresenceAvatar.door(size: 46),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(door.displayName, style: NwType.rowTitle.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 3),
+                    Text('Türstation · $meta', style: NwType.meta.copyWith(color: c.faint)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Semantics(
+                button: true,
+                label: '${door.displayName} anrufen',
+                excludeSemantics: true,
+                child: FilledButton.icon(
+                  key: ValueKey('door-call-${door.number}'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: c.doorSoft,
+                    foregroundColor: c.door,
+                    minimumSize: const Size(48, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    textStyle: NwType.chip.copyWith(fontWeight: FontWeight.w800, fontSize: 12.5),
+                  ),
+                  onPressed: () => _call(door),
+                  icon: const Icon(Icons.door_front_door_outlined, size: 16),
+                  label: const Text('Anrufen'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Hits from every source, each under a small header.
-  Widget _buildSearchResults(BuildContext context, Widget? banner) {
+  List<Widget> _searchResults(BuildContext context) {
     final d = _repo.directory;
     final sections = searchAllSources(
       query: _search.text,
-      extensions: d?.extensions.where((c) => c.number != d.self?.number).toList() ?? const [],
+      extensions: _extensions,
       phonebook: d?.phonebook ?? const [],
       phone: _phone.contacts ?? const [],
     );
-    return RefreshIndicator(
-      onRefresh: _refreshAll,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          if (banner != null) banner,
-          if (sections.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 48),
-              child: StatusMessage(icon: Icons.search_off, message: _emptyText(d != null)),
-            ),
-          for (final s in sections) ...[
-            _SectionHeader(title: s.title, count: s.contacts.length),
-            for (final c in s.contacts) _tile(context, c),
-          ],
-        ],
-      ),
-    );
+    return [
+      for (final s in sections) ..._section('${s.title} · ${s.contacts.length}', s.contacts),
+    ];
   }
 
   /// Handy segment: permission explanation / denied hint / address book.
@@ -253,12 +376,11 @@ class _ContactsTabState extends State<ContactsTab> {
     final list = contacts ?? const <Contact>[];
     return RefreshIndicator(
       onRefresh: _phone.refresh,
-      child: ListView.builder(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: list.isEmpty ? 1 : list.length,
-        itemBuilder: (context, i) {
-          if (list.isEmpty) {
-            return Padding(
+        children: [
+          if (list.isEmpty)
+            Padding(
               padding: const EdgeInsets.only(top: 48),
               child: StatusMessage(
                 icon: Icons.contacts_outlined,
@@ -266,84 +388,26 @@ class _ContactsTabState extends State<ContactsTab> {
                     ? 'Adressbuch konnte nicht gelesen werden.\nZum Wiederholen nach unten ziehen.'
                     : 'Keine Kontakte mit Telefonnummer auf dem Handy.',
               ),
-            );
-          }
-          return _tile(context, list[i]);
-        },
+            )
+          else
+            ..._section('Handy', list),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
   IconData _emptyIcon() => _segment == ContactSegment.favorites ? Icons.star_border : Icons.people_outline;
 
-
   String _emptyText(bool hasData) {
     if (_search.text.trim().isNotEmpty) return 'Keine Treffer für „${_search.text.trim()}“';
     if (!hasData) return 'Noch keine Kontakte geladen.\nZum Aktualisieren nach unten ziehen.';
     return switch (_segment) {
-      ContactSegment.extensions => 'Keine Nebenstellen in der Anlage.',
+      ContactSegment.all || ContactSegment.extensions => 'Keine Nebenstellen in der Anlage.',
       ContactSegment.phonebook => 'Das Telefonbuch der Anlage ist leer.',
       ContactSegment.phone => 'Keine Kontakte mit Telefonnummer auf dem Handy.',
-      ContactSegment.favorites => 'Noch keine Favoriten.\nKontakt lange drücken → „Favorit“.',
+      ContactSegment.favorites => 'Noch keine Favoriten.\nKontakt antippen → „Favorit“.',
     };
-  }
-}
-
-/// Source picker. Compact chips scroll sideways: on 360 dp the first three
-/// fit fully, Favoriten peeks in at the edge.
-class _SegmentChips extends StatelessWidget {
-  const _SegmentChips({required this.selected, required this.onSelected});
-
-  final ContactSegment selected;
-  final ValueChanged<ContactSegment> onSelected;
-
-  static const _labels = {
-    ContactSegment.extensions: 'Intern',
-    ContactSegment.phonebook: 'Telefonbuch',
-    ContactSegment.phone: 'Handy',
-    ContactSegment.favorites: 'Favoriten',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: [
-          for (final e in _labels.entries) ...[
-            if (e.key != ContactSegment.extensions) const SizedBox(width: 8),
-            ChoiceChip(
-              label: Text(e.value),
-              selected: selected == e.key,
-              showCheckmark: false,
-              visualDensity: VisualDensity.compact,
-              onSelected: (_) => onSelected(e.key),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Small group header in the search results ("Handy · 3").
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.count});
-
-  final String title;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Text(
-        '$title · $count',
-        style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
-      ),
-    );
   }
 }
 
@@ -366,16 +430,16 @@ class _PermissionPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.nw;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
       children: [
-        Icon(icon, size: 56, color: theme.colorScheme.primary),
+        Icon(icon, size: 52, color: c.blue),
         const SizedBox(height: 16),
-        Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+        Text(title, textAlign: TextAlign.center, style: NwType.display(22).copyWith(color: c.text)),
         const SizedBox(height: 8),
-        Text(message, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+        Text(message, textAlign: TextAlign.center, style: NwType.meta.copyWith(color: c.muted, fontSize: 14)),
         const SizedBox(height: 24),
         Center(child: FilledButton(onPressed: onAction, child: Text(actionLabel))),
       ],

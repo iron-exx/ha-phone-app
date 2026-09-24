@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// Round in-call action (Stumm, Halten, ...) with a label underneath.
 /// [active] fills the circle with the accent colour; a null [onPressed]
 /// renders it disabled.
@@ -21,10 +23,11 @@ class RoundActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final c = context.nw;
     final enabled = onPressed != null;
-    final bg = active ? scheme.primary : scheme.surfaceContainerHighest;
-    final fg = active ? scheme.onPrimary : scheme.onSurface;
+    // Nachtwache control key: raised tile, radius 22; active = inverted.
+    final bg = active ? c.text : c.raised;
+    final fg = active ? c.ground : c.text;
     return Semantics(
       button: true,
       enabled: enabled,
@@ -45,11 +48,15 @@ class RoundActionButton extends StatelessWidget {
                 Container(
                   width: size,
                   height: size,
-                  decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-                  child: Icon(icon, color: fg, size: 28),
+                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(22)),
+                  child: Icon(icon, color: fg, size: 26),
                 ),
                 const SizedBox(height: 8),
-                Text(label, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: c.muted),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),
@@ -67,10 +74,12 @@ class CallButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     required this.tooltip,
-    this.size = 72,
+    this.size = 76,
+    this.foreground = Colors.white,
   });
 
   final Color color;
+  final Color foreground;
   final IconData icon;
   final VoidCallback? onPressed;
   final String tooltip;
@@ -83,14 +92,13 @@ class CallButton extends StatelessWidget {
       child: Material(
         color: onPressed == null ? color.withOpacity(0.4) : color,
         shape: const CircleBorder(),
-        elevation: 2,
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onPressed,
           child: SizedBox(
             width: size,
             height: size,
-            child: Icon(icon, color: Colors.white, size: size * 0.45),
+            child: Icon(icon, color: foreground, size: size * 0.42),
           ),
         ),
       ),

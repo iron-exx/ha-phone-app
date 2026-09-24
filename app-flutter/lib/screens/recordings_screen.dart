@@ -11,7 +11,7 @@ import '../services/recordings_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/audio_player_panel.dart';
-import '../widgets/contact_avatar.dart';
+import '../widgets/presence_avatar.dart';
 import '../widgets/status_message.dart';
 
 /// Call recordings of the own extension ("Ich" → "Aufnahmen"): list with an
@@ -211,7 +211,7 @@ class _RecordingTile extends StatelessWidget {
       onTap: onTap,
       selected: isExpanded,
       selectedTileColor: theme.colorScheme.primary.withOpacity(0.06),
-      leading: ContactAvatar(name: resolvedName, number: number),
+      leading: PresenceAvatar(name: resolvedName, number: number),
       title: Text(
         title,
         overflow: TextOverflow.ellipsis,

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/services/api_client.dart';
 import 'package:ha_phone_test/services/call_launcher.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
+import 'package:ha_phone_test/widgets/call_flip_card.dart';
 import 'package:ha_phone_test/widgets/ongoing_call_banner.dart';
 import 'package:http/http.dart' as http;
 
@@ -34,7 +35,8 @@ void main() {
         pollInterval: const Duration(hours: 1),
       );
 
-  /// Banner over a fake tab that reports the top inset it gets.
+  /// Green bar over a fake tab that reports the top inset it gets, with the
+  /// Start call-flip card inside the tab.
   Future<void> pumpBanner(WidgetTester tester, PresenceRepository presence, {Map<String, Object?>? call}) async {
     sip = FakeSip({'getCurrentCall': (_) => call})..install();
     await tester.runAsync(presence.refresh);
@@ -44,8 +46,14 @@ void main() {
         data: const MediaQueryData(padding: EdgeInsets.only(top: 24)),
         child: Scaffold(
           body: OngoingCallBanner(
-            presence: presence,
-            child: Builder(builder: (context) => Text('inset ${MediaQuery.paddingOf(context).top.round()}')),
+            child: Builder(
+              builder: (context) => Column(
+                children: [
+                  Text('inset ${MediaQuery.paddingOf(context).top.round()}'),
+                  CallFlipCard(presence: presence),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -56,7 +64,7 @@ void main() {
   testWidgets('call on another device offers "Hierher holen", which dials *55', (tester) async {
     await pumpBanner(tester, presenceWith('busy'));
     expect(find.text('Gespräch auf anderem Gerät'), findsOneWidget);
-    expect(find.text('inset 0'), findsOneWidget, reason: 'the bar covers the status bar');
+    expect(find.text('inset 24'), findsOneWidget, reason: 'the flip offer is a Start card, not a bar');
 
     await tester.tap(find.text('Hierher holen'));
     await tester.pumpAndSettle();
@@ -75,7 +83,12 @@ void main() {
     await pumpBanner(tester, presenceWith('busy'), call: _call());
     expect(find.byKey(const Key('ongoing-call')), findsOneWidget);
     expect(find.text('Gespräch läuft: türklingel'), findsOneWidget);
+    expect(find.text('inset 0'), findsOneWidget, reason: 'the green bar covers the status bar');
     expect(find.byKey(const Key('call-flip')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('ongoing-call')));
+    await tester.pumpAndSettle();
+    expect(find.text('Gesprächsbildschirm'), findsOneWidget);
   });
 
   testWidgets('right after our own call ended the stale "busy" does not offer a flip', (tester) async {

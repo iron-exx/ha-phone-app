@@ -8,8 +8,10 @@ import 'package:ha_phone_test/services/directory_repository.dart';
 import 'package:ha_phone_test/services/phone_contacts_repository.dart';
 import 'package:ha_phone_test/services/phone_contacts_source.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
-import 'package:ha_phone_test/theme/app_colors.dart';
-import 'package:ha_phone_test/widgets/contact_avatar.dart';
+import 'package:ha_phone_test/services/app_navigation.dart';
+import 'package:ha_phone_test/services/call_launcher.dart';
+import 'package:ha_phone_test/theme/app_theme.dart';
+import 'package:ha_phone_test/widgets/presence_avatar.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,6 +37,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    CallLauncher.requestMicrophone = () async => true;
     sip = FakeSip()..install();
   });
   tearDown(() => sip.uninstall());
@@ -44,26 +47,89 @@ void main() {
         authLoader: () async => const DeviceAuth(apiHost: 'box', deviceId: '1', deviceToken: 't'),
       );
 
-  Future<void> pumpTab(WidgetTester tester, DirectoryRepository r, {PhoneContactsRepository? phone}) async {
+  Future<void> pumpTab(
+    WidgetTester tester,
+    DirectoryRepository r, {
+    PhoneContactsRepository? phone,
+    AppNavigation? navigation,
+    double textScale = 1,
+  }) async {
     await tester.pumpWidget(MaterialApp(
-      home: ContactsTab(
-        repository: r,
-        phoneContacts: phone ?? PhoneContactsRepository(source: FakePhoneContactsSource()),
+      theme: AppTheme.dark(),
+      routes: {'/active-call': (_) => const Scaffold(body: Text('ACTIVE'))},
+      home: MediaQuery(
+        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: const Size(390, 844)),
+        child: ContactsTab(
+          repository: r,
+          navigation: navigation ?? AppNavigation(),
+          phoneContacts: phone ?? PhoneContactsRepository(source: FakePhoneContactsSource()),
+        ),
       ),
     ));
     await tester.runAsync(r.init);
     await tester.pumpAndSettle();
   }
 
-  testWidgets('lists extensions with presence, door icon, without self', (tester) async {
+  testWidgets('sections: door stations, colleagues with presence, phonebook; without self', (tester) async {
     final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
     await pumpTab(tester, r);
 
-    expect(find.text('11 · Mittagspause'), findsOneWidget);
-    expect(find.text('16 · verfügbar'), findsOneWidget);
+    expect(find.text('TÜRSTATIONEN'), findsOneWidget);
+    expect(find.text('KOLLEG:INNEN'), findsOneWidget);
+    expect(find.text('TELEFONBUCH'), findsOneWidget);
+    expect(find.text('Mittagspause · 11'), findsOneWidget);
+    expect(find.text('Türstation · 16 · Video'), findsOneWidget);
+    expect(find.byKey(const ValueKey('door-call-16')), findsOneWidget);
     expect(find.text('Test'), findsNothing);
-    expect(find.byIcon(Icons.door_front_door_outlined), findsOneWidget);
     expect(sip.callsTo('setDoorCodes').single.arguments, {'16': '*1'});
+  });
+
+  testWidgets('call button dials, row tap opens the details sheet', (tester) async {
+    final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
+    await pumpTab(tester, r);
+
+    await tester.tap(find.byTooltip('sandro anrufen'));
+    await tester.pumpAndSettle();
+    expect(sip.callsTo('makeCall').single.arguments, '11');
+    Navigator.of(tester.element(find.text('ACTIVE'))).pop();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('sandro'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nebenstelle 11 · Mittagspause'), findsOneWidget);
+    expect(find.text('Favorit'), findsOneWidget);
+  });
+
+  testWidgets('door station row calls the door', (tester) async {
+    final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
+    await pumpTab(tester, r);
+    await tester.tap(find.byKey(const ValueKey('door-call-16')));
+    await tester.pumpAndSettle();
+    expect(sip.callsTo('makeCall').single.arguments, '16');
+  });
+
+  testWidgets('navigation: search request focuses the field, favourites request selects the chip', (tester) async {
+    final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
+    final nav = AppNavigation();
+    await pumpTab(tester, r, navigation: nav);
+
+    nav.openContactSearch();
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus, isTrue);
+
+    nav.openFavorites();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Noch keine Favoriten'), findsOneWidget);
+  });
+
+  testWidgets('no overflow at 200 % text size', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
+    await pumpTab(tester, r, textScale: 2);
+    expect(tester.takeException(), isNull);
+    expect(find.text('sandro'), findsOneWidget);
   });
 
   testWidgets('search and phonebook segment', (tester) async {
@@ -76,7 +142,7 @@ void main() {
     expect(find.text('türklingel'), findsNothing);
 
     await tester.enterText(find.byType(TextField), '');
-    await tester.tap(find.text('Telefonbuch'));
+    await tester.tap(find.byKey(const ValueKey('segment-phonebook')));
     await tester.pumpAndSettle();
     expect(find.text('Pizzeria'), findsOneWidget);
     expect(find.text('sandro'), findsNothing);
@@ -96,6 +162,7 @@ void main() {
               ...(_body['extensions'] as List),
               {'number': '15', 'name': 'Büro', 'presence': 'available'},
               {'number': '17', 'name': 'Lager', 'presence': 'available'},
+              {'number': '18', 'name': 'Küche', 'presence': 'available'},
             ],
           }),
       'GET /api/mobile/presence': (_) => jsonResponse({
@@ -103,8 +170,9 @@ void main() {
             'extensions': [
               {'number': '11', 'presence': 'lunch', 'line': 'busy'},
               {'number': '15', 'presence': 'available', 'line': 'offline'},
-              {'number': '16', 'presence': 'available', 'line': 'ringing'},
-              {'number': '17', 'presence': 'lunch', 'line': 'idle'},
+              {'number': '16', 'presence': 'available', 'line': 'idle'},
+              {'number': '17', 'presence': 'available', 'line': 'ringing'},
+              {'number': '18', 'presence': 'lunch', 'line': 'idle'},
             ],
           }),
     });
@@ -114,6 +182,7 @@ void main() {
       home: ContactsTab(
         repository: dir,
         presence: presence,
+        navigation: AppNavigation(),
         phoneContacts: PhoneContactsRepository(source: FakePhoneContactsSource()),
       ),
     ));
@@ -123,25 +192,25 @@ void main() {
     });
     await tester.pumpAndSettle();
 
-    expect(find.text('11 · telefoniert'), findsOneWidget);
-    expect(find.text('15 · offline'), findsOneWidget);
-    expect(find.text('16 · klingelt'), findsOneWidget);
-    expect(find.text('17 · Mittagspause'), findsOneWidget);
-    // Only the ringing colleague offers "Heranholen".
-    expect(find.byKey(const Key('pickup-16')), findsOneWidget);
+    expect(find.text('telefoniert · 11'), findsOneWidget);
+    expect(find.text('offline · 15'), findsOneWidget);
+    expect(find.text('klingelt · 17'), findsOneWidget);
+    expect(find.text('Mittagspause · 18'), findsOneWidget);
+    // Only the ringing colleague offers "Heranholen" (instead of the call button).
+    expect(find.byKey(const Key('pickup-17')), findsOneWidget);
     expect(find.text('Heranholen'), findsOneWidget);
-    // While it rings, the door station shows "Heranholen" instead of its door icon.
-    expect(find.byIcon(Icons.door_front_door_outlined), findsNothing);
+    expect(find.byTooltip('Lager anrufen'), findsNothing);
 
-    Color? dotOf(String name) => tester
-        .widget<ContactAvatar>(find.descendant(
-          of: find.ancestor(of: find.text(name), matching: find.byType(ListTile)),
-          matching: find.byType(ContactAvatar),
+    AvatarPresence? presenceOf(String name) => tester
+        .widget<PresenceAvatar>(find.descendant(
+          of: find.ancestor(of: find.text(name), matching: find.byType(InkWell)).first,
+          matching: find.byType(PresenceAvatar),
         ))
-        .dotColor;
-    expect(dotOf('sandro'), AppColors.presenceBusy);
-    expect(dotOf('Büro'), AppColors.presenceOffline);
-    expect(dotOf('Lager'), AppColors.presenceLunch);
+        .presence;
+    expect(presenceOf('sandro'), AvatarPresence.busy);
+    expect(presenceOf('Büro'), AvatarPresence.offline);
+    expect(presenceOf('Lager'), AvatarPresence.busy);
+    expect(presenceOf('Küche'), AvatarPresence.away);
   });
 
   group('Handy source', () {
@@ -151,8 +220,8 @@ void main() {
     ) async {
       final phone = PhoneContactsRepository(source: src);
       await pumpTab(tester, repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200)), phone: phone);
-      await tester.ensureVisible(find.text('Handy'));
-      await tester.tap(find.text('Handy'));
+      await tester.ensureVisible(find.byKey(const ValueKey('segment-phone')));
+      await tester.tap(find.byKey(const ValueKey('segment-phone')));
       await tester.runAsync(phone.ensureLoaded);
       await tester.pumpAndSettle();
       return (phone, src);
@@ -205,9 +274,9 @@ void main() {
       await tester.runAsync(phone.ensureLoaded);
       await tester.pumpAndSettle();
 
-      expect(find.text('Telefonbuch · 1'), findsOneWidget);
-      expect(find.text('Handy · 1'), findsOneWidget);
-      expect(find.text('Nebenstellen · 1'), findsNothing);
+      expect(find.text('TELEFONBUCH · 1'), findsOneWidget);
+      expect(find.text('HANDY · 1'), findsOneWidget);
+      expect(find.text('NEBENSTELLEN · 1'), findsNothing);
       expect(find.text('Pizzeria'), findsOneWidget);
       expect(find.text('Pizza Handy'), findsOneWidget);
     });

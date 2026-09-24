@@ -12,8 +12,10 @@ import '../services/recordings_repository.dart';
 import '../services/sip_channel.dart';
 import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../utils/recording_ui.dart';
 import '../utils/registration_ui.dart';
+import '../widgets/nw_widgets.dart';
 import '../widgets/own_status_header.dart';
 import 'diagnostics_screen.dart';
 import 'forwarding_screen.dart';
@@ -75,7 +77,13 @@ class _MeTabState extends State<MeTab> {
   @override
   void didUpdateWidget(MeTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isActive && !oldWidget.isActive) unawaited(_recordings.refresh());
+    // After the frame: refresh() notifies at once, and other tabs (Verlauf)
+    // listen to the same repository.
+    if (widget.isActive && !oldWidget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_recordings.refresh());
+      });
+    }
   }
 
   @override
@@ -121,7 +129,7 @@ class _MeTabState extends State<MeTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.hangup),
+            style: FilledButton.styleFrom(backgroundColor: ctx.nw.end, foregroundColor: ctx.nw.endInk),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Entkoppeln'),
           ),
@@ -165,69 +173,111 @@ class _MeTabState extends State<MeTab> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.nw;
     return Scaffold(
-      appBar: AppBar(title: const Text('Ich')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
-          const _SectionHeader('Status'),
-          const OwnStatusHeader(),
-          _registrationTile(context),
-          const Divider(height: 24),
-          const _SectionHeader('Einstellungen'),
-          _recordingsTile(),
-          ListTile(
-            leading: const Icon(Icons.phone_forwarded_outlined),
-            title: const Text('Weiterleitungen'),
-            subtitle: const Text('Was mit Anrufen passiert, je nach Status'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _push(const ForwardingScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.monitor_heart_outlined),
-            title: const Text('Diagnose'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _push(const DiagnosticsScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('SIP-Einstellungen'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _open('/settings'),
-          ),
-          const Divider(height: 24),
-          const _SectionHeader('Gerät'),
-          ListTile(
-            leading: const Icon(Icons.refresh),
-            title: const Text('Neu verbinden'),
-            onTap: _reconnect,
-          ),
-          ListTile(
-            leading: const Icon(Icons.qr_code_scanner),
-            title: const Text('Neu koppeln (QR-Code)'),
-            onTap: () => _open('/qr-scan'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.link_off, color: AppColors.hangup),
-            title: const Text('Gerät entkoppeln', style: TextStyle(color: AppColors.hangup)),
-            onTap: _confirmUnpair,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-            child: Text(
-              'HA-Phone App $kAppVersion',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
+            const PageHeader('Ich'),
+            const OwnStatusHeader(),
+            _group([_registrationTile(context)]),
+            const SectionHeader('Einstellungen'),
+            _group([
+              _recordingsTile(),
+              _tile(
+                icon: Icons.phone_forwarded_outlined,
+                title: 'Weiterleitungen',
+                subtitle: 'Was mit Anrufen passiert, je nach Status',
+                onTap: () => _push(const ForwardingScreen()),
+              ),
+              _tile(
+                icon: Icons.monitor_heart_outlined,
+                title: 'Diagnose',
+                onTap: () => _push(const DiagnosticsScreen()),
+              ),
+              _tile(icon: Icons.settings_outlined, title: 'SIP-Einstellungen', onTap: () => _open('/settings')),
+            ]),
+            const SectionHeader('Gerät'),
+            _group([
+              _tile(icon: Icons.refresh, title: 'Neu verbinden', onTap: _reconnect, chevron: false),
+              _tile(icon: Icons.qr_code_scanner, title: 'Neu koppeln (QR-Code)', onTap: () => _open('/qr-scan')),
+              _tile(
+                icon: Icons.link_off,
+                title: 'Gerät entkoppeln',
+                color: c.end,
+                onTap: _confirmUnpair,
+                chevron: false,
+              ),
+            ]),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              child: Text(
+                'HA-Phone App $kAppVersion',
+                textAlign: TextAlign.center,
+                style: NwType.meta.copyWith(color: c.faint),
+              ),
             ),
-          ),
-        ],
+            Center(
+              child: TextButton(
+                onPressed: () => showLicensePage(
+                  context: context,
+                  applicationName: 'HA-Phone',
+                  applicationVersion: kAppVersion,
+                ),
+                child: const Text('Lizenzen'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  /// Shown while recording is allowed (directory or list) or recordings exist.
+  /// Rows of one settings group inside a card, separated by hairlines.
+  Widget _group(List<Widget> rows) {
+    final c = context.nw;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: NwCard(
+        padding: EdgeInsets.zero,
+        radius: 20,
+        clip: true,
+        child: Column(
+          children: [
+            for (final (i, r) in rows.indexed) ...[
+              if (i > 0) Divider(height: 1, indent: 56, color: c.stroke),
+              r,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    Color? color,
+    bool chevron = true,
+    Key? key,
+  }) {
+    final c = context.nw;
+    return ListTile(
+      key: key,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Icon(icon, color: color ?? c.blue),
+      title: Text(title, style: color == null ? null : TextStyle(color: color)),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      trailing: chevron ? Icon(Icons.chevron_right, color: c.faint) : null,
+      onTap: onTap,
+    );
+  }
+
+/// Shown while recording is allowed (directory or list) or recordings exist.
   Widget _recordingsTile() {
     return ListenableBuilder(
       listenable: Listenable.merge([_recordings, _dir]),
@@ -235,12 +285,11 @@ class _MeTabState extends State<MeTab> {
         final list = _recordings.recordings;
         final allowed = (_dir.directory?.recordingAllowed ?? false) || _recordings.isAllowed;
         if (!allowed && list.isEmpty) return const SizedBox.shrink();
-        return ListTile(
+        return _tile(
           key: const Key('me-recordings'),
-          leading: const Icon(Icons.mic_none),
-          title: const Text('Aufnahmen'),
-          subtitle: Text(_recordings.hasLoaded ? recordingCountText(list.length) : 'Aufgezeichnete Gespräche'),
-          trailing: const Icon(Icons.chevron_right),
+          icon: Icons.mic_none,
+          title: 'Aufnahmen',
+          subtitle: _recordings.hasLoaded ? recordingCountText(list.length) : 'Aufgezeichnete Gespräche',
           onTap: () => _push(RecordingsScreen(repository: widget._recordings, directory: widget._directory)),
         );
       },
@@ -248,24 +297,22 @@ class _MeTabState extends State<MeTab> {
   }
 
   Widget _registrationTile(BuildContext context) {
+    final c = context.nw;
+    final color = switch (_registration) {
+      RegistrationUi.online => c.answer,
+      RegistrationUi.offline => c.end,
+      RegistrationUi.connecting => c.door,
+    };
+    final icon = switch (_registration) {
+      RegistrationUi.online => Icons.check_circle,
+      RegistrationUi.offline => Icons.error_outline,
+      RegistrationUi.connecting => Icons.sync,
+    };
     return ListTile(
-      leading: Icon(Icons.circle, size: 14, color: _registration.color),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Icon(icon, color: color),
       title: const Text('Verbindung zur Anlage'),
-      subtitle: Text(_registration.label, style: TextStyle(color: _registration.color)),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Text(text, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary)),
+      subtitle: Text(_registration.label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
     );
   }
 }

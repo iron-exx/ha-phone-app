@@ -6,12 +6,13 @@ import '../services/api_client.dart';
 import '../services/directory_repository.dart';
 import '../services/presence_repository.dart';
 import '../theme/app_colors.dart';
-import 'contact_avatar.dart';
+import '../theme/app_theme.dart';
+import 'presence_avatar.dart';
 import 'presence_chip.dart';
 import 'presence_sheet.dart';
 
-/// Top of the Ich tab: own avatar, name, extension, tappable presence chip
-/// and the live line state ("frei", "telefoniert", ...).
+/// Top of the Ich tab: own avatar with presence ring, name, extension,
+/// tappable presence chip and the live line state ("frei", "telefoniert").
 class OwnStatusHeader extends StatelessWidget {
   const OwnStatusHeader({super.key, DirectoryRepository? directory, PresenceRepository? presence})
       : _directory = directory,
@@ -32,49 +33,51 @@ class OwnStatusHeader extends StatelessWidget {
   }
 
   Widget _build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.nw;
     final self = _dir.directory?.self;
     final live = _pres.snapshot?.self;
     final presence = live?.presence ?? self?.presence ?? Presence.unknown;
     final status = ExtensionStatus(presence: presence, line: live?.line ?? LineState.unknown);
     final hint = _hint();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ContactAvatar(
-            name: self?.name ?? '',
-            number: self?.number ?? _pres.snapshot?.selfNumber ?? '',
-            presence: presence,
-            dotColor: status.color,
-            size: 64,
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: PresenceAvatar(
+              name: self?.name ?? '',
+              number: self?.number ?? _pres.snapshot?.selfNumber ?? '',
+              presence: avatarPresenceFor(status),
+              size: 60,
+              background: c.blueSoft,
+              foreground: c.blueOnSoft,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(self?.displayName ?? 'Eigene Nebenstelle', style: theme.textTheme.titleLarge),
+                Text(self?.displayName ?? 'Eigene Nebenstelle', style: NwType.display(24).copyWith(color: c.text)),
+                const SizedBox(height: 2),
                 Text(
                   self == null ? 'Noch nicht geladen' : 'Nebenstelle ${self.number}',
-                  style: tabular(theme.textTheme.bodyMedium),
+                  style: NwType.meta.copyWith(color: c.faint, fontSize: 13),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    PresenceChip(presence: presence, onTap: () => _pick(context, presence)),
-                    if (status.line != LineState.unknown) _lineLabel(theme, status.line),
+                    PresenceChip(presence: presence, onTap: () => pickOwnPresence(context, _pres, presence)),
+                    if (status.line != LineState.unknown) _lineLabel(c, status.line),
                   ],
                 ),
                 if (hint != null) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    hint,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
+                  Text(hint, style: NwType.meta.copyWith(color: c.faint)),
                 ],
               ],
             ),
@@ -90,29 +93,18 @@ class OwnStatusHeader extends StatelessWidget {
     return error.kind == ApiErrorKind.unsupported ? error.message : null;
   }
 
-  Widget _lineLabel(ThemeData theme, LineState line) {
+  Widget _lineLabel(NwColors c, LineState line) {
     final color = switch (line) {
-      LineState.busy || LineState.ringing => AppColors.presenceBusy,
-      _ => theme.colorScheme.onSurfaceVariant,
+      LineState.busy || LineState.ringing => c.end,
+      _ => c.muted,
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.phone_in_talk_outlined, size: 16, color: color),
         const SizedBox(width: 4),
-        Text('Leitung: ${line.label}', style: theme.textTheme.bodySmall?.copyWith(color: color)),
+        Flexible(child: Text('Leitung: ${line.label}', style: NwType.meta.copyWith(color: color))),
       ],
     );
-  }
-
-  Future<void> _pick(BuildContext context, Presence current) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final picked = await PresenceSheet.show(context, current);
-    if (picked == null || picked == current) return;
-    try {
-      await _pres.setOwn(picked);
-    } on ApiException catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Status nicht gespeichert: ${e.message}')));
-    }
   }
 }

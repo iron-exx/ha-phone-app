@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Zwei Leitungen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Manrope:wght@500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#05080B;font-family:'Manrope',system-ui,sans-serif;color:#EAF0F6}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+a{color:#38BDF8}a:hover{color:#7DD3FC}
+.scr{width:390px;height:844px;background:#0B0F14;color:#EAF0F6;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.disp{font-family:'Bricolage Grotesque','Manrope',sans-serif;letter-spacing:-0.01em}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:#A3B0BF}.faint{color:#7B8898}
+.card{background:#131A22;border:1px solid #2A3544;border-radius:22px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#1B2430;border:1px solid #2A3544;font-size:13px;font-weight:600;color:#EAF0F6}
+.chip.on{background:#0E3148;border-color:#38BDF8;color:#BAE6FD}
+.av{position:relative;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;color:#EAF0F6;background:#243040}
+.ring{position:absolute;inset:-3px;border-radius:50%;border:2.5px solid}
+.glyph{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid #0B0F14}
+.nav{position:absolute;left:0;right:0;bottom:0;height:88px;padding:0 18px 18px;display:flex;align-items:flex-end;justify-content:space-between;background:linear-gradient(to top,#0B0F14 70%,rgba(11,15,20,0))}
+.tab{width:72px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;color:#7B8898;border-radius:18px}
+.tab.on{color:#EAF0F6}
+.tab.on .pill{background:#0E3148;color:#38BDF8}
+.pill{width:52px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+.fab{width:68px;height:68px;border-radius:24px;background:#38BDF8;color:#04263A;display:flex;align-items:center;justify-content:center;margin-bottom:4px;box-shadow:0 10px 30px rgba(56,189,248,.28)}
+.row{display:flex;align-items:center;gap:14px;padding:10px 20px;min-height:64px}
+.sec{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7B8898;padding:18px 20px 6px}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#A3B0BF}
+.ctlb{width:100%;height:72px;border-radius:22px;background:#1B2430;display:flex;align-items:center;justify-content:center;color:#EAF0F6}
+.ctlb.act{background:#EAF0F6;color:#0B0F14}
+.big{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.bar{position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0}
+</style>
+</helmet>
+<div class="scr">
+<div style="margin:16px 16px 0;padding:10px 12px;border-radius:18px;background:#131A22;border:1px solid #2A3544;display:flex;align-items:center;gap:12px">
+<div class="av" style="width:38px;height:38px;font-size:13px;background:#243040">SA<span class="ring" style="border-color:#2FBF71"></span><span class="glyph" style="background:#2FBF71;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></div><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:800">sandro</span><span class="num" style="font-size:12px;color:#F5A524">gehalten · 01:02</span></div>
+<button class="chip" style="height:36px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg> Tauschen</button></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:44px 0 0">
+<div class="av" style="width:112px;height:112px;font-size:40px;background:#0E3148">OE<span class="ring" style="border-color:#E5484D"></span><span class="glyph" style="background:#E5484D;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></span></div>
+<div class="disp" style="font-size:30px;font-weight:800;margin-top:8px">Oma Erika</div>
+<div class="num muted" style="font-size:15px">Handy · 04:31</div>
+<button class="chip" style="margin-top:6px;height:38px;background:#0E3148;border-color:#38BDF8;color:#BAE6FD"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#BAE6FD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg> Zusammenführen</button></div>
+<div style="flex:1"></div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 14px;padding:0 24px"><div class="ctl"><button class="ctlb" style="" aria-label="Stumm"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20"/><path d="M18.9 13A7 7 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3"/><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M12 19v3"/></svg></button>Stumm</div><div class="ctl"><button class="ctlb" style="" aria-label="Lautsprecher"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></button>Lautsprecher</div><div class="ctl"><button class="ctlb" style="" aria-label="Halten"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button>Halten</div><div class="ctl"><button class="ctlb" style="" aria-label="Tastatur"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="1.2"/><circle cx="12" cy="5" r="1.2"/><circle cx="18" cy="5" r="1.2"/><circle cx="6" cy="11" r="1.2"/><circle cx="12" cy="11" r="1.2"/><circle cx="18" cy="11" r="1.2"/><circle cx="6" cy="17" r="1.2"/><circle cx="12" cy="17" r="1.2"/><circle cx="18" cy="17" r="1.2"/><circle cx="12" cy="22" r="1.2"/></svg></button>Tastatur</div><div class="ctl"><button class="ctlb" style="" aria-label="Weiterleiten"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg></button>Weiterleiten</div><div class="ctl"><button class="ctlb" style="" aria-label="Mehr"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>Mehr</div></div>
+<div style="display:flex;justify-content:center;padding:22px 0 30px"><button class="big" style="width:80px;height:80px;background:#E5484D;color:#fff" aria-label="Auflegen"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.7 13.3a16 16 0 0 1-2.7-3.5l1.3-1.3a2 2 0 0 0 .5-2.1c-.3-.9-.6-1.8-.7-2.7A2 2 0 0 0 7.1 2h-3a2 2 0 0 0-2 2.2 19.8 19.8 0 0 0 3.1 8.6"/><path d="M22 2 2 22"/><path d="M14.7 16.4a16 16 0 0 0 1.4.6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1"/></svg></button></div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

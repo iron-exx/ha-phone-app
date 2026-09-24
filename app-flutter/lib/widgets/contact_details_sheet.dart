@@ -5,7 +5,8 @@ import '../models/extension_status.dart';
 import '../services/favorites_store.dart';
 import '../services/presence_repository.dart';
 import '../theme/app_colors.dart';
-import 'contact_avatar.dart';
+import '../theme/app_theme.dart';
+import 'presence_avatar.dart';
 
 /// Long-press details: big avatar, number, live status (like the list rows:
 /// "telefoniert" wins over the presence), Anrufen + Favorit.
@@ -45,6 +46,7 @@ class ContactDetailsSheet extends StatelessWidget {
 
   Widget _build(BuildContext context, ExtensionStatus live) {
     final theme = Theme.of(context);
+    final c = context.nw;
     final favorites = FavoritesStore.instance;
     return SafeArea(
       child: Padding(
@@ -52,15 +54,17 @@ class ContactDetailsSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ContactAvatar(
-              name: contact.name,
-              number: contact.number,
-              presence: contact.isExtension ? live.presence : null,
-              dotColor: contact.isExtension ? live.color : null,
-              size: 72,
-            ),
+            if (contact.isDoorStation)
+              const PresenceAvatar.door(size: 72)
+            else
+              PresenceAvatar(
+                name: contact.name,
+                number: contact.number,
+                presence: contact.isExtension ? avatarPresenceFor(live) : null,
+                size: 72,
+              ),
             const SizedBox(height: 12),
-            Text(contact.displayName, style: theme.textTheme.titleLarge),
+            Text(contact.displayName, style: NwType.display(26).copyWith(color: c.text), textAlign: TextAlign.center),
             const SizedBox(height: 4),
             Text(
               contact.isExtension
@@ -78,8 +82,8 @@ class ContactDetailsSheet extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.answer,
-                      foregroundColor: Colors.white,
+                      backgroundColor: c.answer,
+                      foregroundColor: c.answerInk,
                       minimumSize: const Size.fromHeight(52),
                     ),
                     icon: const Icon(Icons.call),

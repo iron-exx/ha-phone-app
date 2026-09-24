@@ -3,9 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/models/contact.dart';
 import 'package:ha_phone_test/models/presence.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
-import 'package:ha_phone_test/theme/app_colors.dart';
-import 'package:ha_phone_test/widgets/contact_avatar.dart';
 import 'package:ha_phone_test/widgets/contact_details_sheet.dart';
+import 'package:ha_phone_test/widgets/presence_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/fake_api.dart';
@@ -31,7 +30,7 @@ void main() {
     ));
 
     expect(find.text('Nebenstelle 11 · telefoniert'), findsOneWidget);
-    expect(tester.widget<ContactAvatar>(find.byType(ContactAvatar)).dotColor, AppColors.presenceBusy);
+    expect(tester.widget<PresenceAvatar>(find.byType(PresenceAvatar)).presence, AvatarPresence.busy);
   });
 
   testWidgets('without live data the directory presence is shown', (tester) async {

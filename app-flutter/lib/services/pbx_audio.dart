@@ -37,6 +37,9 @@ abstract class PbxAudio {
   Future<void> play();
   Future<void> pause();
   Future<void> seek(Duration position);
+
+  /// Playback speed (1.0, 1.5, 2.0).
+  Future<void> setSpeed(double speed);
   Future<void> dispose();
 }
 
@@ -97,6 +100,9 @@ class JustAudioPbx implements PbxAudio {
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> setSpeed(double speed) => _player.setSpeed(speed);
 
   @override
   Future<void> dispose() async {

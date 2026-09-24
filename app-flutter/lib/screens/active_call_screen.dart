@@ -403,6 +403,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
             key: const Key('hangup'),
             color: AppColors.hangup,
             icon: Icons.call_end,
+            size: 80,
             tooltip: 'Auflegen',
             onPressed: _endCall,
           ),

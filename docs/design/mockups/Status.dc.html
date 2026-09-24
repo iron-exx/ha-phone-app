@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Status und Klingeln</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Manrope:wght@500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#05080B;font-family:'Manrope',system-ui,sans-serif;color:#EAF0F6}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+a{color:#38BDF8}a:hover{color:#7DD3FC}
+.scr{width:390px;height:844px;background:#0B0F14;color:#EAF0F6;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.disp{font-family:'Bricolage Grotesque','Manrope',sans-serif;letter-spacing:-0.01em}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:#A3B0BF}.faint{color:#7B8898}
+.card{background:#131A22;border:1px solid #2A3544;border-radius:22px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#1B2430;border:1px solid #2A3544;font-size:13px;font-weight:600;color:#EAF0F6}
+.chip.on{background:#0E3148;border-color:#38BDF8;color:#BAE6FD}
+.av{position:relative;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;color:#EAF0F6;background:#243040}
+.ring{position:absolute;inset:-3px;border-radius:50%;border:2.5px solid}
+.glyph{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid #0B0F14}
+.nav{position:absolute;left:0;right:0;bottom:0;height:88px;padding:0 18px 18px;display:flex;align-items:flex-end;justify-content:space-between;background:linear-gradient(to top,#0B0F14 70%,rgba(11,15,20,0))}
+.tab{width:72px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;color:#7B8898;border-radius:18px}
+.tab.on{color:#EAF0F6}
+.tab.on .pill{background:#0E3148;color:#38BDF8}
+.pill{width:52px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+.fab{width:68px;height:68px;border-radius:24px;background:#38BDF8;color:#04263A;display:flex;align-items:center;justify-content:center;margin-bottom:4px;box-shadow:0 10px 30px rgba(56,189,248,.28)}
+.row{display:flex;align-items:center;gap:14px;padding:10px 20px;min-height:64px}
+.sec{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7B8898;padding:18px 20px 6px}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#A3B0BF}
+.ctlb{width:100%;height:72px;border-radius:22px;background:#1B2430;display:flex;align-items:center;justify-content:center;color:#EAF0F6}
+.ctlb.act{background:#EAF0F6;color:#0B0F14}
+.big{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.bar{position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0}
+</style>
+</helmet>
+<div class="scr">
+<div style="display:flex;align-items:center;gap:14px;padding:22px 20px 14px"><div class="av" style="width:60px;height:60px;font-size:21px;background:#0E3148">EM<span class="ring" style="border-color:#2FBF71"></span><span class="glyph" style="background:#2FBF71;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span class="disp" style="font-size:24px;font-weight:800">Emulator-Test</span><span class="faint" style="font-size:13px">Nebenstelle 18 · HA-Phone 0.7.116</span></div></div>
+<div class="sec" style="padding-top:4px">Status für alle</div>
+<div style="display:flex;flex-direction:column;gap:8px;padding:0 16px"><button style="height:62px;border-radius:18px;background:#0E3148;border:1px solid #38BDF8;display:flex;align-items:center;gap:14px;padding:0 14px;text-align:left">
+<span style="width:34px;height:34px;border-radius:50%;background:#2FBF71;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+<span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Verfügbar</span><span class="faint" style="font-size:12px">Anrufe klingeln wie eingestellt</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button><button style="height:62px;border-radius:18px;background:#1B2430;border:1px solid transparent;display:flex;align-items:center;gap:14px;padding:0 14px;text-align:left">
+<span style="width:34px;height:34px;border-radius:50%;background:#F5A524;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></span>
+<span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Abwesend</span><span class="faint" style="font-size:12px">Nach 20 s zur Voicemail</span></span></button><button style="height:62px;border-radius:18px;background:#1B2430;border:1px solid transparent;display:flex;align-items:center;gap:14px;padding:0 14px;text-align:left">
+<span style="width:34px;height:34px;border-radius:50%;background:#E5484D;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg></span>
+<span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Nicht stören</span><span class="faint" style="font-size:12px">Direkt zur Voicemail</span></span></button><button style="height:62px;border-radius:18px;background:#1B2430;border:1px solid transparent;display:flex;align-items:center;gap:14px;padding:0 14px;text-align:left">
+<span style="width:34px;height:34px;border-radius:50%;background:#7B8898;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></span>
+<span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:15px">Feierabend</span><span class="faint" style="font-size:12px">Nur Tür und Favoriten</span></span></button></div>
+<div class="sec">Nur dieses Handy</div>
+<div class="card" style="margin:0 16px;padding:14px;display:flex;flex-direction:column;gap:12px;border-radius:20px">
+<div style="display:flex;align-items:center;gap:12px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2FBF71" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">Klingeln auf diesem Handy</span><span class="faint" style="font-size:12px">Tischtelefon klingelt weiter</span></div>
+<button role="switch" aria-checked="true" aria-label="Klingeln auf diesem Handy" style="width:52px;height:32px;border-radius:16px;background:#2FBF71;position:relative"><span style="position:absolute;right:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff"></span></button></div>
+<div style="display:flex;gap:8px"><button class="chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.7 3A6 6 0 0 1 18 8a21 21 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.7 4.7 0 0 1 .3-1.7"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/><path d="m2 2 20 20"/></svg> 1 Std</button><button class="chip">bis 17:00</button><button class="chip">bis morgen</button></div></div>
+<div class="card" style="margin:10px 16px 0;padding:12px 14px;display:flex;align-items:center;gap:12px;border-radius:18px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+<div style="flex:1;font-size:13px;line-height:1.35"><b>Nicht rangegangen</b> → nach 20 s → <b>Voicemail</b></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7B8898" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></div>
+<nav class="nav"><button class="tab"><span class="pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>Start</button><button class="tab"><span class="pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></span>Verlauf<span style="position:absolute;margin:-18px 0 0 26px;min-width:18px;height:18px;border-radius:9px;background:#E5484D;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px">3</span></button><button class="fab" aria-label="Wählen"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04263A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="1.2"/><circle cx="12" cy="5" r="1.2"/><circle cx="18" cy="5" r="1.2"/><circle cx="6" cy="11" r="1.2"/><circle cx="12" cy="11" r="1.2"/><circle cx="18" cy="11" r="1.2"/><circle cx="6" cy="17" r="1.2"/><circle cx="12" cy="17" r="1.2"/><circle cx="18" cy="17" r="1.2"/><circle cx="12" cy="22" r="1.2"/></svg></button><button class="tab"><span class="pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>Kontakte</button><button class="tab on"><span class="pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Ich</button></nav></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

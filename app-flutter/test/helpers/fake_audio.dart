@@ -29,6 +29,11 @@ class FakeAudio implements PbxAudio {
   Future<void> pause() async => _playing.add(false);
   @override
   Future<void> seek(Duration position) async {}
+
+  /// Last speed set (1.0 until changed).
+  var speed = 1.0;
+  @override
+  Future<void> setSpeed(double speed) async => this.speed = speed;
   @override
   Future<void> dispose() => _playing.close();
 }

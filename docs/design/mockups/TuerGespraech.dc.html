@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Türgespräch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Manrope:wght@500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#05080B;font-family:'Manrope',system-ui,sans-serif;color:#EAF0F6}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+a{color:#38BDF8}a:hover{color:#7DD3FC}
+.scr{width:390px;height:844px;background:#0B0F14;color:#EAF0F6;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.disp{font-family:'Bricolage Grotesque','Manrope',sans-serif;letter-spacing:-0.01em}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:#A3B0BF}.faint{color:#7B8898}
+.card{background:#131A22;border:1px solid #2A3544;border-radius:22px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#1B2430;border:1px solid #2A3544;font-size:13px;font-weight:600;color:#EAF0F6}
+.chip.on{background:#0E3148;border-color:#38BDF8;color:#BAE6FD}
+.av{position:relative;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;color:#EAF0F6;background:#243040}
+.ring{position:absolute;inset:-3px;border-radius:50%;border:2.5px solid}
+.glyph{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid #0B0F14}
+.nav{position:absolute;left:0;right:0;bottom:0;height:88px;padding:0 18px 18px;display:flex;align-items:flex-end;justify-content:space-between;background:linear-gradient(to top,#0B0F14 70%,rgba(11,15,20,0))}
+.tab{width:72px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;color:#7B8898;border-radius:18px}
+.tab.on{color:#EAF0F6}
+.tab.on .pill{background:#0E3148;color:#38BDF8}
+.pill{width:52px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+.fab{width:68px;height:68px;border-radius:24px;background:#38BDF8;color:#04263A;display:flex;align-items:center;justify-content:center;margin-bottom:4px;box-shadow:0 10px 30px rgba(56,189,248,.28)}
+.row{display:flex;align-items:center;gap:14px;padding:10px 20px;min-height:64px}
+.sec{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7B8898;padding:18px 20px 6px}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#A3B0BF}
+.ctlb{width:100%;height:72px;border-radius:22px;background:#1B2430;display:flex;align-items:center;justify-content:center;color:#EAF0F6}
+.ctlb.act{background:#EAF0F6;color:#0B0F14}
+.big{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.bar{position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0}
+</style>
+</helmet>
+<div class="scr">
+<div style="margin:16px 16px 0;height:300px;border-radius:26px;background:#15110D;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:#7D6D5A"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#7D6D5A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><span style="font-size:12px;font-weight:700">Live-Bild</span></div>
+<span style="position:absolute;left:12px;top:12px;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;background:rgba(11,15,20,.72);font-size:12px;font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5A524" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.6v16.2a1 1 0 0 1-1.2 1L5 20V5.6a2 2 0 0 1 1.5-1.9l4-1a2 2 0 0 1 2.5 1.9z"/></svg> Haustür</span>
+<span style="position:absolute;right:12px;top:12px;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;background:#E5484D;color:#fff;font-size:12px;font-weight:800"><span style="width:7px;height:7px;border-radius:50%;background:#fff"></span>REC 00:18</span>
+</div>
+<div style="text-align:center;padding:16px 0 18px"><div class="disp" style="font-size:26px;font-weight:800">Haustür</div><div class="num muted" style="font-size:14px;margin-top:2px">00:42 · HD-Audio</div></div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 14px;padding:0 24px"><div class="ctl"><button class="ctlb" style="" aria-label="Stumm"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20"/><path d="M18.9 13A7 7 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3"/><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M12 19v3"/></svg></button>Stumm</div><div class="ctl"><button class="ctlb act" style="" aria-label="Lautsprecher"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></button>Lautsprecher</div><div class="ctl"><button class="ctlb" style="background:#F5A524;color:#2A1800" aria-label="Tür öffnen"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.6v16.2a1 1 0 0 1-1.2 1L5 20V5.6a2 2 0 0 1 1.5-1.9l4-1a2 2 0 0 1 2.5 1.9z"/></svg></button>Tür öffnen</div><div class="ctl"><button class="ctlb" style="" aria-label="Tastatur"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="1.2"/><circle cx="12" cy="5" r="1.2"/><circle cx="18" cy="5" r="1.2"/><circle cx="6" cy="11" r="1.2"/><circle cx="12" cy="11" r="1.2"/><circle cx="18" cy="11" r="1.2"/><circle cx="6" cy="17" r="1.2"/><circle cx="12" cy="17" r="1.2"/><circle cx="18" cy="17" r="1.2"/><circle cx="12" cy="22" r="1.2"/></svg></button>Tastatur</div><div class="ctl"><button class="ctlb" style="" aria-label="Licht an"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.1 14c.2-1 .7-1.7 1.5-2.5A6 6 0 1 0 6 8c0 1.3.5 2.6 1.5 3.5.7.8 1.3 1.5 1.5 2.5"/></svg></button>Licht an</div><div class="ctl"><button class="ctlb" style="" aria-label="Mehr"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>Mehr</div></div>
+<div style="flex:1"></div><div style="display:flex;justify-content:center;padding:22px 0 30px"><button class="big" style="width:80px;height:80px;background:#E5484D;color:#fff" aria-label="Auflegen"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.7 13.3a16 16 0 0 1-2.7-3.5l1.3-1.3a2 2 0 0 0 .5-2.1c-.3-.9-.6-1.8-.7-2.7A2 2 0 0 0 7.1 2h-3a2 2 0 0 0-2 2.2 19.8 19.8 0 0 0 3.1 8.6"/><path d="M22 2 2 22"/><path d="M14.7 16.4a16 16 0 0 0 1.4.6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1"/></svg></button></div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

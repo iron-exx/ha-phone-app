@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Design-System</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Manrope:wght@500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;background:#05080B;font-family:'Manrope',system-ui,sans-serif;color:#EAF0F6}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+a{color:#38BDF8}a:hover{color:#7DD3FC}
+.scr{width:390px;height:844px;background:#0B0F14;color:#EAF0F6;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.disp{font-family:'Bricolage Grotesque','Manrope',sans-serif;letter-spacing:-0.01em}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:#A3B0BF}.faint{color:#7B8898}
+.card{background:#131A22;border:1px solid #2A3544;border-radius:22px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#1B2430;border:1px solid #2A3544;font-size:13px;font-weight:600;color:#EAF0F6}
+.chip.on{background:#0E3148;border-color:#38BDF8;color:#BAE6FD}
+.av{position:relative;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;color:#EAF0F6;background:#243040}
+.ring{position:absolute;inset:-3px;border-radius:50%;border:2.5px solid}
+.glyph{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid #0B0F14}
+.nav{position:absolute;left:0;right:0;bottom:0;height:88px;padding:0 18px 18px;display:flex;align-items:flex-end;justify-content:space-between;background:linear-gradient(to top,#0B0F14 70%,rgba(11,15,20,0))}
+.tab{width:72px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;color:#7B8898;border-radius:18px}
+.tab.on{color:#EAF0F6}
+.tab.on .pill{background:#0E3148;color:#38BDF8}
+.pill{width:52px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+.fab{width:68px;height:68px;border-radius:24px;background:#38BDF8;color:#04263A;display:flex;align-items:center;justify-content:center;margin-bottom:4px;box-shadow:0 10px 30px rgba(56,189,248,.28)}
+.row{display:flex;align-items:center;gap:14px;padding:10px 20px;min-height:64px}
+.sec{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7B8898;padding:18px 20px 6px}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#A3B0BF}
+.ctlb{width:100%;height:72px;border-radius:22px;background:#1B2430;display:flex;align-items:center;justify-content:center;color:#EAF0F6}
+.ctlb.act{background:#EAF0F6;color:#0B0F14}
+.big{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.bar{position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0}
+</style>
+</helmet>
+<div style="width:1280px;height:844px;background:#0B0F14;color:#EAF0F6;padding:56px 64px;display:flex;flex-direction:column;gap:36px;box-sizing:border-box">
+<div style="display:flex;justify-content:space-between;align-items:flex-end"><div><div class="disp" style="font-size:56px;font-weight:800;line-height:1">Nachtwache</div><div class="muted" style="font-size:16px;margin-top:10px">Design-System der HA-Phone App · dunkel zuerst, helles Thema mit denselben Rollen</div></div>
+<div class="faint" style="font-size:13px;text-align:right;line-height:1.6">Bricolage Grotesque · Titel und Zahlen<br>Manrope · Oberfläche und Text</div></div>
+<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:14px"><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#0B0F14;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Grund</span><span class="num faint" style="font-size:12px">#0B0F14</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#131A22;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Fläche</span><span class="num faint" style="font-size:12px">#131A22</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#1B2430;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Erhöht</span><span class="num faint" style="font-size:12px">#1B2430</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#2A3544;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Linie</span><span class="num faint" style="font-size:12px">#2A3544</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#EAF0F6;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Text</span><span class="num faint" style="font-size:12px">#EAF0F6</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#A3B0BF;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Leise</span><span class="num faint" style="font-size:12px">#A3B0BF</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#38BDF8;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">HA-Blau</span><span class="num faint" style="font-size:12px">#38BDF8</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#2FBF71;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Annehmen</span><span class="num faint" style="font-size:12px">#2FBF71</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#E5484D;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Auflegen</span><span class="num faint" style="font-size:12px">#E5484D</span></div><div style="display:flex;flex-direction:column;gap:8px"><div style="height:72px;border-radius:18px;background:#F5A524;border:1px solid #2A3544"></div><span style="font-size:13px;font-weight:800">Tür</span><span class="num faint" style="font-size:12px">#F5A524</span></div></div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px">
+<div style="display:flex;flex-direction:column;gap:12px"><div class="sec" style="padding:0">Schrift</div>
+<span class="disp" style="font-size:40px;font-weight:800;line-height:1.05">Haustür</span><span class="disp num" style="font-size:28px;font-weight:700">0171 123 45</span>
+<span style="font-size:15px;font-weight:700">Oma Erika · Zeilentitel 15</span><span class="muted" style="font-size:13px">Metazeile 12,5 · leise, 4,5:1 Kontrast</span></div>
+<div style="display:flex;flex-direction:column;gap:14px"><div class="sec" style="padding:0">Präsenz = Farbe + Form</div><div style="display:flex;align-items:center;gap:12px"><div class="av" style="width:48px;height:48px;font-size:17px;background:#243040">VF<span class="ring" style="border-color:#2FBF71"></span><span class="glyph" style="background:#2FBF71;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></div><span style="font-weight:700">verfügbar</span></div><div style="display:flex;align-items:center;gap:12px"><div class="av" style="width:48px;height:48px;font-size:17px;background:#243040">AB<span class="ring" style="border-color:#F5A524"></span><span class="glyph" style="background:#F5A524;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></span></div><span style="font-weight:700">abwesend</span></div><div style="display:flex;align-items:center;gap:12px"><div class="av" style="width:48px;height:48px;font-size:17px;background:#243040">NS<span class="ring" style="border-color:#E5484D"></span><span class="glyph" style="background:#E5484D;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg></span></div><span style="font-weight:700">nicht stören</span></div><div style="display:flex;align-items:center;gap:12px"><div class="av" style="width:48px;height:48px;font-size:17px;background:#243040">TL<span class="ring" style="border-color:#E5484D"></span><span class="glyph" style="background:#E5484D;color:#0B0F14"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></span></div><span style="font-weight:700">telefoniert</span></div><div style="display:flex;align-items:center;gap:12px"><div class="av" style="width:48px;height:48px;font-size:17px;background:#243040">OF</div><span style="font-weight:700">offline</span></div></div>
+<div style="display:flex;flex-direction:column;gap:16px"><div class="sec" style="padding:0">Anrufaktionen</div>
+<div style="display:flex;gap:18px;align-items:center">
+<button class="big" style="background:#2FBF71" aria-label="Annehmen"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#032313" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></button>
+<button class="big" style="background:#E5484D" aria-label="Auflegen"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.7 13.3a16 16 0 0 1-2.7-3.5l1.3-1.3a2 2 0 0 0 .5-2.1c-.3-.9-.6-1.8-.7-2.7A2 2 0 0 0 7.1 2h-3a2 2 0 0 0-2 2.2 19.8 19.8 0 0 0 3.1 8.6"/><path d="M22 2 2 22"/><path d="M14.7 16.4a16 16 0 0 0 1.4.6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1"/></svg></button>
+<button class="big" style="background:#F5A524" aria-label="Tür öffnen"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2A1800" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.6v16.2a1 1 0 0 1-1.2 1L5 20V5.6a2 2 0 0 1 1.5-1.9l4-1a2 2 0 0 1 2.5 1.9z"/></svg></button>
+<button class="big" style="border-radius:24px;background:#1B2430" aria-label="Stumm"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 2l20 20"/><path d="M18.9 13A7 7 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5"/><path d="M15 9.3V5a3 3 0 0 0-5.7-1.3"/><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M12 19v3"/></svg></button></div>
+<span class="muted" style="font-size:13px;line-height:1.5">Grün nur für Annehmen, Rot nur für Auflegen und Aufnahme, Bernstein nur für die Tür. Runde 76-dp-Tasten, Steuertasten 72 dp hoch mit 22 dp Radius.</span></div></div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

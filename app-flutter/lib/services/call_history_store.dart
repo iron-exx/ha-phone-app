@@ -8,7 +8,7 @@ import 'foreground_poller.dart';
 import 'local_store.dart';
 import 'sip_channel.dart';
 
-/// Call history of the Anrufe tab: the local history (recorded natively)
+/// Call history of the Verlauf tab: the local history (recorded natively)
 /// merged with the PBX log (GET /api/mobile/calls, all devices of the own
 /// extension), plus the "missed since last opened" badge count.
 ///
@@ -53,6 +53,9 @@ class CallHistoryStore extends ChangeNotifier {
   /// the local entries.
   ApiException? get pbxError => _pbxError;
   int get unseenMissed => countMergedMissedSince(_calls, _lastSeen);
+
+  /// When the Verlauf was last looked at (missed calls after it are new), null if never.
+  DateTime? get lastSeen => _lastSeen;
 
   /// True while the Anrufe tab is on screen: polls the PBX every minute
   /// and counts new missed calls as seen.

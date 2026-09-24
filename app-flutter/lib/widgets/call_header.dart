@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import 'contact_avatar.dart';
+import 'presence_avatar.dart';
 
 /// Top of the active-call screen: avatar, name, number, status, TLS lock.
 class CallHeader extends StatelessWidget {
@@ -32,7 +32,7 @@ class CallHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!compact) ...[
-          ContactAvatar(name: name, number: number, size: 96),
+          isDoor ? const PresenceAvatar.door(size: 96) : PresenceAvatar(name: name, number: number, size: 96),
           const SizedBox(height: 16),
         ],
         Text(
