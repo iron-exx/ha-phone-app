@@ -137,9 +137,14 @@ class HAPhoneTestApplication : Application() {
     /** Keeps the process (and so the SIP registration) alive in the background. */
     fun startSipService() {
         if (!hasValidCredentials()) return
-        androidx.core.content.ContextCompat.startForegroundService(
-            this, android.content.Intent(this, SipService::class.java),
-        )
+        // From the background (watchdog, alarm) Android 12+ may refuse; the alarm and an
+        // exempted battery optimisation normally allow it, the watchdog retries otherwise.
+        runCatching {
+            androidx.core.content.ContextCompat.startForegroundService(
+                this, android.content.Intent(this, SipService::class.java),
+            )
+        }.onFailure { android.util.Log.w(de.haphone.app.test.reach.ReachabilityMonitor.TAG, "could not start service", it) }
+        de.haphone.app.test.reach.WatchdogWorker.ensureScheduled(this)
     }
 
     /** Last call gone: release Telecom, ringing UI, notifications and the video window. */
@@ -182,6 +187,7 @@ class HAPhoneTestApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        de.haphone.app.test.reach.ReachabilityMonitor.attach(this)
         val channel = NotificationChannel(
             CallNotificationBuilder.CHANNEL_ID,
             "HA-Phone Test Calls",
@@ -220,6 +226,7 @@ class HAPhoneTestApplication : Application() {
             // from the thread it was started on (main), so hop there first.
             override fun onAvailable(network: android.net.Network) {
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    de.haphone.app.test.reach.ReachabilityMonitor.onIpChange()
                     networkChangeHandler.onNetworkAvailable()
                 }
             }
@@ -294,6 +301,7 @@ class HAPhoneTestApplication : Application() {
 
     fun clearCredentials() {
         getEncryptedPrefs(this).edit().clear().apply()
+        de.haphone.app.test.reach.ReachabilityMonitor.stop(this)
     }
 
     /** Used internally for actual SIP registration -- falls back to

@@ -77,6 +77,8 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.1")
     implementation("com.google.crypto.tink:tink-android:1.14.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    // 15-minute reachability watchdog (reach/WatchdogWorker).
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Compose stays, scoped to the one native screen that still uses it
     // (IncomingCallActivity) -- see that file's doc comment for why it's

@@ -30,6 +30,11 @@ class SipCallController(
         sipOps.register()
     }
 
+    /** Refresh the registration right now (ReachabilityMonitor: alarm, transport drop, watchdog). */
+    fun renewRegistration() {
+        sipOps.renewRegistration()
+    }
+
     fun unregister() {
         sipOps.unregister()
         CallEventBus.emitRegistrationState("unregistered")

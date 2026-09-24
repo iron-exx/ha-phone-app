@@ -23,6 +23,8 @@ class SipService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
+        android.util.Log.i(de.haphone.app.test.reach.ReachabilityMonitor.TAG, "service created")
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "HA-Phone Verbindung", NotificationManager.IMPORTANCE_LOW).apply {
@@ -54,12 +56,31 @@ class SipService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         runCatching { (application as HAPhoneTestApplication).sipCallController.register() }
             .onFailure { android.util.Log.w("SipService", "SIP register failed", it) }
+        // Also covers a START_STICKY restart after the process was killed.
+        de.haphone.app.test.reach.WatchdogWorker.ensureScheduled(this)
         return START_STICKY
+    }
+
+    /** User swiped the app away: the service normally survives, but some OEMs kill the process next. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        de.haphone.app.test.reach.ReachabilityMonitor.onTaskRemoved(this)
+        super.onTaskRemoved(rootIntent)
+    }
+
+    override fun onDestroy() {
+        isRunning = false
+        android.util.Log.w(de.haphone.app.test.reach.ReachabilityMonitor.TAG, "service destroyed")
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        /** True between onCreate and onDestroy (same process only), for the watchdog and the snapshot. */
+        @Volatile
+        var isRunning = false
+            private set
+
         private const val CHANNEL_ID = "haphone_service"
         private const val NOTIFICATION_ID = 1002
     }
@@ -68,6 +89,7 @@ class SipService : Service() {
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            android.util.Log.i(de.haphone.app.test.reach.ReachabilityMonitor.TAG, "boot/update: ${intent.action}")
             (context.applicationContext as HAPhoneTestApplication).startSipService()
         }
     }

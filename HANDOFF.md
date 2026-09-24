@@ -144,6 +144,8 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
+**Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
+
 1. **Phase 6 Extras** (Nutzer: "mach weiter"):
    - Gesprächsaufzeichnung: Anlage `Extension.recording_allowed` (Standard aus, Hinweis zur Rechtslage im Admin), App-Endpunkt `POST /api/mobile/recording {start|stop}` → AMI `MixMonitor` / `StopMixMonitor` auf den Kanal der Nebenstelle; Aufnahmen unter `/data/recordings/<ext>/`, `GET /api/mobile/recordings` + Audio. App: Taste "Aufnehmen" im Gesprächsbildschirm (nur wenn erlaubt), Liste im Ich-Reiter.
    - Gespräch umlegen (Call Flip): Code `*55` in der Anlage holt das laufende Gespräch der eigenen Nebenstelle auf das wählende Gerät (Bridge/Pickup des anderen Kanals derselben Nebenstelle).

@@ -9,6 +9,8 @@ package de.haphone.app.test.sip
 interface SipCallOperations {
     fun register()
     fun unregister()
+    /** Re-REGISTER now (Doze alarm, dropped connection); creates the account if it is gone. */
+    fun renewRegistration() = register()
     /** Returns the new pjsua call id; an existing call is put on hold behind it. */
     fun makeCall(uri: String): Int
     fun answer(): Boolean // false = SIP negotiation failed

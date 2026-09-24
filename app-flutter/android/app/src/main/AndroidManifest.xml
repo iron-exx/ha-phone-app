@@ -18,6 +18,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Doze-proof re-REGISTER alarm (reach/RegistrationAlarm). User-grantable on API 31+
+         ("Alarme & Erinnerungen"); without it the app falls back to inexact
+         setAndAllowWhileIdle. USE_EXACT_ALARM is deliberately NOT used (Play policy:
+         alarm/calendar apps only). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:name=".HAPhoneTestApplication"
@@ -90,6 +95,13 @@
         </receiver>
 
         <receiver android:name=".CallActionReceiver" android:exported="false" />
+
+        <!-- Registration refresh / service restart alarms; re-arms when exact alarms get allowed. -->
+        <receiver android:name=".reach.RegistrationAlarmReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <service android:name=".TestFcmService" android:exported="false">
             <intent-filter>

@@ -88,8 +88,24 @@ private class LogcatWriter : org.pjsip.pjsua2.LogWriter() {
     }
 }
 
+/**
+ * Endpoint subclass only for [onTransportState]: a dead TLS connection means the PBX
+ * can no longer reach us, so ReachabilityMonitor re-registers at once (with backoff).
+ * Called on the PJSIP worker thread -> hop to main.
+ */
+private class HAPhoneEndpoint : Endpoint() {
+    override fun onTransportState(prm: org.pjsip.pjsua2.OnTransportStateParam) {
+        val type = runCatching { prm.type }.getOrDefault("?")
+        val state = prm.state
+        val lastError = prm.lastError
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            de.haphone.app.test.reach.ReachabilityMonitor.onTransportState(type, state, lastError)
+        }
+    }
+}
+
 class PjsuaEndpointHolder : IpChangeNotifier {
-    private val endpoint = Endpoint()
+    private val endpoint: Endpoint = HAPhoneEndpoint()
     private var started = false
     private var libInitialized = false
     // Must stay strongly referenced: PJSIP holds only a native pointer, a GC'd writer crashes on the next log line.
@@ -228,6 +244,15 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 // default 5 minutes (first retry fast, then every 30 s).
                 cfg.regConfig.firstRetryIntervalSec = 5
                 cfg.regConfig.retryIntervalSec = 30
+                // Explicit, shorter than Asterisk's default 3600 s: PJSIP's own refresh timer
+                // freezes in Doze, so ReachabilityMonitor's alarm re-REGISTERs ~120 s before
+                // this runs out; a lost refresh then costs minutes of unreachability, not an hour.
+                cfg.regConfig.timeoutSec = de.haphone.app.test.reach.ReachPolicy.REGISTRATION_EXPIRES_SEC.toLong()
+                // TLS keep-alive: PJSIP sends CRLFCRLF every PJSIP_TLS_KEEP_ALIVE_INTERVAL (90 s,
+                // compiled in; not settable through pjsua2) on an idle connection, and the PBX
+                // qualifies every 60 s. sipOutboundUse (RFC 5626, default on) keeps inbound
+                // requests on this same connection.
+                cfg.natConfig.sipOutboundUse = 1
                 val cred = org.pjsip.pjsua2.AuthCredInfo("digest", "*", username, 0, password)
                 cfg.sipConfig.authCreds.add(cred)
                 // DEV-ONLY (RESEARCH.md Pitfall 5): self-signed cert for the
@@ -248,6 +273,16 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 val acc = HAPhoneAccount()
                 acc.create(cfg)
                 account = acc
+            }
+
+            override fun renewRegistration() {
+                val acc = account
+                if (acc == null || !acc.isValid) {
+                    register()
+                    return
+                }
+                // renew=true sends a fresh REGISTER (and reconnects TLS if the connection died).
+                acc.setRegistration(true)
             }
 
             override fun unregister() {
@@ -424,13 +459,16 @@ private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
 
     override fun onRegState(prm: org.pjsip.pjsua2.OnRegStateParam) {
         val code = prm.code
-        val state = when {
-            code / 100 == 2 && prm.expiration > 0 -> "registered"
-            code / 100 == 2 -> "unregistered"
-            else -> "failed"
-        }
-        android.util.Log.i("PJSIP", "onRegState code=$code reason=${prm.reason} expires=${prm.expiration}")
+        val expiration = prm.expiration
+        val reason = runCatching { prm.reason }.getOrDefault("")
+        val policy = de.haphone.app.test.reach.ReachPolicy
+        val state = with(policy) { classifyRegState(code, expiration).channelName() }
+        android.util.Log.i("PJSIP", "onRegState code=$code reason=$reason expires=$expiration")
         de.haphone.app.test.CallEventBus.emitRegistrationState(state, code)
+        // Worker thread -> main: reschedule the Doze alarm and release the attempt's wake lock.
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            de.haphone.app.test.reach.ReachabilityMonitor.onRegState(code, expiration, reason)
+        }
     }
 
     /**

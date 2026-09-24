@@ -229,6 +229,22 @@ class SipChannelHandler(
 
                 "getRegistrationState" -> result.success(CallEventBus.lastRegistrationState)
 
+                // Erreichbarkeit: permissions, battery/alarm state, registration timing, OEM.
+                "getReachability" -> result.success(
+                    de.haphone.app.test.reach.ReachabilityMonitor.snapshot(app) +
+                        ("registrationState" to CallEventBus.lastRegistrationState),
+                )
+
+                // Argument: exactAlarm | batteryOptimization | fullScreenIntent | notifications | appDetails
+                "openReachabilitySettings" -> {
+                    val target = de.haphone.app.test.reach.ReachSettings.Target.fromKey(call.arguments as? String)
+                    if (target == null) {
+                        result.error("BAD_ARGS", "unknown settings page: ${call.arguments}", null)
+                    } else {
+                        result.success(de.haphone.app.test.reach.ReachSettings.open(app, target))
+                    }
+                }
+
                 "getDeviceId" -> {
                     val deviceId = Settings.Secure.getString(
                         app.contentResolver,
