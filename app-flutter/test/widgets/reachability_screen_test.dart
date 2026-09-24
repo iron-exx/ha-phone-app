@@ -7,6 +7,7 @@ import 'package:ha_phone_test/theme/app_theme.dart';
 import 'package:ha_phone_test/screens/reachability_screen.dart';
 import 'package:ha_phone_test/widgets/app_nav_bar.dart';
 import 'package:ha_phone_test/services/app_navigation.dart';
+import 'package:ha_phone_test/services/api_client.dart';
 
 import '../helpers/fake_sip.dart';
 
@@ -42,7 +43,8 @@ void main() {
   });
   tearDown(() => sip.uninstall());
 
-  Future<ReachabilityRepository> pump(WidgetTester tester, {double textScale = 1}) async {
+  Future<ReachabilityRepository> pump(WidgetTester tester,
+      {double textScale = 1, bool testCallAvailable = false, Future<void> Function()? testCall}) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -52,7 +54,13 @@ void main() {
       theme: AppTheme.dark(),
       home: MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: const Size(390, 844)),
-        child: ReachabilityScreen(repository: repo, rttLoader: () async => 18, reconnect: () async {}),
+        child: ReachabilityScreen(
+          repository: repo,
+          rttLoader: () async => 18,
+          reconnect: () async {},
+          testCallAvailable: testCallAvailable,
+          testCall: testCall,
+        ),
       ),
     ));
     await tester.runAsync(() => pumpEventQueue());
@@ -132,5 +140,29 @@ void main() {
     await bar(true);
     expect(find.byKey(const ValueKey('warning-me')), findsOneWidget);
     expect(find.bySemanticsLabel('Ich, Erreichbarkeit prüfen'), findsOneWidget);
+  });
+
+  testWidgets('test call: hidden without PBX support', (tester) async {
+    await pump(tester);
+    expect(find.byKey(const Key('reach-test-call'), skipOffstage: false), findsNothing);
+  });
+
+  testWidgets('test call: asks the PBX and explains the wait', (tester) async {
+    var calls = 0;
+    await pump(tester, testCallAvailable: true, testCall: () async => calls++);
+    await tester.dragUntilVisible(find.byKey(const Key('reach-test-call')), find.byType(ListView), const Offset(0, -200));
+    await tester.tap(find.byKey(const Key('reach-test-call')));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(find.text('Die Anlage ruft dieses Handy in 10 Sekunden an. Sperr es ruhig.'), findsOneWidget);
+  });
+
+  testWidgets('test call: rate limit and old PBX get clear German messages', (tester) async {
+    await pump(tester, testCallAvailable: true, testCall: () async => throw const ApiException(ApiErrorKind.server, 429));
+    await tester.dragUntilVisible(find.byKey(const Key('reach-test-call')), find.byType(ListView), const Offset(0, -200));
+    await tester.tap(find.byKey(const Key('reach-test-call')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ein Test läuft schon. Bitte eine Minute warten.'), findsOneWidget);
+    expect(testCallErrorText(const ApiException(ApiErrorKind.unsupported, 404)), 'Die Anlage kann das erst ab HA-Phone 0.7.118.');
   });
 }

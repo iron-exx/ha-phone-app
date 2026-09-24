@@ -44,6 +44,9 @@ const kMinPbxVersionPhase6 = '0.7.114';
 /// First HA-Phone version with the door-open webhook (POST /api/mobile/door-open).
 const kMinPbxVersionDoorOpen = '0.7.117';
 
+/// First HA-Phone version with POST /api/mobile/test-call.
+const kMinPbxVersionTestCall = '0.7.118';
+
 /// Error with a German message that tells the user what to do.
 class ApiException implements Exception {
   const ApiException(this.kind, [this.statusCode, this.minPbxVersion = kMinPbxVersionPhase3]);
@@ -212,6 +215,12 @@ class ApiClient {
   /// Opens door station [extension] through its webhook on the PBX (no call
   /// needed). Returns false on 404: the door has no webhook configured (or
   /// the PBX predates 0.7.117), so the caller falls back to the DTMF code.
+  /// Asks the PBX to ring this device after [delaySec] ("Test-Anruf an mich"). Throws
+  /// [ApiException] (status 429 when a test ran less than a minute ago).
+  Future<void> requestTestCall(DeviceAuth auth, {int delaySec = 10}) async {
+    await _send(auth, 'POST', '/api/mobile/test-call', body: {'delay_sec': delaySec}, minVersion: kMinPbxVersionTestCall);
+  }
+
   Future<bool> openDoorRemote(DeviceAuth auth, String extension) async {
     // The PBX only knows numeric extensions; anything else never leaves the app.
     if (!RegExp(r'^\d{1,10}$').hasMatch(extension)) throw const ApiException(ApiErrorKind.server);
@@ -293,7 +302,7 @@ class ApiClient {
     if (status == 401 || status == 403) throw ApiException(ApiErrorKind.unauthorized, status);
     if (status == 404 && acceptNotFound) return response;
     if (status == 404 && notFoundIsUnsupported) throw ApiException(ApiErrorKind.unsupported, 404, minVersion);
-    if (status != 200) throw ApiException(ApiErrorKind.server, status);
+    if (status < 200 || status >= 300) throw ApiException(ApiErrorKind.server, status);
     // PBX versions before an endpoint existed answer unknown /api paths with the
     // admin web app (HTML, 200) instead of a 404.
     final contentType = response.headers['content-type'] ?? '';

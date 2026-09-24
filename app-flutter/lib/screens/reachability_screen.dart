@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/reachability.dart';
+import '../services/api_client.dart';
+import '../services/directory_repository.dart';
 import '../services/diagnostics_service.dart';
 import '../services/reachability_repository.dart';
 import '../services/reachability_service.dart';
@@ -22,6 +24,8 @@ class ReachabilityScreen extends StatefulWidget {
     ReachabilityService? service,
     this.rttLoader,
     this.reconnect,
+    this.testCall,
+    this.testCallAvailable,
   })  : _repository = repository,
         _service = service;
 
@@ -34,6 +38,12 @@ class ReachabilityScreen extends StatefulWidget {
   /// Register again (default: [SipChannel.register]).
   final Future<void> Function()? reconnect;
 
+  /// Ask the PBX for a test call (default: [ApiClient.requestTestCall]).
+  final Future<void> Function()? testCall;
+
+  /// Whether the PBX offers it (default: directory `self.test_call`).
+  final bool? testCallAvailable;
+
   @override
   State<ReachabilityScreen> createState() => _ReachabilityScreenState();
 }
@@ -42,6 +52,33 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
   ReachabilityRepository get _repo => widget._repository ?? ReachabilityRepository.instance;
   ReachabilityService get _service => widget._service ?? ReachabilityService.instance;
   int? _rtt;
+  bool _testCallBusy = false;
+  String? _testCallInfo;
+
+  bool get _canTestCall =>
+      widget.testCallAvailable ?? (DirectoryRepository.instance.directory?.testCallAvailable ?? false);
+
+  Future<void> _requestTestCall() async {
+    setState(() {
+      _testCallBusy = true;
+      _testCallInfo = null;
+    });
+    String info;
+    try {
+      await (widget.testCall ??
+          () async => ApiClient().requestTestCall(await DirectoryRepository.loadAuthFromNative()))();
+      info = 'Die Anlage ruft dieses Handy in 10 Sekunden an. Sperr es ruhig.';
+    } on ApiException catch (e) {
+      info = testCallErrorText(e);
+    } catch (_) {
+      info = 'Anlage nicht erreichbar.';
+    }
+    if (!mounted) return;
+    setState(() {
+      _testCallBusy = false;
+      _testCallInfo = info;
+    });
+  }
 
   @override
   void initState() {
@@ -156,7 +193,38 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
         ),
       ),
       if (advice != null) Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 0), child: _oemCard(context, advice)),
+      if (_canTestCall) Padding(padding: const EdgeInsets.fromLTRB(16, 18, 16, 0), child: _testCallBlock(context)),
     ];
+  }
+
+  Widget _testCallBlock(BuildContext context) {
+    final c = context.nw;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          key: const Key('reach-test-call'),
+          onPressed: _testCallBusy ? null : _requestTestCall,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(56),
+            backgroundColor: c.blue,
+            foregroundColor: c.blueInk,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+          icon: _testCallBusy
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: c.blueInk))
+              : const Icon(Icons.call_outlined),
+          label: const Text('Test-Anruf an mich'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _testCallInfo ?? 'Die Anlage ruft dieses Handy nach 10 Sekunden an. So prüfst du das Klingeln bei gesperrtem Handy.',
+          key: const Key('reach-test-call-info'),
+          textAlign: TextAlign.center,
+          style: NwType.meta.copyWith(color: c.faint),
+        ),
+      ],
+    );
   }
 
   Widget _summaryCard(BuildContext context, ReachSummary summary) {
@@ -308,3 +376,13 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
     );
   }
 }
+
+
+/// German text for a failed "Test-Anruf an mich" request.
+String testCallErrorText(ApiException e) => switch (e.kind) {
+      ApiErrorKind.unsupported => 'Die Anlage kann das erst ab HA-Phone 0.7.118.',
+      ApiErrorKind.unauthorized => 'Gerät neu koppeln (QR-Code).',
+      ApiErrorKind.unreachable => 'Anlage nicht erreichbar.',
+      _ when e.statusCode == 429 => 'Ein Test läuft schon. Bitte eine Minute warten.',
+      _ => 'Test-Anruf fehlgeschlagen.',
+    };

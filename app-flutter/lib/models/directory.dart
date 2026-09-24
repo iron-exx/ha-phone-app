@@ -9,6 +9,7 @@ class Directory {
     this.phonebook = const [],
     this.recordingAllowed = false,
     this.pbxVersion = '',
+    this.testCallAvailable = false,
   });
 
   factory Directory.fromJson(Map<String, dynamic> json) {
@@ -17,6 +18,7 @@ class Directory {
     return Directory(
       self: hasSelf ? Contact.fromJson(selfJson, isExtension: true) : null,
       recordingAllowed: hasSelf && selfJson['recording_allowed'] == true,
+      testCallAvailable: hasSelf && selfJson['test_call'] == true,
       extensions: _list(json['extensions'], isExtension: true),
       phonebook: _list(json['phonebook'], isExtension: false),
       pbxVersion: (json['pbx_version'] ?? '').toString(),
@@ -40,12 +42,15 @@ class Directory {
   /// (HA-Phone 0.7.114; false on older versions).
   final bool recordingAllowed;
 
+  /// `self.test_call`: the PBX can ring this device for "Test-Anruf an mich" (0.7.118+).
+  final bool testCallAvailable;
+
   /// HA-Phone version, if the PBX reports it (`pbx_version`; not sent up to
   /// 0.7.116, then '').
   final String pbxVersion;
 
   Map<String, dynamic> toJson() => {
-        if (self != null) 'self': {...self!.toJson(), 'recording_allowed': recordingAllowed},
+        if (self != null) 'self': {...self!.toJson(), 'recording_allowed': recordingAllowed, 'test_call': testCallAvailable},
         'extensions': extensions.map((e) => e.toJson()).toList(),
         'phonebook': phonebook.map((e) => e.toJson()).toList(),
         if (pbxVersion.isNotEmpty) 'pbx_version': pbxVersion,
