@@ -37,6 +37,27 @@ void main() {
     await r.refresh();
     expect(r.isUnsupported, isTrue);
     expect(r.snapshot, isNull);
+    expect(r.updatedAt, isNull);
+  });
+
+  test('updatedAt marks when the line states were fetched; a failed poll keeps it', () async {
+    var ok = true;
+    final r = repo(FakePbx({
+      'GET /api/mobile/presence': (_) => ok ? jsonResponse(_presenceBody('away')) : http.Response('', 500),
+    }));
+    final before = DateTime.now();
+    await r.refresh();
+    final fetched = r.updatedAt;
+    expect(fetched, isNotNull);
+    expect(fetched!.isBefore(before), isFalse);
+
+    ok = false;
+    await r.refresh();
+    expect(r.error, isNotNull);
+    expect(r.updatedAt, fetched);
+
+    r.clear();
+    expect(r.updatedAt, isNull);
   });
 
   test('setOwn updates optimistically and keeps the stored value', () async {

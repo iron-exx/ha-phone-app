@@ -47,7 +47,7 @@ void main() {
     final fake = FakePbx({
       'GET /api/mobile/presence': (_) => jsonResponse({'self': {'number': '13'}, 'extensions': []}),
       'GET /api/mobile/voicemail': (_) => jsonResponse({'messages': [], 'new_count': 0}),
-      // forwarding + calls missing -> 404 -> older PBX
+      // forwarding, calls + recordings missing -> 404 -> older PBX
     });
     final probe = await DiagnosticsService(api: fake.api, authLoader: testAuthLoader).probe();
 
@@ -58,7 +58,9 @@ void main() {
       FeatureSupport.supported,
       FeatureSupport.unsupported,
       FeatureSupport.unsupported,
+      FeatureSupport.unsupported,
     ]);
+    expect(probe.features.last.text, 'nein – Anlage zu alt (ab HA-Phone 0.7.114)');
     expect(fake.to('GET', '/api/mobile/calls').single.url.queryParameters['limit'], '1');
   });
 

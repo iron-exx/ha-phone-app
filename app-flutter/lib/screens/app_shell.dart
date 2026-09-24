@@ -1,8 +1,8 @@
-import '../widgets/ongoing_call_banner.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../widgets/ongoing_call_banner.dart';
 import '../services/call_events.dart';
 import '../services/call_history_store.dart';
 import '../services/presence_repository.dart';
@@ -26,7 +26,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  static const _contactsTab = 0;
   static const _callsTab = 1;
   static const _voicemailTab = 3;
   static const _meTab = 4;
@@ -46,9 +45,10 @@ class _AppShellState extends State<AppShell> {
       if (e is CallHistoryChangedEvent) unawaited(_reloadHistory());
     });
     unawaited(_reloadHistory());
-    // Voicemail badge is visible on every tab, so poll for the shell's lifetime.
+    // Voicemail badge and the call-flip banner (own line state) are visible
+    // on every tab, so both poll for the shell's lifetime (foreground only).
     _voicemail.setPolling(true);
-    _updatePresencePolling();
+    _presence.setVisible(true);
   }
 
   @override
@@ -59,14 +59,7 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  /// Live presence is only polled while it is on screen.
-  void _updatePresencePolling() =>
-      _presence.setVisible(_index == _contactsTab || _index == _meTab);
-
-  void _select(int i) {
-    setState(() => _index = i);
-    _updatePresencePolling();
-  }
+  void _select(int i) => setState(() => _index = i);
 
   /// Local history + PBX log (the badge also counts calls missed on the
   /// desk phone). While the Anrufe tab is on screen the store itself counts
@@ -76,22 +69,22 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          const OngoingCallBanner(),
-          Expanded(
-            child: IndexedStack(
-              index: _index,
-              children: [
-                const ContactsTab(),
-                CallsTab(isActive: _index == _callsTab),
-                const KeypadTab(),
-                VoicemailTab(isActive: _index == _voicemailTab),
-                MeTab(onSetupChanged: widget.onSetupChanged, onUnpaired: widget.onUnpaired),
-              ],
+      body: OngoingCallBanner(
+        presence: _presence,
+        child: IndexedStack(
+          index: _index,
+          children: [
+            const ContactsTab(),
+            CallsTab(isActive: _index == _callsTab),
+            const KeypadTab(),
+            VoicemailTab(isActive: _index == _voicemailTab),
+            MeTab(
+              isActive: _index == _meTab,
+              onSetupChanged: widget.onSetupChanged,
+              onUnpaired: widget.onUnpaired,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: ListenableBuilder(
         listenable: Listenable.merge([_history, _voicemail]),

@@ -2,38 +2,45 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../models/voicemail.dart';
 import '../services/api_client.dart';
-import '../services/voicemail_audio.dart';
-import '../services/voicemail_repository.dart';
+import '../services/pbx_audio.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 
-/// Inline player under an expanded voicemail row: play/pause, seek bar,
-/// position/duration, "Zurückrufen" and "Löschen". The audio is only loaded
-/// on the first play tap.
-class VoicemailPlayerPanel extends StatefulWidget {
-  const VoicemailPlayerPanel({
+/// Inline player under an expanded voicemail or recording row: play/pause,
+/// seek bar, position/duration, "Zurückrufen" and "Löschen". The audio is
+/// only loaded on the first play tap.
+class AudioPlayerPanel extends StatefulWidget {
+  const AudioPlayerPanel({
     super.key,
-    required this.message,
-    required this.repository,
+    required this.source,
     required this.audioFactory,
+    required this.fallbackDuration,
     required this.onCallBack,
     required this.onDelete,
+    this.onPlay,
+    this.loadErrorText = 'Aufnahme konnte nicht geladen werden.',
   });
 
-  final VoicemailMessage message;
-  final VoicemailRepository repository;
-  final VoicemailAudioFactory audioFactory;
+  /// Resolves the file on the PBX (needs the device auth, so async).
+  final Future<PbxAudioSource> Function() source;
+  final PbxAudioFactory audioFactory;
+
+  /// Shown until the player knows the real length.
+  final Duration fallbackDuration;
   final VoidCallback? onCallBack;
   final VoidCallback onDelete;
 
+  /// Called on every play tap (voicemail: mark as heard).
+  final VoidCallback? onPlay;
+  final String loadErrorText;
+
   @override
-  State<VoicemailPlayerPanel> createState() => _VoicemailPlayerPanelState();
+  State<AudioPlayerPanel> createState() => _AudioPlayerPanelState();
 }
 
-class _VoicemailPlayerPanelState extends State<VoicemailPlayerPanel> {
-  VoicemailAudio? _audio;
+class _AudioPlayerPanelState extends State<AudioPlayerPanel> {
+  PbxAudio? _audio;
   final List<StreamSubscription<Object?>> _subs = [];
   bool _loading = false;
   bool _playing = false;
@@ -42,7 +49,7 @@ class _VoicemailPlayerPanelState extends State<VoicemailPlayerPanel> {
 
   Duration get _total {
     final d = _duration;
-    return d != null && d > Duration.zero ? d : widget.message.duration;
+    return d != null && d > Duration.zero ? d : widget.fallbackDuration;
   }
 
   @override
@@ -55,18 +62,18 @@ class _VoicemailPlayerPanelState extends State<VoicemailPlayerPanel> {
     super.dispose();
   }
 
-  Future<VoicemailAudio?> _ensureLoaded() async {
+  Future<PbxAudio?> _ensureLoaded() async {
     final existing = _audio;
     if (existing != null) return existing;
     setState(() => _loading = true);
-    final audio = widget.audioFactory(widget.repository);
+    final audio = widget.audioFactory();
     try {
-      await audio.load(widget.message);
+      await audio.load(await widget.source());
     } catch (e) {
       unawaited(audio.dispose());
       if (mounted) {
         setState(() => _loading = false);
-        final text = e is ApiException ? e.message : 'Nachricht konnte nicht geladen werden.';
+        final text = e is ApiException ? e.message : widget.loadErrorText;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
       }
       return null;
@@ -95,7 +102,7 @@ class _VoicemailPlayerPanelState extends State<VoicemailPlayerPanel> {
     }
     // play() completes only when playback stops, so don't wait for it.
     unawaited(audio.play());
-    unawaited(widget.repository.markHeard(widget.message));
+    widget.onPlay?.call();
   }
 
   Future<void> _seek(double ms) async {

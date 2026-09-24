@@ -64,6 +64,17 @@ void main() {
     expect(copy.phonebook.single.isExtension, isFalse);
   });
 
+  test('recording_allowed of self is parsed and survives the cache', () {
+    expect(directory.recordingAllowed, isFalse, reason: 'older PBX sends no flag');
+    final allowed = Directory.fromJson(const {
+      'self': {'number': '13', 'name': 'Test', 'recording_allowed': true},
+    });
+    expect(allowed.recordingAllowed, isTrue);
+    final cached = Directory.fromJson(jsonDecode(jsonEncode(allowed.toJson())) as Map<String, dynamic>);
+    expect(cached.recordingAllowed, isTrue);
+    expect(cached.self?.number, '13');
+  });
+
   test('handles missing sections', () {
     final empty = Directory.fromJson(const {});
     expect(empty.self, isNull);

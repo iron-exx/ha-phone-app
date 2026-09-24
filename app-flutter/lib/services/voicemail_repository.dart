@@ -5,6 +5,7 @@ import 'api_client.dart';
 import 'directory_repository.dart';
 import 'foreground_poller.dart';
 import 'local_store.dart';
+import 'pbx_audio.dart';
 
 /// Visual voicemail (GET /api/mobile/voicemail), refreshed every 60 s while
 /// the app is in the foreground and whenever the Voicemail tab opens.
@@ -48,8 +49,16 @@ class VoicemailRepository extends ChangeNotifier {
   /// New on the PBX and not yet played here.
   bool isUnheard(VoicemailMessage m) => m.isNew && !_heard.contains(m.heardKey);
 
-  ApiClient get api => _api;
-  Future<DeviceAuth> loadAuth() => _authLoader();
+  /// Stream/download source of a message for the player.
+  Future<PbxAudioSource> audioSource(VoicemailMessage m) async {
+    final auth = await _authLoader();
+    return PbxAudioSource(
+      uri: _api.voicemailAudioUri(auth, m),
+      headers: ApiClient.authHeaders(auth),
+      download: () => _api.downloadVoicemail(auth, m),
+      tempFileName: 'voicemail_${m.path?.name ?? 'message'}_${m.heardKey.hashCode}.wav',
+    );
+  }
 
   /// Started by the shell for its lifetime (badge needs it on every tab).
   void setPolling(bool enabled) => _poller.active = enabled;

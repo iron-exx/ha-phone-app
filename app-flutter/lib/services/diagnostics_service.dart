@@ -42,12 +42,14 @@ class DiagnosticsService {
       _check(() => _api.fetchVoicemail(auth)),
       _check(() => _api.fetchForwarding(auth)),
       _check(() => _api.fetchCalls(auth, limit: 1)),
+      _check(() => _api.fetchRecordings(auth)),
     ]);
     return PbxProbe(reachability, [
       _feature('Präsenz', presenceError, kMinPbxVersionPhase3),
       _feature('Voicemail', others[0], kMinPbxVersionPhase3),
       _feature('Weiterleitungen', others[1], kMinPbxVersionPhase5),
       _feature('Anrufliste der Anlage', others[2], kMinPbxVersionPhase5),
+      _feature('Gesprächsaufzeichnung', others[3], kMinPbxVersionPhase6),
     ]);
   }
 

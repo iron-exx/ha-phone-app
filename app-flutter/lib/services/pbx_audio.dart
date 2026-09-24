@@ -4,41 +4,56 @@ import 'dart:io' show File, Directory;
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../models/voicemail.dart';
 import 'api_client.dart';
-import 'voicemail_repository.dart';
 
-/// Player for one voicemail message. An interface so widget tests can run
+/// A WAV file on the PBX (voicemail message or call recording): streamed
+/// with the device headers, or downloaded when streaming fails.
+class PbxAudioSource {
+  const PbxAudioSource({
+    required this.uri,
+    required this.headers,
+    required this.download,
+    required this.tempFileName,
+  });
+
+  final Uri uri;
+  final Map<String, String> headers;
+  final Future<List<int>> Function() download;
+
+  /// File name for the download fallback in the temp folder.
+  final String tempFileName;
+}
+
+/// Player for one PBX audio file. An interface so widget tests can run
 /// without the just_audio platform plugin.
-abstract class VoicemailAudio {
+abstract class PbxAudio {
   Stream<Duration> get position;
   Stream<Duration?> get duration;
 
   /// false again once playback has finished.
   Stream<bool> get playing;
 
-  Future<void> load(VoicemailMessage message);
+  Future<void> load(PbxAudioSource source);
   Future<void> play();
   Future<void> pause();
   Future<void> seek(Duration position);
   Future<void> dispose();
 }
 
-typedef VoicemailAudioFactory = VoicemailAudio Function(VoicemailRepository repository);
+typedef PbxAudioFactory = PbxAudio Function();
 
-VoicemailAudio defaultVoicemailAudio(VoicemailRepository repository) => JustAudioVoicemail(repository);
+PbxAudio defaultPbxAudio() => JustAudioPbx();
 
 /// just_audio implementation: streams the WAV with the device headers
 /// (sent directly by ExoPlayer, no local proxy); if that fails, downloads it
 /// to a temp file and plays from there.
-class JustAudioVoicemail implements VoicemailAudio {
-  JustAudioVoicemail(this._repository) {
+class JustAudioPbx implements PbxAudio {
+  JustAudioPbx() {
     _completion = _player.processingStateStream.listen((s) {
       if (s == ProcessingState.completed) unawaited(_rewind());
     });
   }
 
-  final VoicemailRepository _repository;
   final AudioPlayer _player = AudioPlayer(useProxyForRequestHeaders: false);
   StreamSubscription<ProcessingState>? _completion;
   File? _tempFile;
@@ -54,21 +69,15 @@ class JustAudioVoicemail implements VoicemailAudio {
       _player.playerStateStream.map((s) => s.playing && s.processingState != ProcessingState.completed);
 
   @override
-  Future<void> load(VoicemailMessage message) async {
-    final auth = await _repository.loadAuth();
-    final api = _repository.api;
+  Future<void> load(PbxAudioSource source) async {
     try {
-      await _player.setAudioSource(AudioSource.uri(
-        api.voicemailAudioUri(auth, message),
-        headers: ApiClient.authHeaders(auth),
-      ));
+      await _player.setAudioSource(AudioSource.uri(source.uri, headers: source.headers));
     } on ApiException {
       rethrow;
     } catch (e) {
-      debugPrint('voicemail stream failed, downloading instead: $e');
-      final bytes = await api.downloadVoicemail(auth, message);
-      final name = message.path?.name ?? 'message';
-      final file = File('${Directory.systemTemp.path}/voicemail_${name}_${message.heardKey.hashCode}.wav');
+      debugPrint('audio stream failed, downloading instead: $e');
+      final bytes = await source.download();
+      final file = File('${Directory.systemTemp.path}/${source.tempFileName}');
       await file.writeAsBytes(bytes, flush: true);
       _tempFile = file;
       await _player.setFilePath(file.path);

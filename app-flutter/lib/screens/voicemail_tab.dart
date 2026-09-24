@@ -6,11 +6,11 @@ import '../models/voicemail.dart';
 import '../services/api_client.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
-import '../services/voicemail_audio.dart';
+import '../services/pbx_audio.dart';
 import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
+import '../widgets/audio_player_panel.dart';
 import '../widgets/status_message.dart';
-import '../widgets/voicemail_player_panel.dart';
 import '../widgets/voicemail_tile.dart';
 
 /// Mailbox access number (*97 = own mailbox without PIN, HA-Phone 0.7.104).
@@ -24,7 +24,7 @@ class VoicemailTab extends StatefulWidget {
     this.isActive = false,
     VoicemailRepository? repository,
     DirectoryRepository? directory,
-    VoicemailAudioFactory? audioFactory,
+    PbxAudioFactory? audioFactory,
   })  : _repository = repository,
         _directory = directory,
         _audioFactory = audioFactory;
@@ -32,7 +32,7 @@ class VoicemailTab extends StatefulWidget {
   final bool isActive;
   final VoicemailRepository? _repository;
   final DirectoryRepository? _directory;
-  final VoicemailAudioFactory? _audioFactory;
+  final PbxAudioFactory? _audioFactory;
 
   @override
   State<VoicemailTab> createState() => _VoicemailTabState();
@@ -154,11 +154,13 @@ class _VoicemailTabState extends State<VoicemailTab> {
           onTap: () => setState(() => _expandedId = expanded ? null : m.id),
         ),
         if (expanded)
-          VoicemailPlayerPanel(
+          AudioPlayerPanel(
             key: ValueKey('player-${m.heardKey}'),
-            message: m,
-            repository: _repo,
-            audioFactory: widget._audioFactory ?? defaultVoicemailAudio,
+            source: () => _repo.audioSource(m),
+            audioFactory: widget._audioFactory ?? defaultPbxAudio,
+            fallbackDuration: m.duration,
+            onPlay: () => unawaited(_repo.markHeard(m)),
+            loadErrorText: 'Nachricht konnte nicht geladen werden.',
             onCallBack: m.callerNumber.isEmpty ? null : () => CallLauncher.call(context, m.callerNumber),
             onDelete: () => _confirmDelete(m),
           ),

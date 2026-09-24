@@ -4,12 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/api_client.dart';
 import '../services/call_events.dart';
 import '../services/directory_repository.dart';
+import '../services/recordings_repository.dart';
 import '../services/sip_channel.dart';
 import '../theme/app_colors.dart';
 import '../utils/audio_route_ui.dart';
 import '../utils/call_status.dart';
+import '../utils/formatters.dart';
+import '../utils/recording_ui.dart';
 import '../widgets/audio_route_sheet.dart';
 import '../widgets/call_header.dart';
 import '../widgets/in_call_keypad_sheet.dart';
@@ -18,11 +22,17 @@ import '../widgets/second_call_card.dart';
 import '../widgets/transfer_sheet.dart';
 
 /// Linkus-style in-call screen: caller header, optional door-station video,
-/// 3×2 action grid, big red hang-up button. Reached from any tab right after
-/// placing a call, or from IncomingCallActivity's native "navigateTo:
-/// active_call" hand-off after a real Answer tap.
+/// 3×2 action grid (3×3 with "Aufnehmen" when the admin allows recording),
+/// big red hang-up button. Reached from any tab right after placing a call,
+/// or from IncomingCallActivity's native "navigateTo: active_call" hand-off
+/// after a real Answer tap.
 class ActiveCallScreen extends StatefulWidget {
-  const ActiveCallScreen({super.key});
+  const ActiveCallScreen({super.key, DirectoryRepository? directory, RecordingsRepository? recordings})
+      : _directory = directory,
+        _recordings = recordings;
+
+  final DirectoryRepository? _directory;
+  final RecordingsRepository? _recordings;
 
   @override
   State<ActiveCallScreen> createState() => _ActiveCallScreenState();
@@ -36,6 +46,9 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   AudioRoutes? _routes;
   StreamSubscription<CallEvent>? _events;
   Timer? _ticker;
+
+  DirectoryRepository get _dir => widget._directory ?? DirectoryRepository.instance;
+  RecordingsRepository get _recordings => widget._recordings ?? RecordingsRepository.instance;
 
   @override
   void initState() {
@@ -65,6 +78,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   void _onEvent(CallEvent event) {
     if (event is CallStateEvent) {
       if (event.state == 'disconnected') {
+        _recordings.retainLines(const {});
         _leave(message: _endedMessage(event));
       } else {
         _refreshCall();
@@ -83,6 +97,8 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     try {
       final call = await SipChannel.instance.getCurrentCall();
       if (mounted && call != null) {
+        // Ended lines drop out (the PBX stops their recording itself).
+        _recordings.retainLines(lineKeysOf(call));
         setState(() {
           _call = call;
           _muted = call.muted;
@@ -252,6 +268,21 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     await _refreshCall();
   }
 
+  /// Starts/stops the recording of the line on screen ([line] = its remote party).
+  Future<void> _toggleRecording(CurrentCall line) async {
+    final key = lineKeyOf(line);
+    final starting = _recordings.recordingSince(key) == null;
+    try {
+      if (starting) {
+        await _recordings.start(lineKey: key, peer: line.number);
+      } else {
+        await _recordings.stop(lineKey: key, peer: line.number);
+      }
+    } on ApiException catch (e) {
+      _snack(recordingErrorText(e, starting: starting));
+    }
+  }
+
   void _snack(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -259,39 +290,49 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final call = _call;
-    final number = call?.number ?? '';
-    final name = (call?.name.isNotEmpty ?? false) ? call!.name : DirectoryRepository.instance.nameFor(number);
-    final showVideo = call?.video ?? false;
     return PopScope(
       // Leaving only via hang-up or call end, so the call can't get "lost".
       canPop: false,
       child: Scaffold(
         body: SafeArea(
-          child: LayoutBuilder(
-            // Short screens (or video) drop the big avatar so the grid and
-            // hang-up button always fit without scrolling.
-            builder: (context, constraints) {
-              final body = _body(
-                name: name,
-                number: number,
-                call: call,
-                showVideo: showVideo,
-                compact: showVideo || call?.other != null || constraints.maxHeight < 680,
-              );
-              // The video box flexes itself; everything else scrolls if a second-call
-              // card or a small screen makes it taller than the screen.
-              if (showVideo) return body;
-              return SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(child: body),
-                ),
-              );
-            },
+          child: ListenableBuilder(
+            listenable: Listenable.merge([_dir, _recordings]),
+            builder: (context, _) => _layout(),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _layout() {
+    final call = _call;
+    final number = call?.number ?? '';
+    final name = (call?.name.isNotEmpty ?? false) ? call!.name : _dir.nameFor(number);
+    final showVideo = call?.video ?? false;
+    final canRecord = _dir.directory?.recordingAllowed ?? false;
+    return LayoutBuilder(
+      // Short screens (or video) drop the big avatar so the grid and
+      // hang-up button always fit without scrolling.
+      builder: (context, constraints) {
+        final body = _body(
+          name: name,
+          number: number,
+          call: call,
+          showVideo: showVideo,
+          canRecord: canRecord,
+          // The third grid row (Aufnehmen) needs ~120 dp more.
+          compact: showVideo || call?.other != null || constraints.maxHeight < (canRecord ? 800 : 680),
+        );
+        // The video box flexes itself; everything else scrolls if a second-call
+        // card or a small screen makes it taller than the screen.
+        if (showVideo) return body;
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(child: body),
+          ),
+        );
+      },
     );
   }
 
@@ -300,8 +341,10 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     required String number,
     required CurrentCall? call,
     required bool showVideo,
+    required bool canRecord,
     required bool compact,
   }) {
+    final recordingSince = call == null ? null : _recordings.recordingSince(lineKeyOf(call));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
@@ -315,6 +358,10 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
             isDoor: call?.isDoor ?? false,
             compact: compact,
           ),
+          if (recordingSince != null) ...[
+            const SizedBox(height: 8),
+            _RecordingIndicator(elapsed: DateTime.now().difference(recordingSince)),
+          ],
           const SizedBox(height: 16),
           if (call?.other != null) ...[
             SecondCallCard(
@@ -350,7 +397,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          _actionGrid(call),
+          _actionGrid(call, canRecord: canRecord, compact: compact),
           SizedBox(height: compact ? 16 : 32),
           CallButton(
             key: const Key('hangup'),
@@ -365,53 +412,109 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     );
   }
 
-  Widget _actionGrid(CurrentCall? call) {
+  Widget _actionGrid(CurrentCall? call, {required bool canRecord, required bool compact}) {
     final routeType = _routes?.current?.type;
     final isDoor = call?.isDoor ?? false;
+    // A third row only fits on small screens with denser buttons.
+    final dense = canRecord && compact;
+    final size = dense ? 56.0 : 68.0;
+    final recording = call != null && _recordings.recordingSince(lineKeyOf(call)) != null;
     final buttons = <Widget>[
       RoundActionButton(
         icon: _muted ? Icons.mic_off : Icons.mic,
         label: 'Stumm',
         active: _muted,
+        size: size,
         onPressed: _toggleMute,
       ),
-      RoundActionButton(icon: Icons.dialpad, label: 'Tastatur', onPressed: _showKeypad),
+      RoundActionButton(icon: Icons.dialpad, label: 'Tastatur', size: size, onPressed: _showKeypad),
       RoundActionButton(
         icon: audioRouteIcon(routeType),
         label: audioRouteLabel(routeType),
         active: routeType != null && routeType != 'earpiece',
+        size: size,
         onPressed: _routes == null || _routes!.routes.isEmpty ? null : _onAudioPressed,
       ),
       RoundActionButton(
         icon: _onHold ? Icons.play_arrow : Icons.pause,
         label: _onHold ? 'Fortsetzen' : 'Halten',
         active: _onHold,
+        size: size,
         onPressed: _toggleHold,
       ),
-      RoundActionButton(icon: Icons.phone_forwarded, label: 'Weiterleiten', onPressed: _showTransfer),
+      RoundActionButton(icon: Icons.phone_forwarded, label: 'Weiterleiten', size: size, onPressed: _showTransfer),
       if (isDoor)
-        RoundActionButton(icon: Icons.door_front_door, label: 'Tür öffnen', onPressed: _openDoor)
+        RoundActionButton(icon: Icons.door_front_door, label: 'Tür öffnen', size: size, onPressed: _openDoor)
       else
         RoundActionButton(
           icon: Icons.person_add_alt_1,
           label: 'Hinzufügen',
+          size: size,
           // One second line at most: waiting, held or conference partner.
           onPressed: call?.other == null ? _showAddCall : null,
         ),
+      if (canRecord)
+        RoundActionButton(
+          key: const Key('record'),
+          icon: recording ? Icons.stop : Icons.fiber_manual_record,
+          label: recording ? 'Stopp' : 'Aufnehmen',
+          active: recording,
+          size: size,
+          // Only an answered call can be recorded; one request at a time.
+          onPressed: call?.connectedAt == null || _recordings.isSwitching ? null : () => _toggleRecording(call!),
+        ),
     ];
+    const columns = 3;
     return Column(
       children: [
-        for (var row = 0; row < 2; row++)
+        for (var start = 0; start < buttons.length; start += columns)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                for (final b in buttons.sublist(row * 3, row * 3 + 3)) Expanded(child: Center(child: b)),
-              ],
-            ),
+            padding: EdgeInsets.symmetric(vertical: dense ? 4 : 10),
+            child: _gridRow(buttons.sublist(start, (start + columns).clamp(0, buttons.length)), columns),
           ),
       ],
+    );
+  }
+
+  /// One grid row; a shorter last row is centred on the same column width.
+  Widget _gridRow(List<Widget> row, int columns) {
+    final gap = columns - row.length;
+    return Row(
+      children: [
+        if (gap > 0) Spacer(flex: gap),
+        for (final b in row) Expanded(flex: 2, child: Center(child: b)),
+        if (gap > 0) Spacer(flex: gap),
+      ],
+    );
+  }
+}
+
+/// Red "● Aufnahme 01:23" pill under the caller while the line on screen is recorded.
+class _RecordingIndicator extends StatelessWidget {
+  const _RecordingIndicator({required this.elapsed});
+
+  final Duration elapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = tabular(Theme.of(context).textTheme.labelLarge)
+        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600);
+    return Semantics(
+      label: 'Aufnahme läuft, ${formatCallTimer(elapsed)}',
+      excludeSemantics: true,
+      child: Container(
+        key: const Key('recording-indicator'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(color: AppColors.recording, borderRadius: BorderRadius.circular(16)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.fiber_manual_record, size: 14, color: Colors.white),
+            const SizedBox(width: 6),
+            Text('Aufnahme ${formatCallTimer(elapsed)}', style: style),
+          ],
+        ),
+      ),
     );
   }
 }

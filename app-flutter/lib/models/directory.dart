@@ -3,14 +3,19 @@ import '../utils/phone_number.dart';
 
 /// Parsed response of GET /api/mobile/directory.
 class Directory {
-  const Directory({this.self, this.extensions = const [], this.phonebook = const []});
+  const Directory({
+    this.self,
+    this.extensions = const [],
+    this.phonebook = const [],
+    this.recordingAllowed = false,
+  });
 
   factory Directory.fromJson(Map<String, dynamic> json) {
     final selfJson = json['self'];
+    final hasSelf = selfJson is Map<String, dynamic> && (selfJson['number'] ?? '').toString().isNotEmpty;
     return Directory(
-      self: selfJson is Map<String, dynamic> && (selfJson['number'] ?? '').toString().isNotEmpty
-          ? Contact.fromJson(selfJson, isExtension: true)
-          : null,
+      self: hasSelf ? Contact.fromJson(selfJson, isExtension: true) : null,
+      recordingAllowed: hasSelf && selfJson['recording_allowed'] == true,
       extensions: _list(json['extensions'], isExtension: true),
       phonebook: _list(json['phonebook'], isExtension: false),
     );
@@ -29,8 +34,12 @@ class Directory {
   final List<Contact> extensions;
   final List<Contact> phonebook;
 
+  /// `self.recording_allowed`: the admin lets the own extension record calls
+  /// (HA-Phone 0.7.114; false on older versions).
+  final bool recordingAllowed;
+
   Map<String, dynamic> toJson() => {
-        if (self != null) 'self': self!.toJson(),
+        if (self != null) 'self': {...self!.toJson(), 'recording_allowed': recordingAllowed},
         'extensions': extensions.map((e) => e.toJson()).toList(),
         'phonebook': phonebook.map((e) => e.toJson()).toList(),
       };

@@ -16,6 +16,9 @@ abstract final class AppColors {
   /// Hang-up buttons and "verpasst" only.
   static const hangup = Color(0xFFD32F2F);
 
+  /// "Aufnahme" indicator while a call is recorded (the universal red REC dot).
+  static const recording = Color(0xFFD32F2F);
+
   static const presenceAvailable = Color(0xFF22C55E);
   static const presenceAway = Color(0xFFF59E0B);
   static const presenceLunch = Color(0xFFF97316);

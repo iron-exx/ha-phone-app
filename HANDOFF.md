@@ -127,6 +127,12 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Weiterleitungen im Emulator gegen die Anlage gespeichert und wieder entfernt: funktioniert.
 - `deploy_pbx.py` prüft jetzt die installierte Version (vorher meldete es Erfolg, obwohl noch die alte lief).
 
+## 5a3. Phase 6 (2026-09-24, laufend)
+
+- Anlage **0.7.114** (Commit 5a36bdf): `Extension.recording_allowed` (Standard aus, Schalter im Admin mit Hinweis § 201 StGB), `POST /api/mobile/recording {action: start|stop, peer}` → AMI `MixMonitor`/`StopMixMonitor` auf den `Up`-Kanal der eigenen Nebenstelle (bei zwei Leitungen per `peer` = ConnectedLineNum), Dateien `/data/recordings/<ext>/<YYYYmmdd-HHMMSS>_<peer>.wav`, `GET /api/mobile/recordings`, `/recordings/{id}/audio`, `DELETE`. Directory `self.recording_allowed`. `app_mixmonitor` in Dockerfile **und** `modules.conf` (autoload=no!).
+- `*55` Gespräch umlegen: Dialplan ohne `While` (app_while nicht gebaut): `CHANNELS(^PJSIP/<ext>-)` per `SHIFT(…, )` durchlaufen, eigenen Kanal überspringen, `IMPORT(<kanal>,BRIDGEPEER)`, dann `Bridge(peer)`. Asterisk löst die alte Bridge auf ("stolen channel"), das andere Gerät legt auf. **Noch nicht live getestet** (braucht zweites Gerät auf derselben Nebenstelle; Plan: Host-`pjsua` aus `android-app/third_party/pjproject` in eine Kopie bauen, per UDP als zweites Gerät der 12 registrieren).
+- App 0.6.0 (in Arbeit): Taste „Aufnehmen" im Gespräch, Liste „Aufnahmen" im Ich-Reiter, Banner „Gespräch auf anderem Gerät → Hierher holen" (wählt `*55`, wenn `presence.self.line == busy` und die App selbst kein Gespräch hat).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 1. **Phase 6 Extras** (Nutzer: "mach weiter"):

@@ -8,24 +8,42 @@ import '../services/call_history_store.dart';
 import '../services/directory_repository.dart';
 import '../services/forwarding_repository.dart';
 import '../services/presence_repository.dart';
+import '../services/recordings_repository.dart';
 import '../services/sip_channel.dart';
 import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
+import '../utils/recording_ui.dart';
 import '../utils/registration_ui.dart';
 import '../widgets/own_status_header.dart';
 import 'diagnostics_screen.dart';
 import 'forwarding_screen.dart';
+import 'recordings_screen.dart';
 
 /// Ich tab: Status (own extension, presence, registration), Einstellungen
-/// (Weiterleitungen, Diagnose, SIP) and Gerät (reconnect, re-pair, unpair).
+/// (Aufnahmen, Weiterleitungen, Diagnose, SIP) and Gerät (reconnect,
+/// re-pair, unpair). "Aufnahmen" only appears while recording is allowed or
+/// recordings exist; the list is re-checked whenever the tab opens.
 class MeTab extends StatefulWidget {
-  const MeTab({super.key, required this.onSetupChanged, required this.onUnpaired});
+  const MeTab({
+    super.key,
+    required this.onSetupChanged,
+    required this.onUnpaired,
+    this.isActive = false,
+    RecordingsRepository? recordings,
+    DirectoryRepository? directory,
+  })  : _recordings = recordings,
+        _directory = directory;
 
   /// Called after returning from QR pairing or settings.
   final Future<void> Function() onSetupChanged;
 
   /// Called after the device was unpaired (back to onboarding).
   final Future<void> Function() onUnpaired;
+
+  /// The tab is on screen (refreshes the recordings).
+  final bool isActive;
+  final RecordingsRepository? _recordings;
+  final DirectoryRepository? _directory;
 
   @override
   State<MeTab> createState() => _MeTabState();
@@ -35,15 +53,29 @@ class _MeTabState extends State<MeTab> {
   RegistrationUi _registration = RegistrationUi.connecting;
   StreamSubscription<CallEvent>? _events;
 
+  RecordingsRepository get _recordings => widget._recordings ?? RecordingsRepository.instance;
+  DirectoryRepository get _dir => widget._directory ?? DirectoryRepository.instance;
+
   @override
   void initState() {
     super.initState();
+    if (widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_recordings.refresh());
+      });
+    }
     _events = CallEvents.instance.stream.listen((e) {
       if (e is RegistrationStateEvent && mounted) {
         setState(() => _registration = RegistrationUi.fromState(e.state));
       }
     });
     _loadRegistration();
+  }
+
+  @override
+  void didUpdateWidget(MeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) unawaited(_recordings.refresh());
   }
 
   @override
@@ -124,6 +156,7 @@ class _MeTabState extends State<MeTab> {
     ForwardingRepository.instance.clear();
     await CallHistoryStore.instance.clearPbx();
     await VoicemailRepository.instance.clear();
+    _recordings.clear();
     await widget.onUnpaired();
   }
 
@@ -142,6 +175,7 @@ class _MeTabState extends State<MeTab> {
           _registrationTile(context),
           const Divider(height: 24),
           const _SectionHeader('Einstellungen'),
+          _recordingsTile(),
           ListTile(
             leading: const Icon(Icons.phone_forwarded_outlined),
             title: const Text('Weiterleitungen'),
@@ -190,6 +224,26 @@ class _MeTabState extends State<MeTab> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Shown while recording is allowed (directory or list) or recordings exist.
+  Widget _recordingsTile() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_recordings, _dir]),
+      builder: (context, _) {
+        final list = _recordings.recordings;
+        final allowed = (_dir.directory?.recordingAllowed ?? false) || _recordings.isAllowed;
+        if (!allowed && list.isEmpty) return const SizedBox.shrink();
+        return ListTile(
+          key: const Key('me-recordings'),
+          leading: const Icon(Icons.mic_none),
+          title: const Text('Aufnahmen'),
+          subtitle: Text(_recordings.hasLoaded ? recordingCountText(list.length) : 'Aufgezeichnete Gespräche'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _push(RecordingsScreen(repository: widget._recordings, directory: widget._directory)),
+        );
+      },
     );
   }
 

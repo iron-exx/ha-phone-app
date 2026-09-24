@@ -1,44 +1,13 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ha_phone_test/models/voicemail.dart';
 import 'package:ha_phone_test/screens/voicemail_tab.dart';
 import 'package:ha_phone_test/services/directory_repository.dart';
-import 'package:ha_phone_test/services/voicemail_audio.dart';
 import 'package:ha_phone_test/services/voicemail_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/fake_api.dart';
+import '../helpers/fake_audio.dart';
 import '../helpers/fake_sip.dart';
-
-class _FakeAudio implements VoicemailAudio {
-  final _playing = StreamController<bool>.broadcast();
-  final loaded = <String>[];
-  var plays = 0;
-
-  @override
-  Stream<Duration> get position => const Stream.empty();
-  @override
-  Stream<Duration?> get duration => const Stream.empty();
-  @override
-  Stream<bool> get playing => _playing.stream;
-
-  @override
-  Future<void> load(VoicemailMessage message) async => loaded.add(message.id);
-  @override
-  Future<void> play() async {
-    plays++;
-    _playing.add(true);
-  }
-
-  @override
-  Future<void> pause() async => _playing.add(false);
-  @override
-  Future<void> seek(Duration position) async {}
-  @override
-  Future<void> dispose() => _playing.close();
-}
 
 final _now = DateTime.now();
 int _epoch(DateTime t) => t.millisecondsSinceEpoch ~/ 1000;
@@ -74,12 +43,12 @@ void main() {
         'new_count': 1,
       };
 
-  Future<({VoicemailRepository repo, _FakeAudio audio})> pump(WidgetTester tester, FakePbx fake) async {
+  Future<({VoicemailRepository repo, FakeAudio audio})> pump(WidgetTester tester, FakePbx fake) async {
     final dir = DirectoryRepository(api: fake.api, authLoader: testAuthLoader);
     final repo = VoicemailRepository(api: fake.api, authLoader: testAuthLoader);
-    final audio = _FakeAudio();
+    final audio = FakeAudio();
     await tester.pumpWidget(MaterialApp(
-      home: VoicemailTab(repository: repo, directory: dir, audioFactory: (_) => audio),
+      home: VoicemailTab(repository: repo, directory: dir, audioFactory: () => audio),
     ));
     await tester.runAsync(() async {
       await dir.refresh();
@@ -131,7 +100,7 @@ void main() {
     await tester.runAsync(() => pumpEventQueue());
     await tester.pumpAndSettle();
 
-    expect(r.audio.loaded, ['INBOX/msg0000']);
+    expect(r.audio.loaded.map((u) => u.path), ['/api/mobile/voicemail/INBOX/msg0000/audio']);
     expect(r.audio.plays, 1);
     expect(find.byTooltip('Pause'), findsOneWidget);
     expect(find.byKey(const ValueKey('voicemail-new-dot')), findsNothing);
