@@ -180,7 +180,7 @@ class RecChip extends StatelessWidget {
         key: const Key('recording-indicator'),
         constraints: const BoxConstraints(minHeight: 28),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(color: c.end, borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: c.endStrong, borderRadius: BorderRadius.circular(14)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -55,12 +55,13 @@ void main() {
     AppNavigation? navigation,
     DoorOpener? doorOpener,
     double textScale = 1,
+    Size size = const Size(390, 844),
   }) async {
     await tester.pumpWidget(MaterialApp(
       theme: AppTheme.dark(),
       routes: {'/active-call': (_) => const Scaffold(body: Text('ACTIVE'))},
       home: MediaQuery(
-        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: const Size(390, 844)),
+        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: size),
         child: ContactsTab(
           repository: r,
           navigation: navigation ?? AppNavigation(),
@@ -162,6 +163,18 @@ void main() {
     await pumpTab(tester, r, textScale: 2);
     expect(tester.takeException(), isNull);
     expect(find.text('sandro'), findsOneWidget);
+  });
+
+  testWidgets('no overflow at 200 % text size on a 320 dp phone', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
+    await pumpTab(tester, r, textScale: 2, size: const Size(320, 640));
+    expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -1500));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('search and phonebook segment', (tester) async {

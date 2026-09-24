@@ -63,7 +63,7 @@ class DiagnosticsService {
     ]);
     return PbxProbe(reachability, [
       _feature('Präsenz', presenceError, kMinPbxVersionPhase3),
-      _feature('Voicemail', others[0], kMinPbxVersionPhase3),
+      _feature('Mailbox', others[0], kMinPbxVersionPhase3),
       _feature('Weiterleitungen', others[1], kMinPbxVersionPhase5),
       _feature('Anrufliste der Anlage', others[2], kMinPbxVersionPhase5),
       _feature('Gesprächsaufzeichnung', others[3], kMinPbxVersionPhase6),

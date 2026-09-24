@@ -15,6 +15,12 @@
     <!-- Always-on SIP registration (SipService) + restart after reboot. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- During a call SipService adds phoneCall|microphone, so the mic keeps working when the
+         call was answered from the background (car, headset). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Ringing vibration (calls/RingtonePlayer). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -26,7 +32,9 @@
 
     <application
         android:name=".HAPhoneTestApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="HA-Phone"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -68,12 +76,15 @@
             android:value="2" />
 
         <!-- Native, deliberately not a FlutterActivity, see the class
-             doc comment in IncomingCallActivity.kt for why. -->
+             doc comment in IncomingCallActivity.kt for why. Own task (taskAffinity): it
+             must not land on top of a MainActivity task left behind the keyguard by an
+             earlier call, where it only came up as a heads-up instead of full screen. -->
         <activity
             android:name=".IncomingCallActivity"
             android:exported="false"
             android:theme="@style/Theme.HAPhoneTest"
             android:launchMode="singleTop"
+            android:taskAffinity="de.haphone.app.test.ringing"
             android:excludeFromRecents="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
@@ -81,7 +92,7 @@
         <service
             android:name=".SipService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|phoneCall|microphone">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps the SIP registration to the user's own PBX alive so incoming VoIP calls ring" />

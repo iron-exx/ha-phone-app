@@ -8,7 +8,7 @@ import 'contact_filter.dart';
 enum TimelineFilter {
   all('Alle'),
   missed('Verpasst'),
-  voicemail('Voicemail'),
+  voicemail('Mailbox'),
   recordings('Aufnahmen'),
   door('Tür');
 

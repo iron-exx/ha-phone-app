@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/recording.dart';
+import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'directory_repository.dart';
 import 'pbx_audio.dart';
@@ -26,6 +27,7 @@ class RecordingsRepository extends ChangeNotifier {
   bool _allowed = false;
   bool _loaded = false;
   bool _loading = false;
+  final _flight = SingleFlight();
   ApiException? _error;
   RecordingLines _live = const RecordingLines();
   bool _switching = false;
@@ -40,6 +42,10 @@ class RecordingsRepository extends ChangeNotifier {
 
   /// True once a refresh succeeded (distinguishes "empty" from "not loaded").
   bool get hasLoaded => _loaded;
+
+  /// Time of the last successful refresh ("Stand hh:mm" while offline).
+  DateTime? get loadedAt => _loadedAt;
+  DateTime? _loadedAt;
   bool get isUnsupported => _error?.kind == ApiErrorKind.unsupported;
 
   /// A start/stop request is on its way (the button is disabled meanwhile).
@@ -48,8 +54,9 @@ class RecordingsRepository extends ChangeNotifier {
   /// Start of the recording on the call line [lineKey] ([recordingLineKey]), null if not recorded.
   DateTime? recordingSince(String lineKey) => _live.since(lineKey);
 
-  Future<void> refresh() async {
-    if (_loading) return;
+  Future<void> refresh() => _flight.run(_refresh);
+
+  Future<void> _refresh() async {
     _loading = true;
     notifyListeners();
     try {
@@ -57,6 +64,7 @@ class RecordingsRepository extends ChangeNotifier {
       _recordings = list.recordings;
       _allowed = list.allowed;
       _loaded = true;
+      _loadedAt = _clock();
       _error = null;
     } on ApiException catch (e) {
       _error = e;

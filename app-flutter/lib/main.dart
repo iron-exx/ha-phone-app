@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/active_call_screen.dart';
-import 'screens/dialpad_screen.dart';
 import 'screens/qr_scan_screen.dart';
 import 'screens/root_screen.dart';
 import 'screens/settings_screen.dart';
@@ -79,7 +78,6 @@ class _HAPhoneAppState extends State<HAPhoneApp> {
       routes: {
         '/': (_) => const RootScreen(),
         '/settings': (_) => const SettingsScreen(),
-        '/dialpad': (_) => const DialpadScreen(),
         '/active-call': (_) => const ActiveCallScreen(),
         '/qr-scan': (_) => const QrScanScreen(),
       },

@@ -63,9 +63,11 @@ class ApiException implements Exception {
         ApiErrorKind.notPaired => 'Gerät neu koppeln (QR-Code), damit Kontakte geladen werden.',
         ApiErrorKind.unauthorized => 'Gerät nicht mehr gekoppelt – Gerät neu koppeln (QR-Code).',
         ApiErrorKind.unreachable => 'Anlage nicht erreichbar – WLAN prüfen.',
+        // 404 on an item that existed (message deleted on the desk phone or in the admin UI).
+        ApiErrorKind.server when statusCode == 404 => 'Nicht mehr auf der Anlage – vermutlich woanders gelöscht.',
         ApiErrorKind.server => 'Anlage meldet einen Fehler${statusCode != null ? ' (HTTP $statusCode)' : ''}.',
         ApiErrorKind.unsupported => 'Funktion braucht HA-Phone $minPbxVersion oder neuer.',
-        ApiErrorKind.notAllowed => 'Für Ihre Nebenstelle nicht freigegeben – bitte beim Administrator nachfragen.',
+        ApiErrorKind.notAllowed => 'Für deine Nebenstelle nicht freigegeben – bitte beim Administrator nachfragen.',
       };
 
   @override
@@ -118,7 +120,7 @@ class ApiClient {
   /// Sets the own presence; returns the value the PBX stored.
   Future<Presence> setPresence(DeviceAuth auth, Presence presence) async {
     final response = await _send(auth, 'PUT', '/api/mobile/presence', body: {'status': presence.apiValue});
-    final stored = Presence.fromApi(_decodeObject(response)['presence'] as String?);
+    final stored = Presence.fromApi(_decodeOptionalObject(response)['presence'] as String?);
     return stored == Presence.unknown ? presence : stored;
   }
 
@@ -135,6 +137,7 @@ class ApiClient {
   }
 
   /// Downloads the WAV file (fallback when streaming with headers fails).
+  /// 404: the message was deleted elsewhere (the endpoint exists, the list had it).
   Future<List<int>> downloadVoicemail(DeviceAuth auth, VoicemailMessage message) async {
     final path = message.path;
     if (path == null) throw const ApiException(ApiErrorKind.server);
@@ -142,6 +145,7 @@ class ApiClient {
       auth,
       'GET',
       '/api/mobile/voicemail/${path.folder}/${path.name}/audio',
+      notFoundIsUnsupported: false,
       timeout: _downloadTimeout,
     );
     return response.bodyBytes;
@@ -175,6 +179,8 @@ class ApiClient {
       body: forwardingRulesToJson(rules),
       minVersion: kMinPbxVersionPhase5,
     );
+    // An empty 2xx body means "stored as sent".
+    if (response.bodyBytes.isEmpty) return rules;
     return parseForwardingRules(_decodeObject(response));
   }
 
@@ -195,7 +201,7 @@ class ApiClient {
   /// 409 = no unique call found, 502 = PBX error.
   Future<String> startRecording(DeviceAuth auth, String peer) async {
     final response = await _controlRecording(auth, 'start', peer);
-    return (_decodeObject(response)['id'] ?? '').toString();
+    return (_decodeOptionalObject(response)['id'] ?? '').toString();
   }
 
   /// Stops the recording of the own call with [peer]. 409 = none running.
@@ -212,15 +218,16 @@ class ApiClient {
         forbiddenIsNotAllowed: true,
       );
 
-  /// Opens door station [extension] through its webhook on the PBX (no call
-  /// needed). Returns false on 404: the door has no webhook configured (or
-  /// the PBX predates 0.7.117), so the caller falls back to the DTMF code.
   /// Asks the PBX to ring this device after [delaySec] ("Test-Anruf an mich"). Throws
   /// [ApiException] (status 429 when a test ran less than a minute ago).
   Future<void> requestTestCall(DeviceAuth auth, {int delaySec = 10}) async {
     await _send(auth, 'POST', '/api/mobile/test-call', body: {'delay_sec': delaySec}, minVersion: kMinPbxVersionTestCall);
   }
 
+  /// Opens door station [extension] through its webhook on the PBX (no call
+  /// needed). Returns false on 404 or on the admin web app's HTML page (200):
+  /// the door has no webhook configured or the PBX predates 0.7.117, so the
+  /// caller falls back to the DTMF code.
   Future<bool> openDoorRemote(DeviceAuth auth, String extension) async {
     // The PBX only knows numeric extensions; anything else never leaves the app.
     if (!RegExp(r'^\d{1,10}$').hasMatch(extension)) throw const ApiException(ApiErrorKind.server);
@@ -229,10 +236,12 @@ class ApiClient {
       'POST',
       '/api/mobile/door-open',
       body: {'extension': extension},
+      notFoundIsUnsupported: false,
       acceptNotFound: true,
       minVersion: kMinPbxVersionDoorOpen,
     );
-    return response.statusCode != 404;
+    if (response.statusCode == 404) return false;
+    return !(response.headers['content-type'] ?? '').contains('text/html');
   }
 
   /// URL of a recording's WAV file; needs [authHeaders].
@@ -311,6 +320,11 @@ class ApiClient {
     }
     return response;
   }
+
+  /// Like [_decodeObject], but an empty 2xx body (a PBX that only answers
+  /// with a status) is an empty object instead of an error.
+  Map<String, dynamic> _decodeOptionalObject(http.Response response) =>
+      response.bodyBytes.isEmpty ? const {} : _decodeObject(response);
 
   Map<String, dynamic> _decodeObject(http.Response response) {
     try {

@@ -146,6 +146,8 @@ class StartTab extends StatelessWidget {
         },
     };
     final who = self == null ? 'Eigene Nebenstelle' : '${self.displayName} · ${self.number}';
+    void openStatus() => StatusSheet.show(context,
+        directory: _dir, presence: _pres, ring: _ring, reachability: reachability, forwarding: forwarding);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 16, 8),
       child: Row(
@@ -164,11 +166,13 @@ class StartTab extends StatelessWidget {
               button: true,
               label: '$who, $pill',
               hint: 'Status und Klingeln',
+              // excludeSemantics drops the InkWell's action, so TalkBack needs it here.
+              onTap: openStatus,
               excludeSemantics: true,
               child: InkWell(
                 key: const Key('start-status'),
                 borderRadius: BorderRadius.circular(14),
-                onTap: () => StatusSheet.show(context, directory: _dir, presence: _pres, ring: _ring, reachability: reachability, forwarding: forwarding),
+                onTap: openStatus,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: kMinTap),
                   child: Column(
@@ -270,7 +274,7 @@ class StartTab extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Noch keine Favoriten. In Kontakte einen Eintrag lange drücken → „Favorit“.',
+                    'Noch keine Favoriten. In Kontakte einen Eintrag antippen → „Favorit“.',
                     style: NwType.meta.copyWith(color: c.muted),
                   ),
                 ),
@@ -312,20 +316,25 @@ class StartTab extends StatelessWidget {
                 : 'Telefonbuch';
     final state = live == null ? contact.number : live.label;
     final stateColor = kind == null || kind == AvatarPresence.offline ? c.faint : kind.color(c);
+    void call() => CallLauncher.call(context, contact.number);
+    void details() => ContactDetailsSheet.show(
+          context,
+          contact,
+          onCall: call,
+          presence: _pres,
+        );
     return Semantics(
       button: true,
       label: '${contact.displayName} anrufen, $sub, $state',
+      onTap: call,
+      onLongPress: details,
+      onLongPressHint: 'Details',
       excludeSemantics: true,
       child: NwCard(
         key: ValueKey('fav-${contact.number}'),
         radius: 20,
-        onTap: () => CallLauncher.call(context, contact.number),
-        onLongPress: () => ContactDetailsSheet.show(
-          context,
-          contact,
-          onCall: () => CallLauncher.call(context, contact.number),
-          presence: _pres,
-        ),
+        onTap: call,
+        onLongPress: details,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -355,12 +364,13 @@ class StartTab extends StatelessWidget {
     final VoicemailMessage m = unheard.first;
     final name = m.callerName.isNotEmpty ? m.callerName : _dir.nameFor(m.callerNumber);
     final who = name.isNotEmpty ? name : (m.callerNumber.isNotEmpty ? m.callerNumber : 'Unbekannt');
-    final title = unheard.length == 1 ? 'Neue Voicemail · $who' : '${unheard.length} neue Voicemails · $who';
+    final title = unheard.length == 1 ? 'Neue Sprachnachricht · $who' : '${unheard.length} neue Sprachnachrichten · $who';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Semantics(
         button: true,
         label: '$title, im Verlauf anhören',
+        onTap: () => _nav.openHistory(TimelineFilter.voicemail),
         excludeSemantics: true,
         child: NwCard(
           key: const Key('start-voicemail'),

@@ -264,7 +264,7 @@ class CountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.nw;
     return DecoratedBox(
-      decoration: BoxDecoration(color: c.end, borderRadius: BorderRadius.circular(9)),
+      decoration: BoxDecoration(color: c.endStrong, borderRadius: BorderRadius.circular(9)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
         child: Padding(

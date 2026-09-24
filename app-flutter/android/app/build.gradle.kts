@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -7,19 +5,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
 }
-
-// Dev SIP test-extension credentials -- deliberately NOT android/local.properties
-// (Flutter's tooling auto-writes/overwrites that file with sdk.dir/flutter.sdk
-// on every `flutter pub get`/IDE sync; reusing it for secrets risks them
-// being clobbered). Gitignored; sip-secrets.local.properties.example is the
-// tracked template. Falls back to an empty string if unset so a fresh
-// checkout still compiles -- HAPhoneTestApplication handles the empty case
-// (SIP registration becomes a no-op until Settings/QR provisioning fills it in).
-val sipSecrets = Properties().apply {
-    val f = rootProject.file("app/sip-secrets.local.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
-}
-fun sipTestProperty(key: String): String = sipSecrets.getProperty(key, "")
 
 android {
     namespace = "de.haphone.app.test"
@@ -42,11 +27,7 @@ android {
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-        buildConfigField("String", "SIP_TEST_HOST", "\"${sipTestProperty("sip.test.host")}\"")
-        buildConfigField("String", "SIP_TEST_PORT", "\"${sipTestProperty("sip.test.port")}\"")
-        buildConfigField("String", "SIP_TEST_USERNAME", "\"${sipTestProperty("sip.test.username")}\"")
-        buildConfigField("String", "SIP_TEST_PASSWORD", "\"${sipTestProperty("sip.test.password")}\"")
+        // No credentials in the build: SIP accounts come only from QR provisioning / Settings.
     }
 
     buildFeatures {

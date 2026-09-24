@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/extension_status.dart';
 import '../models/presence.dart';
+import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'directory_repository.dart';
 import 'foreground_poller.dart';
@@ -29,8 +30,12 @@ class PresenceRepository extends ChangeNotifier {
   PresenceSnapshot? _snapshot;
   DateTime? _updatedAt;
   ApiException? _error;
-  bool _loading = false;
+  final _flight = SingleFlight();
   bool _saving = false;
+
+  /// Bumped by every PUT and by [clear]: a poll that started before it
+  /// carries old data and is dropped, even if it finishes after the PUT.
+  int _writeGen = 0;
 
   /// Last successful snapshot (or optimistic update), null if never loaded.
   PresenceSnapshot? get snapshot => _snapshot;
@@ -52,22 +57,25 @@ class PresenceRepository extends ChangeNotifier {
   /// Called by the shell: true while it is on screen.
   void setVisible(bool visible) => _poller.active = visible;
 
-  Future<void> refresh() async {
-    if (_loading) return;
-    _loading = true;
+  Future<void> refresh() => _flight.run(_refresh);
+
+  Future<void> _refresh() async {
+    final gen = _writeGen;
+    bool stale() => gen != _writeGen || _saving;
     try {
       final fresh = await _api.fetchPresence(await _authLoader());
-      // Don't let a poll that started before a PUT overwrite the optimistic value.
-      if (!_saving) _snapshot = fresh;
-      _updatedAt = DateTime.now();
-      _error = null;
+      // A poll that started before a PUT (or an unpair) must not overwrite it.
+      if (!stale()) {
+        _snapshot = fresh;
+        _updatedAt = DateTime.now();
+        _error = null;
+      }
     } on ApiException catch (e) {
-      _error = e;
+      if (!stale()) _error = e;
     } catch (e) {
       debugPrint('presence refresh failed: $e');
-      _error = const ApiException(ApiErrorKind.unreachable);
+      if (!stale()) _error = const ApiException(ApiErrorKind.unreachable);
     } finally {
-      _loading = false;
       notifyListeners();
     }
   }
@@ -78,6 +86,7 @@ class PresenceRepository extends ChangeNotifier {
     final before = _snapshot;
     _snapshot = (before ?? const PresenceSnapshot()).withOwnPresence(presence);
     _saving = true;
+    _writeGen++;
     notifyListeners();
     try {
       final stored = await _api.setPresence(await _authLoader(), presence);
@@ -97,6 +106,8 @@ class PresenceRepository extends ChangeNotifier {
 
   /// Forget everything (device unpaired).
   void clear() {
+    _writeGen++;
+    _flight.reset();
     _snapshot = null;
     _updatedAt = null;
     _error = null;

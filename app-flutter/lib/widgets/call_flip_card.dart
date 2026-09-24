@@ -74,7 +74,7 @@ class _CallFlipCardState extends State<CallFlipCard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('Gespräch auf anderem Gerät', style: NwType.rowTitle.copyWith(color: c.text, fontSize: 13.5)),
-                      Text('Ihre Nebenstelle telefoniert', style: NwType.meta.copyWith(color: c.okText, fontSize: 12)),
+                      Text('Deine Nebenstelle telefoniert', style: NwType.meta.copyWith(color: c.okText, fontSize: 12)),
                     ],
                   ),
                 ),

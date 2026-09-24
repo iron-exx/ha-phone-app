@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.telecom.DisconnectCause
 import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -18,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.core.telecom.CallAttributesCompat
 import de.haphone.app.test.ring.DoorOpenClient
 import de.haphone.app.test.ring.DoorOpenMethod
 import de.haphone.app.test.ring.DoorOpenOutcome
@@ -31,8 +29,6 @@ import de.haphone.app.test.ring.RingLayouts
 import de.haphone.app.test.ring.RingScreen
 import de.haphone.app.test.ring.RingVariant
 import de.haphone.app.test.ring.isDraggable
-import de.haphone.app.test.sip.VideoSurfaceBinder
-import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.time.LocalTime
 
@@ -57,16 +53,26 @@ class IncomingCallActivity : ComponentActivity() {
     /** Answered/declined from here: later taps and late webhook results are ignored. */
     private var handled = false
 
+    /** The SIP call this screen rings for; null for a push-announced call without INVITE yet. */
+    private var sipCallId: Int? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        showOverLockScreen()
         current = WeakReference(this)
         ownsVideoSurface = true
         val callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
+        sipCallId = sipCallIdOf(intent)
 
         when (intent.getStringExtra(EXTRA_ACTION)) {
             ACTION_ANSWER -> { answer(); return }
             ACTION_DECLINE -> { decline(); return }
         }
+        // The call may have ended between posting the intent and now (caller gave up,
+        // answered elsewhere): no ghost ringing screen.
+        if (finishIfNotRinging()) return
+        // Backstop for the ring limit in IncomingCallFlow (e.g. the flow's timer was lost).
+        main.postDelayed({ if (!handled && !isFinishing) finishIfNotRinging(force = true) }, IncomingCallFlow.RING_TIMEOUT_MS + 5_000L)
 
         keyguardLocked = isKeyguardLocked()
         val doorCode = app.doorCodes.forNumber(callId)
@@ -115,7 +121,32 @@ class IncomingCallActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!handled && finishIfNotRinging()) return
         keyguardLocked = isKeyguardLocked()
+    }
+
+    /** Finishes when the call no longer rings (or [force]); true if it did. */
+    private fun finishIfNotRinging(force: Boolean = false): Boolean {
+        if (!force && app.incoming.isRinging(sipCallId)) return false
+        android.util.Log.i("IncomingCallActivity", "call ${sipCallId ?: "(push)"} no longer ringing, closing ringing screen")
+        handled = true
+        ownsVideoSurface = false
+        finish()
+        return true
+    }
+
+    /** API 26 ignores the manifest's showWhenLocked/turnScreenOn (added in 27). */
+    private fun showOverLockScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+            )
+        }
     }
 
     private fun isKeyguardLocked(): Boolean =
@@ -180,6 +211,7 @@ class IncomingCallActivity : ComponentActivity() {
     // singleTop: the notification's Annehmen/Ablehnen actions arrive here while the screen is open.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        sipCallIdOf(intent)?.let { sipCallId = it }
         when (intent.getStringExtra(EXTRA_ACTION)) {
             ACTION_ANSWER -> answer()
             ACTION_DECLINE -> decline()
@@ -198,19 +230,18 @@ class IncomingCallActivity : ComponentActivity() {
         // From here on the Flutter call screen owns the video; a late surfaceChanged of this
         // dying SurfaceView must not steal the window back (it would stay black).
         ownsVideoSurface = false
-        val scope = app.currentCallControlScope
-        // Telecom may report this answer back through onAnswer; that must not run the
-        // "answered in the car" hand-off a second time (the call screen never opened).
-        app.markAnsweredLocally()
-        // Tell Telecom we answered from our own UI (if it has registered the call yet),
-        // then send the SIP 200 OK either way.
-        scope?.launch { runCatching { scope.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL) } }
-        app.sipCallController.answer(scope)
-        CallNotificationBuilder.cancel(this)
+        // One idempotent, exception-safe path (also used by the notification action and
+        // Telecom's onAnswer); it tells Telecom and marks the local answer itself.
+        if (app.incoming.answer(sipCallId, fromTelecom = false) == IncomingCallFlow.AnswerResult.FAILED) {
+            finish()
+            return
+        }
         startActivity(
             Intent(this, MainActivity::class.java).apply {
                 putExtra("route", "active_call")
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                // This screen lives in its own task (manifest taskAffinity): bring MainActivity's
+                // own task forward instead of stacking a second MainActivity on top of this one.
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             },
         )
         finish()
@@ -226,10 +257,7 @@ class IncomingCallActivity : ComponentActivity() {
         if (handled) return
         handled = true
         ownsVideoSurface = false
-        runCatching { app.sipCallController.hangup() }
-        app.releaseTelecomCall(DisconnectCause.LOCAL)
-        CallNotificationBuilder.cancel(this)
-        VideoSurfaceBinder.reset()
+        app.incoming.decline(sipCallId)
         finish()
     }
 
@@ -238,6 +266,7 @@ class IncomingCallActivity : ComponentActivity() {
         const val EXTRA_CALL_TYPE = "callType"
         const val EXTRA_CALLER_NAME = "callerName"
         const val EXTRA_ACTION = "action"
+        const val EXTRA_SIP_CALL_ID = "sipCallId"
         const val ACTION_ANSWER = "answer"
         const val ACTION_DECLINE = "decline"
 
@@ -249,12 +278,24 @@ class IncomingCallActivity : ComponentActivity() {
         var ownsVideoSurface = false
             private set
 
-        fun intent(context: Context, callId: String, callType: String, callerName: String?, action: String? = null) =
-            Intent(context, IncomingCallActivity::class.java)
-                .putExtra(EXTRA_CALL_ID, callId)
-                .putExtra(EXTRA_CALL_TYPE, callType)
-                .putExtra(EXTRA_CALLER_NAME, callerName)
-                .putExtra(EXTRA_ACTION, action)
+        fun intent(
+            context: Context,
+            callId: String,
+            callType: String,
+            callerName: String?,
+            action: String? = null,
+            sipCallId: Int? = null,
+        ) = Intent(context, IncomingCallActivity::class.java)
+            .putExtra(EXTRA_CALL_ID, callId)
+            .putExtra(EXTRA_CALL_TYPE, callType)
+            .putExtra(EXTRA_CALLER_NAME, callerName)
+            .putExtra(EXTRA_ACTION, action)
+            .putExtra(EXTRA_SIP_CALL_ID, sipCallId ?: NO_SIP_CALL)
+
+        private const val NO_SIP_CALL = Int.MIN_VALUE
+
+        private fun sipCallIdOf(intent: Intent): Int? =
+            intent.getIntExtra(EXTRA_SIP_CALL_ID, NO_SIP_CALL).takeIf { it != NO_SIP_CALL }
 
         /** Caller hung up / someone else answered before we did. */
         fun finishIfShowing() {

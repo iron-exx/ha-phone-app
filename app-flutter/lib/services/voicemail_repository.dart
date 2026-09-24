@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/voicemail.dart';
+import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'directory_repository.dart';
 import 'foreground_poller.dart';
@@ -32,6 +33,7 @@ class VoicemailRepository extends ChangeNotifier {
   bool _heardLoaded = false;
   bool _loaded = false;
   bool _loading = false;
+  final _flight = SingleFlight();
   ApiException? _error;
 
   /// Newest first.
@@ -41,6 +43,10 @@ class VoicemailRepository extends ChangeNotifier {
 
   /// True once a refresh succeeded (distinguishes "empty" from "not loaded").
   bool get hasLoaded => _loaded;
+
+  /// Time of the last successful refresh ("Stand hh:mm" while offline).
+  DateTime? get loadedAt => _loadedAt;
+  DateTime? _loadedAt;
   bool get isUnsupported => _error?.kind == ApiErrorKind.unsupported;
 
   /// Badge count on the Voicemail tab.
@@ -63,8 +69,9 @@ class VoicemailRepository extends ChangeNotifier {
   /// Started by the shell for its lifetime (badge needs it on every tab).
   void setPolling(bool enabled) => _poller.active = enabled;
 
-  Future<void> refresh() async {
-    if (_loading) return;
+  Future<void> refresh() => _flight.run(_refresh);
+
+  Future<void> _refresh() async {
     _loading = true;
     notifyListeners();
     try {
@@ -72,6 +79,7 @@ class VoicemailRepository extends ChangeNotifier {
       final box = await _api.fetchVoicemail(await _authLoader());
       _messages = box.messages;
       _loaded = true;
+      _loadedAt = DateTime.now();
       _error = null;
       await _pruneHeard();
     } on ApiException catch (e) {

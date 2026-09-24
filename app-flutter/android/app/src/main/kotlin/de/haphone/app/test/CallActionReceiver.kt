@@ -13,14 +13,15 @@ class CallActionReceiver : BroadcastReceiver() {
         runCatching {
             when (intent.action) {
                 ACTION_ANSWER_WAITING -> {
-                    if (app.sipCallController.answerWaiting()) app.calls.acceptWaiting()
+                    // Swaps only if the waiting call still knocks and the 200 OK went out.
+                    app.incoming.answerWaiting()
                     context.startActivity(
                         Intent(context, MainActivity::class.java)
                             .putExtra("route", "active_call")
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
                     )
                 }
-                ACTION_REJECT_WAITING -> app.sipCallController.rejectWaiting()
+                ACTION_REJECT_WAITING -> app.incoming.rejectWaiting()
             }
         }.onFailure { android.util.Log.w("CallActionReceiver", "action ${intent.action} failed", it) }
     }

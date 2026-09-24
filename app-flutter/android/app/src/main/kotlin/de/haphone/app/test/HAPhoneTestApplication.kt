@@ -1,16 +1,8 @@
 package de.haphone.app.test
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
-import android.content.SharedPreferences
 import android.net.ConnectivityManager
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.telecom.CallControlScope
 import androidx.core.telecom.CallsManager
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
 import de.haphone.app.test.sip.NetworkChangeHandler
 import de.haphone.app.test.sip.PjsuaEndpointHolder
 import de.haphone.app.test.sip.SipCallController
@@ -55,12 +47,11 @@ class HAPhoneTestApplication : Application() {
     private val networkChangeHandler = NetworkChangeHandler(pjsuaEndpointHolder)
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
-    // Blocker fix: the only source ActiveCallActivity (Plan 06) reads for
-    // CallControlScope.availableEndpoints/requestEndpointChange (Audio
-    // Routing, CALL-01). Stashed by CallRegistration.reportIncomingCall AND
-    // reportOutgoingCall's trailing lambda (both directions), overwritten
-    // each time a new call is reported so it always reflects the current call.
-    var currentCallControlScope: CallControlScope? = null
+    /** The Telecom calls, each tied to its SIP call (replaces the single currentCallControlScope). Main thread. */
+    val telecom = TelecomCalls()
+
+    /** Ringing -> answered/declined/gone: ringtone, ringing screen, answer guard, ring timeout. */
+    val incoming by lazy { IncomingCallFlow(this) }
 
     val callHistory by lazy { de.haphone.app.test.calls.CallHistoryStore(this) }
     val doorCodes by lazy { de.haphone.app.test.calls.DoorCodes(this) }
@@ -89,10 +80,24 @@ class HAPhoneTestApplication : Application() {
             return true
         }
         val name = carDirectory.load().nameFor(number).ifBlank { number }
-        callRegistration.reportOutgoingCall(callId = number, displayName = name) {
+        callRegistration.reportOutgoingCall(
+            number = number,
+            displayName = name,
+            onFailed = { e ->
+                // Telecom refused, or the call was hung up before Telecom registered it.
+                android.util.Log.w("HAPhoneTestApplication", "outgoing call not started: ${e.message}")
+                if (calls.failOutgoing()) {
+                    CallEventBus.emitCallState(number, "outgoing", "disconnected", e.message)
+                    endTelecomSession(android.telecom.DisconnectCause.ERROR)
+                }
+            },
+        ) { token ->
             // Runs later inside a coroutine, outside any caller's try/catch -- an uncaught PJSIP error here kills the process.
             try {
-                calls.bindOutgoing(sipCallController.makeCall(number))
+                val sipCallId = sipCallController.makeCall(number)
+                calls.bindOutgoing(sipCallId)
+                telecom.bindSipCall(token, sipCallId)
+                SipService.setInCall(true)
             } catch (e: Exception) {
                 android.util.Log.e("HAPhoneTestApplication", "makeCall failed", e)
                 calls.failOutgoing()
@@ -115,6 +120,7 @@ class HAPhoneTestApplication : Application() {
      * screen: close that screen and its notification and move the Flutter UI to the call.
      */
     fun onAnsweredRemotely() {
+        incoming.stopAlerting()
         if (android.os.SystemClock.elapsedRealtime() - answeredLocallyAt < LOCAL_ANSWER_WINDOW_MS) {
             android.util.Log.i("HAPhoneTestApplication", "answer came from our ringing screen, no remote hand-off")
             return
@@ -123,6 +129,32 @@ class HAPhoneTestApplication : Application() {
         IncomingCallActivity.finishIfShowing()
         CallNotificationBuilder.cancel(this)
         sipMethodChannel?.invokeMethod("navigateTo", "active_call")
+    }
+
+    /** Telecom's onAnswer (car, Bluetooth headset, watch) for the call behind [token]. Main thread. */
+    fun onTelecomAnswer(token: Int) {
+        if (!telecom.isLive(token)) return
+        val result = incoming.answer(telecom.sipCallIdFor(token), fromTelecom = true)
+        if (result == IncomingCallFlow.AnswerResult.ANSWERED) onAnsweredRemotely()
+    }
+
+    /**
+     * Telecom ended the call behind [token] (car/headset hang-up, Telecom teardown). Hangs up
+     * exactly the SIP call it stands for -- not whatever happens to be on screen. A token we
+     * released ourselves is no longer live and is ignored. Main thread.
+     */
+    fun onTelecomDisconnect(token: Int) {
+        if (!telecom.isLive(token)) return
+        val sipCallId = telecom.sipCallIdFor(token)
+        telecom.onFailed(token)
+        incoming.stopAlerting()
+        if (sipCallId != null) {
+            runCatching { sipCallController.hangup(sipCallId) }
+                .onFailure { android.util.Log.w("HAPhoneTestApplication", "hangup of $sipCallId after Telecom disconnect failed", it) }
+        } else if (calls.session.isEmpty) {
+            // Push-announced call that never got its INVITE.
+            endTelecomSession(android.telecom.DisconnectCause.LOCAL)
+        }
     }
 
     /**
@@ -157,7 +189,7 @@ class HAPhoneTestApplication : Application() {
     /** In-app hold changed: mirror it to Telecom so the car/Bluetooth show the right state. */
     fun syncTelecomHold(onHold: Boolean) {
         if (calls.session.other != null) return
-        val scope = currentCallControlScope ?: return
+        val scope = telecom.current ?: return
         scope.launch {
             runCatching { if (onHold) scope.setInactive() else scope.setActive() }
                 .onFailure { android.util.Log.w("HAPhoneTestApplication", "Telecom hold sync failed", it) }
@@ -166,7 +198,7 @@ class HAPhoneTestApplication : Application() {
 
     /** SIP call answered: an outgoing Telecom call must go from "dialling" to active (car shows it). */
     private fun markTelecomActive() {
-        val scope = currentCallControlScope ?: return
+        val scope = telecom.current ?: return
         scope.launch {
             runCatching { scope.setActive() }
                 .onFailure { android.util.Log.w("HAPhoneTestApplication", "Telecom setActive failed", it) }
@@ -207,39 +239,8 @@ class HAPhoneTestApplication : Application() {
     val sipCallController: SipCallController
         get() = _sipCallController ?: buildSipCallController().also { _sipCallController = it }
 
-    private var _callRegistration: CallRegistration? = null
-    val callRegistration: CallRegistration
-        get() = _callRegistration ?: CallRegistration(this, sipCallController).also { _callRegistration = it }
-
-    /** Called by SipChannelHandler after saveCredentials so a credential
-     * change takes effect on the next call/register, not only after a
-     * process restart. */
-    /**
-     * A SIP INVITE arrived while registered: hand it to Telecom (so it behaves like a
-     * normal call: audio focus, Bluetooth, car) and show the ringing UI.
-     */
-    private fun showIncomingSipCall(call: de.haphone.app.test.sip.IncomingSipCall) {
-        val callId = call.number.ifBlank { "unknown" }
-        val callType = if (call.hasVideo) "video" else "audio"
-        val role = calls.beginIncoming(call.callId, call.number, call.displayName, call.hasVideo)
-        if (role != de.haphone.app.test.calls.CallSession.IncomingRole.FOCUSED) {
-            // Call waiting: the Telecom call and the call screen stay; Dart shows the waiting banner.
-            CallNotificationBuilder.showWaiting(this, callId, call.displayName)
-            return
-        }
-        callRegistration.reportIncomingCall(callId, displayName = call.displayName) {}
-        CallNotificationBuilder.show(
-            this, callId, callType, isValid = true, isExpired = false, callerName = call.displayName,
-        )
-        // The full-screen intent only fires on a locked/off screen; with the phone in
-        // use it would just be a heads-up, so open the ringing screen directly.
-        runCatching {
-            startActivity(
-                IncomingCallActivity.intent(this, callId, callType, call.displayName)
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        }.onFailure { android.util.Log.w("HAPhoneTestApplication", "could not open ringing screen", it) }
-    }
+    /** Telecom reporting; independent of the SIP credentials (CallRegistration never touches PJSIP). */
+    val callRegistration by lazy { CallRegistration(this) }
 
     /** Keeps the process (and so the SIP registration) alive in the background. */
     fun startSipService() {
@@ -254,33 +255,33 @@ class HAPhoneTestApplication : Application() {
         de.haphone.app.test.reach.WatchdogWorker.ensureScheduled(this)
     }
 
-    /** Last call gone: release Telecom, ringing UI, notifications and the video window. */
+    /** Last call gone: release Telecom, ringing UI, ringtone, notifications and the video window. */
     fun endTelecomSession(cause: Int) {
+        incoming.stopAlerting()
         de.haphone.app.test.calls.AudioRouting.detach()
         releaseTelecomCall(cause)
         CallNotificationBuilder.cancel(this)
         de.haphone.app.test.sip.VideoSurfaceBinder.reset()
         IncomingCallActivity.finishIfShowing()
+        SipService.setInCall(false)
     }
 
+    /** Releases every Telecom call; one not registered yet is disconnected as soon as it is. */
     fun releaseTelecomCall(cause: Int) {
-        val scope = currentCallControlScope ?: return
-        currentCallControlScope = null
-        scope.launch {
-            runCatching { scope.disconnect(android.telecom.DisconnectCause(cause)) }
-                .onFailure { android.util.Log.w("HAPhoneTestApplication", "Telecom disconnect failed", it) }
-        }
+        telecom.releaseAll(cause)
     }
 
+    /** Called by SipChannelHandler after saveCredentials so a credential
+     * change takes effect on the next call/register, not only after a
+     * process restart. */
     fun refreshSipCredentials() {
         runCatching { _sipCallController?.unregister() }
         _sipCallController = buildSipCallController()
-        _callRegistration = CallRegistration(this, requireNotNull(_sipCallController))
     }
 
     private fun buildSipCallController(): SipCallController {
         pjsuaEndpointHolder.start()
-        val (host, port, username, password) = getSipCredentialsForRegistration(this)
+        val (host, port, username, password) = getSipCredentialsForRegistration()
         val sipDomain = "$host:$port"
         return SipCallController(
             sipOps = pjsuaEndpointHolder.asSipCallOperations(
@@ -294,17 +295,13 @@ class HAPhoneTestApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        ShortWakeLock.attach(this)
         de.haphone.app.test.reach.ReachabilityMonitor.attach(this)
         de.haphone.app.test.ring.RingPolicyStore.attach(this) { number ->
             doorCodes.forNumber(number).isNotBlank() || doorCodes.hasOpenRemote(number) ||
                 doorActions.labelsFor(number).isNotEmpty()
         }
-        val channel = NotificationChannel(
-            CallNotificationBuilder.CHANNEL_ID,
-            "HA-Phone Test Calls",
-            NotificationManager.IMPORTANCE_HIGH,
-        )
-        NotificationManagerCompat.from(this).createNotificationChannel(channel)
+        CallNotificationBuilder.ensureChannel(this)
 
         // Fix: CallRegistration.registerApp() previously had zero call
         // sites anywhere in the app, so this process was never actually
@@ -315,6 +312,7 @@ class HAPhoneTestApplication : Application() {
         CallsManager(this).registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
 
         de.haphone.app.test.sip.SipCallEvents.onCallDisconnected = { callId, reason ->
+            incoming.onCallEnded(callId)
             val nothingLeft = calls.ended(callId)
             de.haphone.app.test.car.CarScreens.refreshAll() // Verlauf in Android Auto
             CallNotificationBuilder.cancelWaiting(this)
@@ -322,13 +320,17 @@ class HAPhoneTestApplication : Application() {
                 CallEventBus.emitCallState("", "", "disconnected", reason)
                 endTelecomSession(android.telecom.DisconnectCause.REMOTE)
             } else {
-                // One of two calls ended: the other stays (on hold) on the call screen.
+                // One of two calls ended: the other stays (on hold) on the call screen, and the
+                // Telecom call now stands for it.
+                calls.session.focused?.let { telecom.moveSipCall(callId, it.callId) }
                 CallEventBus.emitCallState(currentCall?.number.orEmpty(), currentCall?.direction.orEmpty(), "lineEnded", reason)
             }
         }
-        de.haphone.app.test.sip.SipCallEvents.onIncomingCall = { call -> showIncomingSipCall(call) }
+        de.haphone.app.test.sip.SipCallEvents.onIncomingCall = { call -> incoming.onIncoming(call) }
         de.haphone.app.test.sip.SipCallEvents.onCallConfirmed = { callId ->
+            incoming.onConfirmed(callId)
             calls.confirmed(callId)
+            SipService.setInCall(true)
             if (calls.session.other == null) markTelecomActive()
         }
 
@@ -340,6 +342,8 @@ class HAPhoneTestApplication : Application() {
             // Delivered on a ConnectivityManager binder thread; PJSIP may only be driven
             // from the thread it was started on (main), so hop there first.
             override fun onAvailable(network: android.net.Network) {
+                // Doze: keep the CPU up until PJSIP has restarted its transport (auto-released).
+                ShortWakeLock.acquire(ShortWakeLock.NETWORK_CHANGE)
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     de.haphone.app.test.reach.ReachabilityMonitor.onIpChange()
                     networkChangeHandler.onNetworkAvailable()
@@ -364,29 +368,24 @@ class HAPhoneTestApplication : Application() {
         FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_ID, flutterEngine)
     }
 
-    /** Raw stored values only (no BuildConfig fallback) -- what the
-     * Settings screen should display, matching the old SettingsActivity's
-     * behavior of showing exactly what's saved, never a hidden dev default. */
-    fun getStoredCredentials(): Map<String, String> {
-        val prefs = getEncryptedPrefs(this)
-        return mapOf(
-            "host" to (prefs.getString("sip_host", "") ?: ""),
-            "port" to (prefs.getString("sip_port", "") ?: ""),
-            "username" to (prefs.getString("sip_username", "") ?: ""),
-            "password" to (prefs.getString("sip_password", "") ?: ""),
+    /** Raw stored values only -- what the Settings screen should display. */
+    fun getStoredCredentials(): Map<String, String> = SecurePrefs.read(this) { prefs ->
+        mapOf(
+            "host" to prefs.getString("sip_host", "").orEmpty(),
+            "port" to prefs.getString("sip_port", "").orEmpty(),
+            "username" to prefs.getString("sip_username", "").orEmpty(),
+            "password" to prefs.getString("sip_password", "").orEmpty(),
         )
     }
 
-    fun hasValidCredentials(): Boolean {
-        val prefs = getEncryptedPrefs(this)
-        return prefs.getString("sip_host", "")?.isNotBlank() == true &&
-            prefs.getString("sip_port", "")?.isNotBlank() == true &&
-            prefs.getString("sip_username", "")?.isNotBlank() == true &&
-            prefs.getString("sip_password", "")?.isNotBlank() == true
-    }
+    /** Never throws: called from boot/alarm/watchdog paths where a crash would stop reachability. */
+    fun hasValidCredentials(): Boolean = runCatching {
+        getStoredCredentials().values.all { it.isNotBlank() }
+    }.onFailure { android.util.Log.e("HAPhoneTestApplication", "credentials unreadable", it) }
+        .getOrDefault(false)
 
     fun saveCredentials(host: String, port: String, username: String, password: String) {
-        getEncryptedPrefs(this).edit().apply {
+        SecurePrefs.get(this).edit().apply {
             putString("sip_host", host)
             putString("sip_port", port)
             putString("sip_username", username)
@@ -397,7 +396,7 @@ class HAPhoneTestApplication : Application() {
 
     /** Device secret from QR pairing, needed for the phone-facing /api/mobile endpoints. */
     fun saveDeviceAuth(apiHost: String, deviceId: String, deviceToken: String) {
-        getEncryptedPrefs(this).edit().apply {
+        SecurePrefs.get(this).edit().apply {
             putString("api_host", apiHost)
             putString("device_id", deviceId)
             putString("device_token", deviceToken)
@@ -405,42 +404,23 @@ class HAPhoneTestApplication : Application() {
         }
     }
 
-    fun getDeviceAuth(): Map<String, String> {
-        val prefs = getEncryptedPrefs(this)
-        return mapOf(
-            "apiHost" to (prefs.getString("api_host", "") ?: ""),
-            "deviceId" to (prefs.getString("device_id", "") ?: ""),
-            "deviceToken" to (prefs.getString("device_token", "") ?: ""),
+    fun getDeviceAuth(): Map<String, String> = SecurePrefs.read(this) { prefs ->
+        mapOf(
+            "apiHost" to prefs.getString("api_host", "").orEmpty(),
+            "deviceId" to prefs.getString("device_id", "").orEmpty(),
+            "deviceToken" to prefs.getString("device_token", "").orEmpty(),
         )
     }
 
     fun clearCredentials() {
-        getEncryptedPrefs(this).edit().clear().apply()
+        SecurePrefs.get(this).edit().clear().apply()
         de.haphone.app.test.reach.ReachabilityMonitor.stop(this)
     }
 
-    /** Used internally for actual SIP registration -- falls back to
-     * BuildConfig (gitignored local.properties-sourced dev test extension)
-     * when nothing is stored yet, so a fresh checkout still registers
-     * against the dev test extension without requiring Settings entry. */
-    private fun getSipCredentialsForRegistration(context: Context): List<String> {
-        val prefs = getEncryptedPrefs(context)
-        val host = prefs.getString("sip_host", "") ?: BuildConfig.SIP_TEST_HOST
-        val port = prefs.getString("sip_port", "") ?: BuildConfig.SIP_TEST_PORT
-        val username = prefs.getString("sip_username", "") ?: BuildConfig.SIP_TEST_USERNAME
-        val password = prefs.getString("sip_password", "") ?: BuildConfig.SIP_TEST_PASSWORD
-        return listOf(host, port, username, password)
-    }
-
-    private fun getEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        return EncryptedSharedPreferences.create(
-            "haphone_prefs",
-            masterKeyAlias,
-            context,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
+    /** Credentials come only from provisioning (QR pairing / Settings); empty until then. */
+    private fun getSipCredentialsForRegistration(): List<String> {
+        val c = getStoredCredentials()
+        return listOf(c["host"].orEmpty(), c["port"].orEmpty(), c["username"].orEmpty(), c["password"].orEmpty())
     }
 
     companion object {

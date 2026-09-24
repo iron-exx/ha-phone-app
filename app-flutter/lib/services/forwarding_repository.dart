@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/forwarding.dart';
+import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'directory_repository.dart';
 
@@ -20,8 +21,13 @@ class ForwardingRepository extends ChangeNotifier {
   List<ForwardingRule> _rules = const [];
   bool _loaded = false;
   bool _loading = false;
+  final _flight = SingleFlight();
   bool _saving = false;
   ApiException? _error;
+
+  /// Bumped by every PUT and by [clear]: a GET that started before it
+  /// carries old rules and is dropped, even if it finishes after the PUT.
+  int _writeGen = 0;
 
   List<ForwardingRule> get rules => _rules;
   bool get hasLoaded => _loaded;
@@ -30,20 +36,25 @@ class ForwardingRepository extends ChangeNotifier {
   ApiException? get error => _error;
   bool get isUnsupported => _error?.kind == ApiErrorKind.unsupported;
 
-  Future<void> refresh() async {
-    if (_loading) return;
+  Future<void> refresh() => _flight.run(_refresh);
+
+  Future<void> _refresh() async {
     _loading = true;
     notifyListeners();
+    final gen = _writeGen;
+    bool stale() => gen != _writeGen || _saving;
     try {
       final fresh = await _api.fetchForwarding(await _authLoader());
-      if (!_saving) _rules = fresh;
-      _loaded = true;
-      _error = null;
+      if (!stale()) {
+        _rules = fresh;
+        _loaded = true;
+        _error = null;
+      }
     } on ApiException catch (e) {
-      _error = e;
+      if (!stale()) _error = e;
     } catch (e) {
       debugPrint('forwarding refresh failed: $e');
-      _error = const ApiException(ApiErrorKind.unreachable);
+      if (!stale()) _error = const ApiException(ApiErrorKind.unreachable);
     } finally {
       _loading = false;
       notifyListeners();
@@ -60,6 +71,7 @@ class ForwardingRepository extends ChangeNotifier {
     final before = _rules;
     _rules = rules;
     _saving = true;
+    _writeGen++;
     notifyListeners();
     try {
       _rules = await _api.saveForwarding(await _authLoader(), rules);
@@ -78,6 +90,9 @@ class ForwardingRepository extends ChangeNotifier {
 
   /// Forget everything (device unpaired).
   void clear() {
+    _writeGen++;
+    _flight.reset();
+    _loading = false;
     _rules = const [];
     _loaded = false;
     _error = null;

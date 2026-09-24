@@ -170,7 +170,7 @@ class _ForwardingEditorSheetState extends State<ForwardingEditorSheet> {
             children: [
               _chip(_Dest.voicemail, 'Mailbox', Icons.voicemail, enabled: widget.ownNumber.isNotEmpty),
               _chip(_Dest.extension, 'Nebenstelle', Icons.person_outline, enabled: widget.extensions.isNotEmpty),
-              _chip(_Dest.hangup, 'Ablehnen', Icons.call_end, color: AppColors.hangup),
+              _chip(_Dest.hangup, 'Ablehnen', Icons.call_end, color: context.nw.end),
             ],
           ),
         ),
@@ -214,6 +214,7 @@ class _ForwardingEditorSheetState extends State<ForwardingEditorSheet> {
           max: kMaxRingTimeout.toDouble(),
           divisions: (kMaxRingTimeout - kMinRingTimeout) ~/ 5,
           label: '$_timeout s',
+          semanticFormatterCallback: (v) => '${v.round()} Sekunden',
           onChanged: (v) => setState(() => _timeout = v.round()),
         ),
       ];

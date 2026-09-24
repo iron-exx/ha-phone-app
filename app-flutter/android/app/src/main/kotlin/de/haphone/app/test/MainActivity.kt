@@ -1,6 +1,10 @@
 package de.haphone.app.test
 
 import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.view.WindowManager
+import de.haphone.app.test.calls.InCallWindow
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,6 +23,36 @@ class MainActivity : FlutterActivity() {
     private var methodChannel: MethodChannel? = null
 
     override fun getCachedEngineId(): String = HAPhoneTestApplication.FLUTTER_ENGINE_ID
+
+    /**
+     * While a call is up the call screen shows over the keyguard (like the stock dialer),
+     * without unlocking; afterwards the app is behind the lock screen again. The call
+     * screen itself cannot be left except by hang-up/call end (PopScope canPop: false),
+     * so the tabs are never reachable over the keyguard.
+     */
+    private val inCallListener = InCallWindow.Listener { active -> showOverKeyguard(active) }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        InCallWindow.observe(inCallListener)
+    }
+
+    override fun onDestroy() {
+        InCallWindow.remove(inCallListener)
+        super.onDestroy()
+    }
+
+    private fun showOverKeyguard(show: Boolean) {
+        android.util.Log.i("MainActivity", "call screen over keyguard: $show")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(show)
+            setTurnScreenOn(show)
+        } else {
+            @Suppress("DEPRECATION")
+            val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            if (show) window.addFlags(flags) else window.clearFlags(flags)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

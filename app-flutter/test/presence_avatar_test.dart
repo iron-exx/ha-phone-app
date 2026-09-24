@@ -48,7 +48,7 @@ void main() {
       expect(AvatarPresence.away.color(c), c.door);
       expect(AvatarPresence.doNotDisturb.color(c), c.end);
       expect(AvatarPresence.busy.color(c), c.end);
-      expect(NwColors.light.blue, const Color(0xFF0284C7));
+      expect(NwColors.light.blue, const Color(0xFF0369A1));
     });
   });
 

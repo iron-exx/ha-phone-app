@@ -121,3 +121,26 @@ List<MuteOption> muteOptions(DateTime now) {
   options.sort((a, b) => a.until.compareTo(b.until));
   return [MuteOption('1 Std', now.add(const Duration(hours: 1))), ...options];
 }
+
+/// Tolerance for recognising a mute chip from the stored end time alone.
+const kMuteMatchTolerance = Duration(minutes: 1);
+
+/// Index of the chip in [options] that matches [s]: the chip the user chose
+/// ([chosenLabel], as long as its end time is still the stored one), else a
+/// chip whose end is within [kMuteMatchTolerance] ("1 Std" moves with the
+/// clock, so an exact comparison never matches). -1 if none.
+int selectedMuteOption(
+  List<MuteOption> options,
+  RingSettings s,
+  DateTime now, {
+  String? chosenLabel,
+  DateTime? chosenUntil,
+}) {
+  final until = s.mutedUntil;
+  if (!s.enabled || until == null || !s.isMutedAt(now)) return -1;
+  if (chosenLabel != null && chosenUntil == until) {
+    final i = options.indexWhere((o) => o.label == chosenLabel);
+    if (i >= 0) return i;
+  }
+  return options.indexWhere((o) => o.until.difference(until).abs() <= kMuteMatchTolerance);
+}

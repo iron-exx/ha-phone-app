@@ -4,15 +4,14 @@ import 'package:flutter/material.dart';
 
 import '../app_info.dart';
 import '../services/call_events.dart';
-import '../services/call_history_store.dart';
 import '../services/directory_repository.dart';
 import '../services/forwarding_repository.dart';
+import '../services/pairing_reset.dart';
 import '../services/presence_repository.dart';
 import '../services/reachability_repository.dart';
 import '../services/recordings_repository.dart';
 import '../services/ring_settings_repository.dart';
 import '../services/sip_channel.dart';
-import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/recording_ui.dart';
@@ -148,7 +147,7 @@ class _MeTabState extends State<MeTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ctx.nw.end, foregroundColor: ctx.nw.endInk),
+            style: FilledButton.styleFrom(backgroundColor: ctx.nw.endStrong, foregroundColor: ctx.nw.endInk),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Entkoppeln'),
           ),
@@ -178,12 +177,7 @@ class _MeTabState extends State<MeTab> {
     } catch (e) {
       debugPrint('clearing device auth failed: $e');
     }
-    await DirectoryRepository.instance.clear();
-    PresenceRepository.instance.clear();
-    ForwardingRepository.instance.clear();
-    await CallHistoryStore.instance.clearPbx();
-    await VoicemailRepository.instance.clear();
-    _recordings.clear();
+    await resetForPairing(recordings: _recordings);
     await widget.onUnpaired();
   }
 

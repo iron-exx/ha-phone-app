@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/extension_status.dart';
 import '../models/forwarding.dart';
 import '../models/presence.dart';
 import '../services/api_client.dart';
 import '../services/directory_repository.dart';
 import '../services/forwarding_repository.dart';
 import '../services/presence_repository.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../widgets/forwarding_editor_sheet.dart';
-import '../widgets/presence_sheet.dart';
+import '../widgets/presence_avatar.dart';
 import '../widgets/status_message.dart';
 
 /// Ich → Weiterleitungen: per presence status what happens to internal and
@@ -118,9 +121,7 @@ class _ForwardingScreenState extends State<ForwardingScreen> {
           ],
           Text(
             'Was mit Anrufen passiert, je nach deinem Status.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+            style: NwType.meta.copyWith(color: context.nw.muted, fontSize: 14),
           ),
           const SizedBox(height: 8),
           for (final p in kSelectablePresences) _card(context, p, isActive: p == current),
@@ -130,60 +131,66 @@ class _ForwardingScreenState extends State<ForwardingScreen> {
   }
 
   Widget _card(BuildContext context, Presence status, {required bool isActive}) {
-    final theme = Theme.of(context);
-    return Card(
+    final c = context.nw;
+    // Same glyph as the status rows: colour + shape, never colour alone.
+    final kind = avatarPresenceFor(ExtensionStatus(presence: status, line: LineState.idle)) ?? AvatarPresence.available;
+    final label = status.label[0].toUpperCase() + status.label.substring(1);
+    return Container(
       key: ValueKey('forward-card-${status.apiValue}'),
       margin: const EdgeInsets.symmetric(vertical: 6),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isActive ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
-          width: isActive ? 2 : 1,
-        ),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isActive ? c.blue : c.stroke, width: isActive ? 2 : 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: status.color),
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Text(status.label, style: theme.textTheme.titleMedium)),
-                if (isActive)
-                  Chip(
-                    label: const Text('Aktiv'),
-                    visualDensity: VisualDensity.compact,
-                    labelStyle: TextStyle(color: theme.colorScheme.onPrimary),
-                    backgroundColor: theme.colorScheme.primary,
-                    side: BorderSide.none,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  Container(
+                    key: ValueKey('forward-glyph-${status.apiValue}'),
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: kind.color(c)),
+                    child: Icon(kind.glyph ?? Icons.circle_outlined, size: 16, color: c.ground),
                   ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(label, style: NwType.rowTitle.copyWith(color: c.text, fontWeight: FontWeight.w800)),
+                  ),
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: c.blueSoft, borderRadius: BorderRadius.circular(12)),
+                      child: Text('Aktiv',
+                          style: NwType.meta.copyWith(color: c.blueOnSoft, fontWeight: FontWeight.w700, fontSize: 12)),
+                    ),
+                ],
+              ),
             ),
-          ),
-          for (final d in ForwardDirection.values) _row(context, status, d),
-          const SizedBox(height: 4),
-        ],
+            for (final d in ForwardDirection.values) _row(context, status, d),
+            const SizedBox(height: 4),
+          ],
+        ),
       ),
     );
   }
 
   Widget _row(BuildContext context, Presence status, ForwardDirection direction) {
+    final c = context.nw;
     final rule = ruleFor(_repo.rules, status.apiValue, direction);
     final readOnly = rule?.isRingGroup ?? false;
     return ListTile(
       key: ValueKey('forward-${status.apiValue}-${direction.apiValue}'),
       enabled: !_repo.isSaving,
-      title: Text(direction.label),
-      subtitle: Text(describeRule(rule, _dir.nameFor)),
-      trailing: Icon(readOnly ? Icons.lock_outline : Icons.chevron_right),
+      title: Text(direction.label, style: NwType.rowTitle.copyWith(color: c.text)),
+      subtitle: Text(describeRule(rule, _dir.nameFor), style: NwType.meta.copyWith(color: c.muted)),
+      trailing: Icon(readOnly ? Icons.lock_outline : Icons.chevron_right, color: c.faint),
       onTap: () => _edit(status, direction, rule),
     );
   }

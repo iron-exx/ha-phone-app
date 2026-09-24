@@ -1,9 +1,6 @@
 package de.haphone.app.test.sip
 
-import android.telecom.DisconnectCause
-import androidx.core.telecom.CallControlScope
 import de.haphone.app.test.CallEventBus
-import kotlinx.coroutines.launch
 
 /**
  * Public SIP call-control API for Android (CALL-01..05). Wraps
@@ -54,29 +51,21 @@ class SipCallController(
     fun transferAttended(): Boolean = sipOps.transferAttended()
 
     /**
-     * Report-First pattern (02-PATTERNS.md): called from
-     * CallRegistration's real onAnswer callback, gated on the platform's
-     * genuine user-answer signal (checker blocker fix, iteration 4) --
-     * NEVER from the trailing onRegistered block, which fires at
-     * registration-complete/push-arrival time, long before the user has
-     * done anything. Registers transiently (CALL-05), then attempts SIP
-     * answer against whatever Call Account.onIncomingCall has already
-     * populated (PjsuaEndpointHolder's Blocker-1 fix); on failure --
-     * including "no active call exists yet" -- disconnects via the
-     * CallControlScope receiver rather than ringing forever (CR-01
-     * precedent).
+     * Report-First pattern (02-PATTERNS.md): runs only on a genuine user answer (ringing
+     * screen, notification action, or Telecom's onAnswer from car/headset) -- never at
+     * Telecom registration time. Registers transiently (CALL-05), then answers exactly
+     * [callId]. Returns false when that call is gone or SIP negotiation failed; the caller
+     * ends the Telecom call then (CR-01 precedent). Throws what PJSIP throws.
      */
-    fun answer(callControlScope: CallControlScope?) {
+    fun answer(callId: Int): Boolean {
         sipOps.register()
-        val succeeded = sipOps.answer()
-        if (!succeeded && callControlScope != null) {
-            // Rule 1 fix: androidx.core.telecom 1.0.0's CallControlScope.disconnect()
-            // is `suspend fun disconnect(disconnectCause: DisconnectCause): CallControlResult`
-            // (confirmed via javap against the compiled AAR) -- not a no-arg call.
-            // ERROR mirrors "something went wrong establishing the call", distinct
-            // from TestFcmService's REJECTED (forged/expired push) cause.
-            callControlScope.launch { callControlScope.disconnect(DisconnectCause(DisconnectCause.ERROR)) }
-        }
+        return sipOps.answer(callId)
+    }
+
+    /** Answer whatever call is on screen (push-woken call without a known SIP id). */
+    fun answerCurrent(): Boolean {
+        sipOps.register()
+        return sipOps.answer()
     }
 
     fun hold(onHold: Boolean) = sipOps.hold(onHold)
@@ -100,5 +89,9 @@ class SipCallController(
     // Registration stays up after hangup so the extension remains reachable.
     fun hangup() {
         sipOps.hangup()
+    }
+
+    fun hangup(callId: Int) {
+        sipOps.hangup(callId)
     }
 }

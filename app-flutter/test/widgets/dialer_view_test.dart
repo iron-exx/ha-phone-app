@@ -11,6 +11,7 @@ import 'package:ha_phone_test/widgets/presence_avatar.dart';
 
 import '../helpers/fake_api.dart';
 import '../helpers/fake_sip.dart';
+import '../helpers/semantics.dart';
 
 void main() {
   late FakeSip sip;
@@ -173,6 +174,28 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('dialer-call')), findsOneWidget);
+  });
+
+  testWidgets('TalkBack: dial keys are tappable via semantics', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpDialer(tester);
+    for (final d in ['1', '3']) {
+      semanticsAction(tester, key(d));
+      await tester.pump();
+    }
+    expect(display(tester), '13');
+    handle.dispose();
+  });
+
+  testWidgets('Wählen: touch targets ≥ 48 dp and labelled', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpWithDirectory(tester);
+    await tester.tap(key('1'));
+    await tester.tap(key('1'));
+    await tester.pump();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
   });
 
   group('dialerMatches', () {

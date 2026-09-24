@@ -239,7 +239,7 @@ class _HistoryTabState extends State<HistoryTab> {
   Widget _list(BuildContext context, List<TimelineItem> items, Set<String> doors) {
     final now = DateTime.now();
     final children = <Widget>[];
-    final hint = _hint(context);
+    final hint = _hint(context, isEmpty: items.isEmpty);
     if (hint != null) children.add(hint);
     if (items.isEmpty) {
       children.add(const SizedBox(height: 32));
@@ -279,13 +279,14 @@ class _HistoryTabState extends State<HistoryTab> {
     return Semantics(
       customSemanticsActions: {
         if (canCall) CustomSemanticsAction(label: '$who zurückrufen'): () => CallLauncher.call(context, i.number),
-        const CustomSemanticsAction(label: 'Löschen'): () => _delete(i),
+        // Same confirmation as the swipe: PBX items can't be restored.
+        const CustomSemanticsAction(label: 'Löschen'): () => _confirmAndDelete(i, who),
       },
       child: Dismissible(
         key: ValueKey(i.key),
         direction: canCall ? DismissDirection.horizontal : DismissDirection.endToStart,
         background: _swipeBackground(c.answer, c.answerInk, Icons.call, 'Zurückrufen', Alignment.centerLeft),
-        secondaryBackground: _swipeBackground(c.end, c.endInk, Icons.delete_outline, 'Löschen', Alignment.centerRight),
+        secondaryBackground: _swipeBackground(c.endStrong, c.endInk, Icons.delete_outline, 'Löschen', Alignment.centerRight),
         confirmDismiss: (direction) async {
           if (direction == DismissDirection.startToEnd) {
             unawaited(CallLauncher.call(context, i.number));
@@ -325,7 +326,7 @@ class _HistoryTabState extends State<HistoryTab> {
           fallbackDuration: m.duration,
           seed: m.heardKey.hashCode,
           onPlay: () => unawaited(_vm.markHeard(m)),
-          loadErrorText: 'Nachricht konnte nicht geladen werden.',
+          loadErrorText: 'Sprachnachricht konnte nicht geladen werden.',
         );
       case TimelineKind.recording:
         final r = i.recording!;
@@ -347,14 +348,14 @@ class _HistoryTabState extends State<HistoryTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isVm ? 'Nachricht löschen?' : 'Aufnahme löschen?'),
+        title: Text(isVm ? 'Sprachnachricht löschen?' : 'Aufnahme löschen?'),
         content: Text(isVm
-            ? 'Die Nachricht von $who wird aus der Mailbox gelöscht.'
+            ? 'Die Sprachnachricht von $who wird aus der Mailbox gelöscht.'
             : 'Die Aufnahme des Gesprächs mit $who wird auf der Anlage gelöscht.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: c.end, foregroundColor: c.endInk),
+            style: FilledButton.styleFrom(backgroundColor: c.endStrong, foregroundColor: c.endInk),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Löschen'),
           ),
@@ -362,6 +363,11 @@ class _HistoryTabState extends State<HistoryTab> {
       ),
     );
     return ok == true;
+  }
+
+  Future<void> _confirmAndDelete(TimelineItem i, String who) async {
+    if (i.kind != TimelineKind.call && !await _confirmPbxDelete(i, who)) return;
+    if (mounted) await _delete(i);
   }
 
   /// Calls: gone locally right away. Voicemail/recordings: hidden while the
@@ -393,11 +399,11 @@ class _HistoryTabState extends State<HistoryTab> {
       builder: (ctx) => AlertDialog(
         title: const Text('Anrufliste löschen?'),
         content: const Text('Alle Anrufe werden auf diesem Gerät aus dem Verlauf gelöscht. '
-            'Voicemails und Aufnahmen bleiben.'),
+            'Sprachnachrichten und Aufnahmen bleiben.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: c.end, foregroundColor: c.endInk),
+            style: FilledButton.styleFrom(backgroundColor: c.endStrong, foregroundColor: c.endInk),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Löschen'),
           ),
@@ -407,17 +413,33 @@ class _HistoryTabState extends State<HistoryTab> {
     if (ok == true) await _store.clear();
   }
 
-  /// Only "too old" is worth a hint for the call log; offline just shows
-  /// local entries. Voicemail/recording errors show in their filter.
-  Widget? _hint(BuildContext context) {
+  /// "Too old" for the call log, else "Anlage nicht erreichbar – Stand hh:mm"
+  /// when a source of this filter failed and the list shows older data. An
+  /// empty Mailbox/Aufnahmen filter explains its error itself.
+  Widget? _hint(BuildContext context, {required bool isEmpty}) {
     final e = _store.pbxError;
-    if ((_filter == TimelineFilter.all || _filter == TimelineFilter.missed) &&
-        e != null &&
-        e.kind == ApiErrorKind.unsupported) {
+    final callsShown = _filter != TimelineFilter.voicemail && _filter != TimelineFilter.recordings;
+    if (callsShown && e != null && e.kind == ApiErrorKind.unsupported) {
       return ErrorBanner(message: 'Anrufe anderer Geräte: ${e.message}');
     }
-    return null;
+    final failed = <(ApiException?, DateTime?)>[
+      if (callsShown) (e, _store.pbxLoadedAt),
+      if (_filter == TimelineFilter.all || _filter == TimelineFilter.voicemail || _filter == TimelineFilter.door)
+        (_vm.error, _vm.loadedAt),
+      if (_filter == TimelineFilter.all || _filter == TimelineFilter.recordings) (_rec.error, _rec.loadedAt),
+    ].where((f) => f.$1?.kind == ApiErrorKind.unreachable || f.$1?.kind == ApiErrorKind.server).toList();
+    if (failed.isEmpty) return null;
+    if (isEmpty && !callsShown) return null;
+    final stamps = failed.map((f) => f.$2).toList();
+    final stand = stamps.contains(null)
+        ? null
+        : stamps.whereType<DateTime>().reduce((a, b) => a.isBefore(b) ? a : b);
+    return ErrorBanner(
+      message: stand == null ? 'Anlage nicht erreichbar' : 'Anlage nicht erreichbar – Stand ${_hhmm(stand)}',
+    );
   }
+
+  static String _hhmm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   Widget _emptyState(BuildContext context) {
     if (_search.text.trim().isNotEmpty) {
@@ -430,18 +452,20 @@ class _HistoryTabState extends State<HistoryTab> {
         if (!_vm.hasLoaded && _vm.isLoading) return const Center(child: CircularProgressIndicator());
         return StatusMessage(
           icon: Icons.voicemail,
-          message: 'Keine Nachrichten',
+          message: 'Keine Sprachnachrichten',
           actionLabel: 'Mailbox anrufen',
           onAction: () => CallLauncher.call(context, kVoicemailNumber),
         );
       case TimelineFilter.recordings:
         final error = _rec.error;
         if (error != null) return _pbxErrorState(error, voicemail: false);
+        // "nicht freigegeben" only after the PBX said so.
+        if (!_rec.hasLoaded) return const Center(child: CircularProgressIndicator());
         return StatusMessage(
           icon: Icons.mic_none,
           message: _rec.isAllowed
               ? 'Keine Aufnahmen\nIm Gespräch auf „Aufnehmen“ tippen.'
-              : 'Keine Aufnahmen\nGesprächsaufzeichnung ist für Ihre Nebenstelle nicht freigegeben.',
+              : 'Keine Aufnahmen\nGesprächsaufzeichnung ist für deine Nebenstelle nicht freigegeben.',
         );
       case TimelineFilter.missed:
         return const StatusMessage(icon: Icons.call_missed, message: 'Keine verpassten Anrufe.');
@@ -456,7 +480,7 @@ class _HistoryTabState extends State<HistoryTab> {
     if (error.kind == ApiErrorKind.unsupported) {
       return StatusMessage(
         icon: Icons.system_update_outlined,
-        message: voicemail ? '${error.message}\nBis dahin erreichen Sie Ihre Mailbox per Anruf.' : error.message,
+        message: voicemail ? '${error.message}\nBis dahin erreichst du deine Mailbox per Anruf.' : error.message,
         actionLabel: voicemail ? 'Mailbox anrufen' : null,
         onAction: voicemail ? () => CallLauncher.call(context, kVoicemailNumber) : null,
       );

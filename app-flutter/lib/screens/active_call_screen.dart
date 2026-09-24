@@ -81,11 +81,7 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
   void initState() {
     super.initState();
     final alreadyEnded = CallEvents.instance.lastDisconnected;
-    if (alreadyEnded != null) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _leave(message: _endedMessage(alreadyEnded)),
-      );
-    }
+    if (alreadyEnded != null) _leaveIfNoCall(alreadyEnded);
     _events = CallEvents.instance.stream.listen(_onEvent);
     // Only the duration texts change every second; rebuilding is cheap.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -114,6 +110,25 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     } else if (event is AudioRouteEvent && mounted) {
       setState(() => _routes = event.routes);
     }
+  }
+
+  /// A call ended before this screen subscribed. Only leave when the native
+  /// side has no live call either -- the event may belong to an earlier call
+  /// (answered incoming call, "Zurück" banner).
+  Future<void> _leaveIfNoCall(CallStateEvent ended) async {
+    CurrentCall? call;
+    try {
+      call = await SipChannel.instance.getCurrentCall();
+    } catch (e) {
+      debugPrint('getCurrentCall failed: $e');
+    }
+    if (call != null) {
+      if (identical(CallEvents.instance.lastDisconnected, ended)) {
+        CallEvents.instance.lastDisconnected = null;
+      }
+      return;
+    }
+    _leave(message: _endedMessage(ended));
   }
 
   String _endedMessage(CallStateEvent e) {
@@ -158,13 +173,25 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
 
   Future<void> _toggleMute() async {
     final next = !_muted;
-    await SipChannel.instance.mute(next);
+    try {
+      await SipChannel.instance.mute(next);
+    } catch (e) {
+      debugPrint('mute failed: $e');
+      _snack(next ? 'Stummschalten fehlgeschlagen' : 'Mikrofon konnte nicht eingeschaltet werden');
+      return;
+    }
     if (mounted) setState(() => _muted = next);
   }
 
   Future<void> _toggleHold() async {
     final next = !_onHold;
-    await SipChannel.instance.hold(next);
+    try {
+      await SipChannel.instance.hold(next);
+    } catch (e) {
+      debugPrint('hold failed: $e');
+      _snack(next ? 'Halten fehlgeschlagen' : 'Fortsetzen fehlgeschlagen');
+      return;
+    }
     if (mounted) setState(() => _onHold = next);
   }
 
@@ -174,11 +201,23 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
     try {
       await SipChannel.instance.hangup();
     } catch (e) {
+      // The call may still be live: stay; its "disconnected" event leaves.
       debugPrint('hangup failed: $e');
+      _snack('Auflegen fehlgeschlagen – bitte erneut versuchen');
+      return;
     }
     // With two lines the other call stays up: stay here, the native "lineEnded"
     // event refreshes the screen. The last call's "disconnected" event leaves.
     if (!hadSecondLine) _leave();
+  }
+
+  Future<void> _transfer(String target) async {
+    try {
+      await SipChannel.instance.transfer(target);
+    } catch (e) {
+      debugPrint('transfer failed: $e');
+      _snack('Weiterleiten an $target fehlgeschlagen');
+    }
   }
 
   /// Directory entry of the party on screen (door webhook, door detection).
@@ -301,8 +340,8 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
       builder: (sheetContext) => TransferSheet(
         title: consult ? 'Weiterleiten an' : 'Direkt weiterleiten an',
         onTransfer: (target) {
-          SipChannel.instance.transfer(target);
           Navigator.of(sheetContext).pop();
+          _transfer(target);
         },
         onConsult: consult
             ? (target) {

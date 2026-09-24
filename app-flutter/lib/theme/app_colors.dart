@@ -24,6 +24,7 @@ class NwColors extends ThemeExtension<NwColors> {
     required this.answerInk,
     required this.end,
     required this.endInk,
+    required this.endStrong,
     required this.door,
     required this.doorInk,
     required this.doorSoft,
@@ -67,6 +68,10 @@ class NwColors extends ThemeExtension<NwColors> {
   final Color end;
   final Color endInk;
 
+  /// Darker [end] fill behind text labels ("Löschen", REC chip, badges):
+  /// [endInk] on it reaches 4.5:1 (dark [end] is only 3.9:1, fine for icons).
+  final Color endStrong;
+
   /// Door only.
   final Color door;
   final Color doorInk;
@@ -88,7 +93,7 @@ class NwColors extends ThemeExtension<NwColors> {
     stroke: Color(0xFF2A3544),
     text: Color(0xFFEAF0F6),
     muted: Color(0xFFA3B0BF),
-    faint: Color(0xFF7B8898),
+    faint: Color(0xFF8593A3),
     blue: Color(0xFF38BDF8),
     blueInk: Color(0xFF04263A),
     blueSoft: Color(0xFF0E3148),
@@ -97,6 +102,7 @@ class NwColors extends ThemeExtension<NwColors> {
     answerInk: Color(0xFF032313),
     end: Color(0xFFE5484D),
     endInk: Color(0xFFFFFFFF),
+    endStrong: Color(0xFFCC3338),
     door: Color(0xFFF5A524),
     doorInk: Color(0xFF2A1800),
     doorSoft: Color(0xFF3A2A0E),
@@ -114,16 +120,17 @@ class NwColors extends ThemeExtension<NwColors> {
     stroke: Color(0xFFD5DCE4),
     text: Color(0xFF0F172A),
     muted: Color(0xFF475569),
-    faint: Color(0xFF64748B),
-    blue: Color(0xFF0284C7),
+    faint: Color(0xFF5B6778),
+    blue: Color(0xFF0369A1),
     blueInk: Color(0xFFFFFFFF),
     blueSoft: Color(0xFFE0F2FE),
     blueOnSoft: Color(0xFF075985),
-    answer: Color(0xFF1F9D57),
+    answer: Color(0xFF177E45),
     answerInk: Color(0xFFFFFFFF),
     end: Color(0xFFD92D32),
     endInk: Color(0xFFFFFFFF),
-    door: Color(0xFFC77A00),
+    endStrong: Color(0xFFD92D32),
+    door: Color(0xFFA86500),
     doorInk: Color(0xFFFFFFFF),
     doorSoft: Color(0xFFFFF1D6),
     okSurface: Color(0xFFE7F7EE),
@@ -150,6 +157,7 @@ class NwColors extends ThemeExtension<NwColors> {
     Color? answerInk,
     Color? end,
     Color? endInk,
+    Color? endStrong,
     Color? door,
     Color? doorInk,
     Color? doorSoft,
@@ -175,6 +183,7 @@ class NwColors extends ThemeExtension<NwColors> {
         answerInk: answerInk ?? this.answerInk,
         end: end ?? this.end,
         endInk: endInk ?? this.endInk,
+        endStrong: endStrong ?? this.endStrong,
         door: door ?? this.door,
         doorInk: doorInk ?? this.doorInk,
         doorSoft: doorSoft ?? this.doorSoft,
@@ -205,6 +214,7 @@ class NwColors extends ThemeExtension<NwColors> {
       answerInk: l(answerInk, other.answerInk),
       end: l(end, other.end),
       endInk: l(endInk, other.endInk),
+      endStrong: l(endStrong, other.endStrong),
       door: l(door, other.door),
       doorInk: l(doorInk, other.doorInk),
       doorSoft: l(doorSoft, other.doorSoft),
@@ -227,7 +237,7 @@ extension NwColorsContext on BuildContext {
 /// widgets should prefer `context.nw`.
 abstract final class AppColors {
   /// "HA-Blau" accent, light theme.
-  static const haBlue = Color(0xFF0284C7);
+  static const haBlue = Color(0xFF0369A1);
 
   /// Accent for the dark theme.
   static const haBlueLight = Color(0xFF38BDF8);

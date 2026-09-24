@@ -1,5 +1,6 @@
 import '../models/pbx_call.dart';
 import '../services/sip_channel.dart';
+import 'phone_number.dart';
 
 /// PBX and local entries within this window (same number + direction) are
 /// the same call.
@@ -59,7 +60,7 @@ class MergedCall {
 }
 
 bool _sameCall(CallHistoryEntry l, PbxCall p) =>
-    l.number == p.number &&
+    phoneNumbersMatch(l.number, p.number) &&
     l.direction == p.direction &&
     l.startedAt.difference(p.startedAt).abs() <= kCallMatchWindow;
 

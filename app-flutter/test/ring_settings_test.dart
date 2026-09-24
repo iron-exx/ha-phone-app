@@ -46,6 +46,37 @@ void main() {
     });
   });
 
+  group('selectedMuteOption', () {
+    final t0 = DateTime(2026, 9, 24, 10, 15);
+
+    test('"1 Std" stays selected minutes later via the chosen label', () {
+      final until = t0.add(const Duration(hours: 1));
+      final s = const RingSettings().mutedTill(until);
+      final later = t0.add(const Duration(minutes: 20));
+      expect(selectedMuteOption(muteOptions(later), s, later, chosenLabel: '1 Std', chosenUntil: until), 0);
+    });
+
+    test('without a remembered choice: match within ±1 min; fixed ends exactly', () {
+      final s1 = const RingSettings().mutedTill(t0.add(const Duration(hours: 1, seconds: 30)));
+      expect(selectedMuteOption(muteOptions(t0), s1, t0), 0);
+      final s2 = const RingSettings().mutedTill(DateTime(2026, 9, 24, 17));
+      expect(selectedMuteOption(muteOptions(t0), s2, t0), 1);
+      final s3 = const RingSettings().mutedTill(DateTime(2026, 9, 24, 13));
+      expect(selectedMuteOption(muteOptions(t0), s3, t0), -1);
+    });
+
+    test('nothing selected when ringing, switched off or the mute ran out', () {
+      final until = t0.add(const Duration(hours: 1));
+      expect(selectedMuteOption(muteOptions(t0), const RingSettings(), t0), -1);
+      expect(selectedMuteOption(muteOptions(t0), const RingSettings().silent(), t0), -1);
+      final after = until.add(const Duration(minutes: 1));
+      expect(
+          selectedMuteOption(muteOptions(after), const RingSettings().mutedTill(until), after,
+              chosenLabel: '1 Std', chosenUntil: until),
+          -1);
+    });
+  });
+
   group('texts', () {
     final now = DateTime(2026, 9, 24, 10);
 

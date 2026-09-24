@@ -14,6 +14,8 @@ interface SipCallOperations {
     /** Returns the new pjsua call id; an existing call is put on hold behind it. */
     fun makeCall(uri: String): Int
     fun answer(): Boolean // false = SIP negotiation failed
+    /** Answer exactly this SIP call (the one Telecom / the ringing screen stands for); false if it is gone. */
+    fun answer(callId: Int): Boolean = answer()
     fun hold(onHold: Boolean)
     fun mute(muted: Boolean)
     fun transfer(uri: String)
@@ -30,4 +32,6 @@ interface SipCallOperations {
     /** Connect the held party with the current one (attended transfer). */
     fun transferAttended(): Boolean = false
     fun hangup()
+    /** Hang up exactly this SIP call (on screen or held/waiting); no-op if it is gone. */
+    fun hangup(callId: Int) = hangup()
 }

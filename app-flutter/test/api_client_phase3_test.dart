@@ -95,6 +95,23 @@ void main() {
     expect(pbx.to('DELETE', '/api/mobile/voicemail/INBOX/msg0003'), hasLength(1));
   });
 
+  test('voicemail audio 404: deleted elsewhere, not "HA-Phone too old"', () async {
+    final e = await errorOf(() => FakePbx({}).api.downloadVoicemail(testAuth, _msg));
+    expect(e.kind, ApiErrorKind.server);
+    expect(e.message, 'Nicht mehr auf der Anlage – vermutlich woanders gelöscht.');
+  });
+
+  test('empty 2xx bodies are fine where the JSON is optional', () async {
+    final pbx = FakePbx({
+      'PUT /api/mobile/presence': (_) => http.Response('', 200),
+      'POST /api/mobile/recording': (_) => http.Response('', 200),
+      'PUT /api/mobile/forwarding': (_) => http.Response('', 204),
+    });
+    expect(await pbx.api.setPresence(testAuth, Presence.away), Presence.away);
+    expect(await pbx.api.startRecording(testAuth, '16'), '');
+    expect(await pbx.api.saveForwarding(testAuth, const []), isEmpty);
+  });
+
   test('deleting an already deleted message (404) is fine', () async {
     await FakePbx({}).api.deleteVoicemail(testAuth, _msg);
   });
@@ -130,13 +147,12 @@ void main() {
       expect((await errorOf(() => pbx.api.openDoorRemote(testAuth, '16'))).kind, ApiErrorKind.server);
     });
 
-    test('an old PBX answering with HTML counts as too old', () async {
+    test('an old PBX answering with HTML (200) means no webhook: fall back to DTMF', () async {
       final pbx = FakePbx({
         'POST /api/mobile/door-open': (_) => http.Response('<html></html>', 200, headers: {'content-type': 'text/html'}),
       });
-      final e = await errorOf(() => pbx.api.openDoorRemote(testAuth, '16'));
-      expect(e.kind, ApiErrorKind.unsupported);
-      expect(e.message, contains(kMinPbxVersionDoorOpen));
+      expect(await pbx.api.openDoorRemote(testAuth, '16'), isFalse);
+      expect(await DoorOpener(api: pbx.api, authLoader: testAuthLoader).open('16'), DoorOpenResult.noWebhook);
     });
 
     test('non-numeric extensions never reach the network', () async {

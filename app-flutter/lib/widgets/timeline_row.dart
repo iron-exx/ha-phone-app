@@ -133,7 +133,7 @@ class TimelineRow extends StatelessWidget {
         if (entry.video) return (Icons.videocam_outlined, text, c.muted);
         return (entry.direction == 'incoming' ? Icons.call_received : Icons.call_made, text, c.muted);
       case TimelineKind.voicemail:
-        return (Icons.voicemail, 'Voicemail · ${formatCallDuration(item.voicemail!.duration)}', c.blue);
+        return (Icons.voicemail, 'Sprachnachricht · ${formatCallDuration(item.voicemail!.duration)}', c.blue);
       case TimelineKind.recording:
         return (Icons.fiber_manual_record, 'Aufnahme · ${formatCallDuration(item.recording!.duration)}', c.end);
     }

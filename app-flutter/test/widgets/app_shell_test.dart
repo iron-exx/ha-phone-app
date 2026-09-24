@@ -101,13 +101,13 @@ void main() {
 
   testWidgets('Start "Neue Voicemail" opens Verlauf with the Voicemail filter', (tester) async {
     final h = await pumpShell(tester);
-    expect(find.text('Neue Voicemail · Oma Erika'), findsOneWidget);
+    expect(find.text('Neue Sprachnachricht · Oma Erika'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('start-voicemail')));
     await tester.pumpAndSettle();
 
     expect(h.nav.tab, AppTab.history);
-    expect(find.text('Voicemail · 0:12'), findsOneWidget);
+    expect(find.text('Sprachnachricht · 0:12'), findsOneWidget);
     expect(find.text('türklingel'), findsNothing, reason: 'filter is Voicemail');
   });
 

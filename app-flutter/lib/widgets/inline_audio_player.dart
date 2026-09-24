@@ -144,6 +144,8 @@ class _InlineAudioPlayerState extends State<InlineAudioPlayer> {
       child: Semantics(
         button: true,
         label: _playing ? 'Pause' : 'Abspielen',
+        enabled: !_loading,
+        onTap: _loading ? null : _togglePlay,
         excludeSemantics: true,
         child: InkResponse(
           onTap: _loading ? null : _togglePlay,
@@ -210,13 +212,19 @@ class _InlineAudioPlayerState extends State<InlineAudioPlayer> {
         }
         return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(children: [play, Expanded(child: wave)]),
-            Row(children: [
-              const SizedBox(width: 12),
-              Expanded(child: time),
-              speed,
-            ]),
+            // Wraps when even time + speed don't fit side by side (200 % text, 320 dp).
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [time, speed],
+              ),
+            ),
           ],
         );
       }),

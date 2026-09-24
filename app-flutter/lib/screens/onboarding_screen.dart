@@ -38,7 +38,7 @@ class OnboardingScreen extends StatelessWidget {
               Text('HA-Phone', textAlign: TextAlign.center, style: NwType.display(40).copyWith(color: c.text)),
               const SizedBox(height: 12),
               Text(
-                'Scannen Sie den QR-Code aus der HA-Phone-Verwaltung '
+                'Scanne den QR-Code aus der HA-Phone-Verwaltung '
                 '(Nebenstelle → „HA-Phone App QR“), um dieses Handy zu koppeln.',
                 textAlign: TextAlign.center,
                 style: NwType.rowTitle.copyWith(color: c.muted, fontWeight: FontWeight.w500, height: 1.45),

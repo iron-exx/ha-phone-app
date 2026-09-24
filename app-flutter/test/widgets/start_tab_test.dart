@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/models/presence.dart';
 import 'package:ha_phone_test/screens/start_tab.dart';
@@ -25,6 +26,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/fake_api.dart';
 import '../helpers/fake_phone_contacts.dart';
 import '../helpers/fake_sip.dart';
+import '../helpers/semantics.dart';
 
 int _epoch(DateTime t) => t.millisecondsSinceEpoch ~/ 1000;
 
@@ -94,8 +96,14 @@ void main() {
               }),
       });
 
-  Future<_Start> pump(WidgetTester tester, FakePbx fake, {double textScale = 1, RingSettingsRepository? ring}) async {
-    tester.view.physicalSize = const Size(390, 844);
+  Future<_Start> pump(
+    WidgetTester tester,
+    FakePbx fake, {
+    double textScale = 1,
+    RingSettingsRepository? ring,
+    Size size = const Size(390, 844),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final dir = DirectoryRepository(api: fake.api, authLoader: testAuthLoader);
@@ -117,7 +125,7 @@ void main() {
       theme: AppTheme.dark(),
       routes: {'/active-call': (_) => const Scaffold(body: Text('ACTIVE'))},
       home: MediaQuery(
-        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: const Size(390, 844)),
+        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: size),
         child: StartTab(
           directory: dir,
           presence: presence,
@@ -250,7 +258,7 @@ void main() {
   testWidgets('new voicemail card opens Verlauf with the Voicemail filter', (tester) async {
     final s = await pump(tester, pbx());
     await tester.scrollUntilVisible(find.byKey(const Key('start-voicemail')), 200);
-    expect(find.text('Neue Voicemail · Tür-Simulator'), findsOneWidget);
+    expect(find.text('Neue Sprachnachricht · Tür-Simulator'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('start-voicemail')));
     expect(s.nav.tab, AppTab.history);
@@ -278,5 +286,51 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('start-voicemail')), 300);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('no overflow at 200 % text size on a 320 dp phone', (tester) async {
+    await pump(tester, pbx(ownLine: 'busy'), textScale: 2, size: const Size(320, 640));
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(find.byKey(const Key('start-voicemail')), 300);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  group('TalkBack', () {
+    testWidgets('status pill, favourite tile (tap + long-press) and voicemail card act via semantics', (tester) async {
+      final handle = tester.ensureSemantics();
+      final s = await pump(tester, pbx());
+
+      semanticsAction(tester, find.byKey(const Key('start-status')));
+      await tester.pumpAndSettle();
+      expect(find.text('STATUS FÜR ALLE'), findsOneWidget);
+      Navigator.of(tester.element(find.text('STATUS FÜR ALLE'))).pop();
+      await tester.pumpAndSettle();
+
+      semanticsAction(tester, find.byKey(const ValueKey('fav-11')), SemanticsAction.longPress);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('fav-11')), findsOneWidget);
+      Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+      await tester.pumpAndSettle();
+
+      semanticsAction(tester, find.byKey(const ValueKey('fav-11')));
+      await tester.pumpAndSettle();
+      expect(sip.callsTo('makeCall').single.arguments, '11');
+      Navigator.of(tester.element(find.text('ACTIVE'))).pop();
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(find.byKey(const Key('start-voicemail')), 200);
+      semanticsAction(tester, find.byKey(const Key('start-voicemail')));
+      expect(s.nav.tab, AppTab.history);
+      handle.dispose();
+    });
+
+    testWidgets('Start: touch targets ≥ 48 dp and labelled', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, pbx());
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
   });
 }

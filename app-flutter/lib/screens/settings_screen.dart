@@ -38,7 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _save() async {
     if ([_host, _port, _username, _password].any((c) => c.text.trim().isEmpty)) {
-      setState(() => _error = 'Alle Felder ausfüllen!');
+      setState(() => _error = 'Bitte alle Felder ausfüllen.');
       return;
     }
     setState(() {
@@ -85,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: const Padding(
                     padding: EdgeInsets.all(16),
                     child: Text(
-                      'Tragen Sie hier Ihre HA-Phone-Box-Zugangsdaten ein.',
+                      'Trag hier die Zugangsdaten deiner HA-Phone-Box ein.',
                     ),
                   ),
                 ),
@@ -114,7 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _saving ? null : _save,
-                  child: Text(_saving ? 'Speichern...' : 'Speichern'),
+                  child: Text(_saving ? 'Speichern…' : 'Speichern'),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),

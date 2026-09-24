@@ -1,3 +1,5 @@
+import 'package:http/testing.dart';
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/models/extension_status.dart';
@@ -101,5 +103,63 @@ void main() {
     r.setVisible(false);
     expect(r.isPolling, isFalse);
     r.dispose();
+  });
+
+  test('a poll that started before a PUT and ends after it does not overwrite the new status', () async {
+    final slowGet = Completer<http.Response>();
+    var gets = 0;
+    final client = MockClient((req) async {
+      if (req.method == 'GET') {
+        gets++;
+        return gets == 1 ? jsonResponse(_presenceBody('available')) : slowGet.future;
+      }
+      return jsonResponse({'presence': 'away'});
+    });
+    final r = PresenceRepository(api: ApiClient(client: client), authLoader: testAuthLoader, pollInterval: const Duration(hours: 1));
+    await r.refresh();
+
+    final poll = r.refresh();
+    await pumpEventQueue();
+    await r.setOwn(Presence.away);
+    slowGet.complete(jsonResponse(_presenceBody('available')));
+    await poll;
+    expect(r.snapshot?.self?.presence, Presence.away, reason: 'stale poll dropped');
+  });
+
+  test('clear() drops a poll that was in flight', () async {
+    final slowGet = Completer<http.Response>();
+    final r = PresenceRepository(
+        api: ApiClient(client: MockClient((_) => slowGet.future)),
+        authLoader: testAuthLoader,
+        pollInterval: const Duration(hours: 1));
+    final poll = r.refresh();
+    await pumpEventQueue();
+    r.clear();
+    slowGet.complete(jsonResponse(_presenceBody('away')));
+    await poll;
+    expect(r.snapshot, isNull);
+  });
+
+  test('a refresh while a poll is in flight waits for it (pull-to-refresh)', () async {
+    final slowGet = Completer<http.Response>();
+    var gets = 0;
+    final r = PresenceRepository(
+        api: ApiClient(client: MockClient((_) {
+          gets++;
+          return slowGet.future;
+        })),
+        authLoader: testAuthLoader,
+        pollInterval: const Duration(hours: 1));
+    final poll = r.refresh();
+    await pumpEventQueue();
+    var pulled = false;
+    final pull = r.refresh().then((_) => pulled = true);
+    await pumpEventQueue();
+    expect(pulled, isFalse, reason: 'waits for the running poll');
+    slowGet.complete(jsonResponse(_presenceBody('away')));
+    await Future.wait([poll, pull]);
+    expect(pulled, isTrue);
+    expect(gets, 1);
+    expect(r.snapshot?.self?.presence, Presence.away);
   });
 }

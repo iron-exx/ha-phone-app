@@ -8,9 +8,11 @@ import 'package:ha_phone_test/services/presence_repository.dart';
 import 'package:ha_phone_test/services/ring_settings_repository.dart';
 import 'package:ha_phone_test/theme/app_theme.dart';
 import 'package:ha_phone_test/widgets/status_panel.dart';
+import 'package:ha_phone_test/widgets/status_sheet.dart';
 
 import '../helpers/fake_api.dart';
 import '../helpers/fake_sip.dart';
+import '../helpers/semantics.dart';
 
 void main() {
   late FakeSip sip;
@@ -113,6 +115,27 @@ void main() {
     await tester.tap(find.byKey(const Key('status-forwarding')));
     expect(t.opened, [1]);
     await done(tester, t.ring);
+  });
+
+  testWidgets('TalkBack: forwarding card opens via semantics tap', (tester) async {
+    final handle = tester.ensureSemantics();
+    final t = await pump(tester);
+    semanticsAction(tester, find.byKey(const Key('status-forwarding')));
+    expect(t.opened, [1]);
+    handle.dispose();
+    await done(tester, t.ring);
+  });
+
+  testWidgets('TalkBack: Erreichbarkeit row opens via semantics tap', (tester) async {
+    final handle = tester.ensureSemantics();
+    var taps = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark(),
+      home: Scaffold(body: ReachabilityLinkCard(hasProblems: true, onTap: () => taps++)),
+    ));
+    semanticsAction(tester, find.byKey(const Key('status-reachability')));
+    expect(taps, 1);
+    handle.dispose();
   });
 
   testWidgets('tapping a status stores it on the PBX', (tester) async {

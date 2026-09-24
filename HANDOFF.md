@@ -1,6 +1,6 @@
 # HA-Phone App – Übergabe
 
-Stand: **2026-09-23 (abends)**. Für die Fortsetzung in einer neuen Sitzung / auf einem anderen Rechner.
+Stand: **2026-09-24 (nachts)**. Für die Fortsetzung in einer neuen Sitzung / auf einem anderen Rechner.
 Produktplan (Linkus-Vergleich, Bildschirm-Entwürfe, Phasen): [`docs/linkus-schlachtplan.html`](docs/linkus-schlachtplan.html)
 (auch online: https://claude.ai/artifact/QsGjhj72xGjUdUrx7ahFg3).
 
@@ -159,6 +159,14 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Daten: Dart schiebt `setCarDirectory` (nach jedem Verzeichnis-Laden) und `setFavorites`; Verlauf aus `CallHistoryStore`. Wählen über `HAPhoneTestApplication.placeCall` (gleicher Weg wie Dart).
 - Telecom-Lücken für AA geschlossen: `setActive()` bei SIP CONFIRMED (sonst "wählt" ewig), Halten/Fortsetzen aus dem Auto (`onSetActive/onSetInactive`), Stumm aus dem Auto gespiegelt, Anzeigename statt "HA-Phone Testanruf", Adresse `sip:<nummer>`, Annehmen aus dem Auto schließt den Klingelbildschirm.
 - Google-Vorgabe: Calling-Apps in AA sind Beta, im Play Store nur Internal/Closed Testing. Seitengeladene Debug-APK läuft nur mit AA-Entwicklermodus + "Unbekannte Quellen". DHU liegt unter `~/android-sdk/extras/google/auto` (Emulator-Image hat kein Android Auto -> Test nur am echten Handy).
+
+## 5a7. Audit 2026-09-24 abends (LAUFEND — hier weitermachen)
+
+- Anlage **0.7.119** gepusht + installiert (Audit-Fixes: Login-Bremse/Pflicht-Passwortwechsel, Konfig-Injektion, Module caller_id/nat/refer/mwi/h264/timeout/MoH, *55 `Bridge(...,x)`, Feiertage-Jahr, PJSIP_DIAL_CONTACTS, Trunk identify_by=ip, TLS im Template, SRTP entfernt). Trunk registriert, 11/15/16 online.
+- App **1.0.0+15** gebaut, NICHT committet (Working Tree = native + Flutter Audit-Fixes: echter Klingelton `calls/RingtonePlayer.kt` + Kanal `haphone_calls_v2`, Telecom-Registry pro Anruf, Answer-Guard, Notification-ID 1003, Lock, Wake-Locks, FGS phoneCall|microphone im Gespräch, SecurePrefs, allowBackup=false, keine BuildConfig-SIP-Daten; Flutter: lastDisconnected-Fix, TalkBack, Kontraste, "du", resetForPairing …). 386 Dart + 140 Kotlin Tests grün.
+- E2E-Test fand 2 Fehler, BEHOBEN + E2E a–d bestanden (MainActivity showWhenLocked während Anruf via `calls/InCallWindow.kt`; IncomingCallActivity eigene taskAffinity, answer() mit NEW_TASK): (A) nach Annehmen bei Sperre liegt der Gesprächsbildschirm HINTER dem Keyguard (MainActivity braucht showWhenLocked während Anruf), (B) zweiter Anruf bei gesperrtem, eingeschaltetem Display zeigt nur Heads-up statt Klingelbildschirm (Task/Affinity?). App 1.0.0 committet + gepusht. Nächster Schritt: Audit-Bericht (docs/audit/), dann offene Audit-Punkte unten.
+- Nutzer muss: SIP-Passwort von Nebenstelle 13 im Admin ändern (steht im Git-Verlauf; Ändern war für Claude blockiert).
+- Offen aus Audit (bewusst später): HTTPS + Zertifikat-Pinning für App↔Anlage und SIP-TLS `verifyServer` (braucht Zertifikats-Fingerprint im QR), Kopplungs-Link-Rückfrage (prüfen ob umgesetzt), Lizenzfrage PJSIP (GPL) vs. "All Rights Reserved", CI für app-flutter, HANDOFF-Aufräumen.
 
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 

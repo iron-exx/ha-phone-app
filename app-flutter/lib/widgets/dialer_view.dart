@@ -36,7 +36,7 @@ List<Contact> dialerMatches(String digits, List<List<Contact>> sources, {int max
 
 /// Wählen: line + readiness chips, the typed number (Bricolage 40), live
 /// matches with presence, the dialpad and the green 76 dp call button with
-/// Mailbox (left) and Löschen (right). Also used by the '/dialpad' route.
+/// Mailbox (left) and Löschen (right).
 class DialerView extends StatefulWidget {
   const DialerView({
     super.key,

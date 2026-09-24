@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:ha_phone_test/screens/history_tab.dart';
 import 'package:ha_phone_test/services/app_navigation.dart';
 import 'package:ha_phone_test/services/call_history_store.dart';
@@ -15,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/fake_api.dart';
 import '../helpers/fake_audio.dart';
 import '../helpers/fake_sip.dart';
+import '../helpers/semantics.dart';
 
 int _epoch(DateTime t) => t.millisecondsSinceEpoch ~/ 1000;
 
@@ -115,7 +117,13 @@ void main() {
               }),
       });
 
-  Future<_Harness> pump(WidgetTester tester, FakePbx fake, {double textScale = 1}) async {
+  Future<_Harness> pump(
+    WidgetTester tester,
+    FakePbx fake, {
+    double textScale = 1,
+    bool loadRecordings = true,
+    Size size = const Size(390, 844),
+  }) async {
     final store = CallHistoryStore(api: fake.api, authLoader: testAuthLoader);
     final dir = DirectoryRepository(api: fake.api, authLoader: testAuthLoader);
     final vm = VoicemailRepository(api: fake.api, authLoader: testAuthLoader);
@@ -127,7 +135,7 @@ void main() {
       theme: AppTheme.dark(),
       routes: {'/active-call': (_) => const Scaffold(body: Text('ACTIVE'))},
       home: MediaQuery(
-        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: const Size(390, 844)),
+        data: MediaQueryData(textScaler: TextScaler.linear(textScale), size: size),
         child: HistoryTab(
           isActive: false,
           store: store,
@@ -144,7 +152,7 @@ void main() {
       await dir.refresh();
       await store.refreshAll();
       await vm.refresh();
-      await rec.refresh();
+      if (loadRecordings) await rec.refresh();
     });
     await tester.pumpAndSettle();
     return _Harness(store, vm, rec, audio, nav);
@@ -161,7 +169,7 @@ void main() {
     expect(find.text('verpasst · anderes Gerät'), findsOneWidget);
     expect(find.text('ausgehend · 0:05'), findsOneWidget);
     expect(find.text('Oma Erika'), findsOneWidget);
-    expect(find.text('Voicemail · 0:42'), findsOneWidget);
+    expect(find.text('Sprachnachricht · 0:42'), findsOneWidget);
     expect(find.text('Aufnahme · 3:12'), findsOneWidget);
     // Unread: the PBX-missed call and the new voicemail carry the bar.
     expect(find.byKey(const ValueKey('unread-bar')), findsNWidgets(2));
@@ -263,7 +271,7 @@ void main() {
 
     await tester.drag(find.text('Oma Erika'), const Offset(-500, 0));
     await tester.pumpAndSettle();
-    expect(find.text('Nachricht löschen?'), findsOneWidget);
+    expect(find.text('Sprachnachricht löschen?'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Löschen'));
     await tester.runAsync(() => pumpEventQueue());
@@ -284,6 +292,49 @@ void main() {
 
     expect(fake.to('DELETE', '/api/mobile/voicemail/INBOX/msg0000'), isEmpty);
     expect(find.text('Oma Erika'), findsOneWidget);
+  });
+
+  testWidgets('TalkBack "Löschen" on a voicemail asks first too', (tester) async {
+    final handle = tester.ensureSemantics();
+    final fake = pbx();
+    await pump(tester, fake);
+    await tester.tap(find.byKey(const ValueKey('filter-voicemail')));
+    await tester.pumpAndSettle();
+
+    semanticsCustomAction(tester, 'Löschen');
+    await tester.pumpAndSettle();
+    expect(find.text('Sprachnachricht löschen?'), findsOneWidget);
+    await tester.tap(find.text('Abbrechen'));
+    await tester.pumpAndSettle();
+    expect(fake.to('DELETE', '/api/mobile/voicemail/INBOX/msg0000'), isEmpty);
+
+    semanticsCustomAction(tester, 'Löschen');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Löschen'));
+    await tester.runAsync(() => pumpEventQueue());
+    await tester.pumpAndSettle();
+    expect(fake.to('DELETE', '/api/mobile/voicemail/INBOX/msg0000'), hasLength(1));
+    handle.dispose();
+  });
+
+  testWidgets('Aufnahmen before the first load: spinner, not "nicht freigegeben"', (tester) async {
+    await pump(tester, pbx(), loadRecordings: false);
+    await tester.tap(find.byKey(const ValueKey('filter-recordings')));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.textContaining('nicht freigegeben'), findsNothing);
+  });
+
+  testWidgets('PBX unreachable after a load: "Anlage nicht erreichbar – Stand hh:mm"', (tester) async {
+    final fake = pbx();
+    final h = await pump(tester, fake);
+    final at = h.store.pbxLoadedAt!;
+    fake.routes['GET /api/mobile/calls'] = (_) => throw http.ClientException('offline');
+    await tester.runAsync(h.store.refreshPbx);
+    await tester.pumpAndSettle();
+    final hhmm = '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+    expect(find.text('Anlage nicht erreichbar – Stand $hhmm'), findsOneWidget);
+    expect(find.text('Pizzeria'), findsOneWidget, reason: 'last known PBX entries stay');
   });
 
   testWidgets('Voicemail filter on an older PBX shows the update hint and *97', (tester) async {
@@ -322,5 +373,21 @@ void main() {
     await pump(tester, pbx(), textScale: 2);
     expect(tester.takeException(), isNull);
     expect(find.text('Pizzeria'), findsOneWidget);
+  });
+
+  testWidgets('no overflow at 200 % text size on a 320 dp phone, every filter', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(tester, pbx(), textScale: 2, size: const Size(320, 640));
+    expect(tester.takeException(), isNull);
+    for (final f in TimelineFilter.values) {
+      final chip = find.byKey(ValueKey('filter-${f.name}'));
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: f.name);
+    }
   });
 }

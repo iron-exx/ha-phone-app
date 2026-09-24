@@ -70,6 +70,16 @@ void main() {
     expect(merged.single.entry.id, 'a');
   });
 
+  test('numbers match regardless of formatting and +49 vs. 0', () {
+    final merged = mergeCallHistory(
+      [_local('l', '+49 171 555-0', _t0)],
+      [_pbx('p', '01715550', _t0.add(const Duration(seconds: 5)))],
+    );
+    expect(merged, hasLength(1));
+    expect(merged.single.local?.id, 'l');
+    expect(merged.single.pbx?.id, 'p');
+  });
+
   test('outside the window, other direction or number: separate rows', () {
     final merged = mergeCallHistory(
       [

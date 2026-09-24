@@ -50,7 +50,8 @@ enum ForwardDestType {
 }
 
 const kMinRingTimeout = 5;
-const kMaxRingTimeout = 60;
+/// The PBX accepts 5–120 s.
+const kMaxRingTimeout = 120;
 const kDefaultRingTimeout = 20;
 
 class ForwardingRule {

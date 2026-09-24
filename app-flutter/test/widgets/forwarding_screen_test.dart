@@ -128,6 +128,26 @@ void main() {
     expect(find.descendant(of: row('lunch', 'external'), matching: find.text('Sofort zur Mailbox')), findsOneWidget);
   });
 
+  testWidgets('status cards use presence glyphs (colour + shape)', (tester) async {
+    await pump(tester, pbx());
+    for (final status in ['available', 'away', 'do_not_disturb']) {
+      final glyph = find.byKey(ValueKey('forward-glyph-$status'));
+      await tester.scrollUntilVisible(glyph, 150);
+      expect(find.descendant(of: glyph, matching: find.byType(Icon)), findsOneWidget, reason: status);
+    }
+  });
+
+  testWidgets('ring timeout slider: 5–120 s, spoken in Sekunden', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, pbx());
+    await tapRow(tester, 'lunch', 'internal');
+    final slider = tester.widget<Slider>(find.byKey(const ValueKey('forward-timeout')));
+    expect(slider.min, 5);
+    expect(slider.max, 120);
+    expect(tester.getSemantics(find.byKey(const ValueKey('forward-timeout'))).value, '20 Sekunden');
+    handle.dispose();
+  });
+
   testWidgets('"Normal klingeln" removes the rule', (tester) async {
     final fake = pbx();
     await pump(tester, fake);

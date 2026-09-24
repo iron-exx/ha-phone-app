@@ -200,6 +200,8 @@ class PjsuaEndpointHolder : IpChangeNotifier {
      */
     override fun handleIpChange() {
         if (!started) return
+        // Keep the CPU up while PJSIP restarts the transport and re-registers (auto-released).
+        de.haphone.app.test.ShortWakeLock.acquire(de.haphone.app.test.ShortWakeLock.NETWORK_CHANGE)
         val param = org.pjsip.pjsua2.IpChangeParam()
         param.restartListener = true
         param.shutdownTransport = true
@@ -248,8 +250,10 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 if (existing != null) {
                     if (existing.isValid) return
                     android.util.Log.w("PJSIP", "account became invalid, recreating")
-                    existing.activeCall = null
-                    existing.otherCall = null
+                    synchronized(existing.lock) {
+                        existing.activeCall = null
+                        existing.otherCall = null
+                    }
                     account = null
                     existing.delete()
                 }
@@ -319,30 +323,71 @@ class PjsuaEndpointHolder : IpChangeNotifier {
 
             override fun makeCall(uri: String): Int {
                 val acc = account ?: return -1
-                val current = acc.activeCall
-                if (current != null && acc.otherCall != null) error("Schon zwei Gespräche aktiv")
-                // Consultation call: the running call waits on hold behind the new one.
-                current?.let { holdCall(it) }
                 val call = HAPhoneCall(acc)
-                val prm = org.pjsip.pjsua2.CallOpParam(true)
-                prm.opt.videoCount = 0
-                call.makeCall(uri, prm)
-                if (current != null) acc.otherCall = current
-                acc.activeCall = call
-                acc.conference = false
+                // Take the slot BEFORE the INVITE goes out, so an INVITE arriving on the PJSIP
+                // worker meanwhile sees it occupied (and becomes call waiting / 486).
+                val current = synchronized(acc.lock) {
+                    val running = acc.activeCall
+                    if (running != null && acc.otherCall != null) null
+                    else {
+                        if (running != null) acc.otherCall = running
+                        acc.activeCall = call
+                        acc.conference = false
+                        running ?: call
+                    }
+                }
+                if (current == null) {
+                    call.delete()
+                    error("Schon zwei Gespräche aktiv")
+                }
+                val held = current.takeIf { it !== call }
+                try {
+                    // Consultation call: the running call waits on hold behind the new one.
+                    held?.let { holdCall(it) }
+                    val prm = org.pjsip.pjsua2.CallOpParam(true)
+                    prm.opt.videoCount = 0
+                    call.makeCall(uri, prm)
+                } catch (e: Exception) {
+                    synchronized(acc.lock) {
+                        if (acc.activeCall === call) {
+                            acc.activeCall = held
+                            if (acc.otherCall === held) acc.otherCall = null
+                        }
+                    }
+                    held?.let { h -> runCatching { unholdCall(h) } }
+                    call.delete()
+                    throw e
+                }
                 return call.id
             }
 
             override fun answerWaiting(): Boolean {
                 val acc = account ?: return false
                 val waiting = acc.otherCall ?: return false
-                acc.activeCall?.let { holdCall(it) }
-                acc.otherCall = acc.activeCall
-                acc.activeCall = waiting
-                acc.conference = false
+                // Only a call that is still knocking: it may have been cancelled a moment ago.
+                if (!waiting.isStillRinging()) {
+                    android.util.Log.i("PJSIP", "answerWaiting: waiting call is no longer ringing")
+                    return false
+                }
+                val current = acc.activeCall
+                current?.let { holdCall(it) }
                 val prm = org.pjsip.pjsua2.CallOpParam(true)
                 prm.statusCode = org.pjsip.pjsua2.pjsip_status_code.PJSIP_SC_OK
-                waiting.answer(prm)
+                try {
+                    waiting.answer(prm)
+                } catch (e: Exception) {
+                    // Keep the running call as it was: back from hold, still on screen.
+                    current?.let { c -> runCatching { unholdCall(c) } }
+                    throw e
+                }
+                // Swap only after the 200 OK went out.
+                synchronized(acc.lock) {
+                    if (acc.otherCall === waiting) {
+                        acc.otherCall = acc.activeCall
+                        acc.activeCall = waiting
+                        acc.conference = false
+                    }
+                }
                 return true
             }
 
@@ -359,9 +404,11 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 val held = acc.otherCall ?: return false
                 holdCall(current)
                 unholdCall(held)
-                acc.activeCall = held
-                acc.otherCall = current
-                acc.conference = false
+                synchronized(acc.lock) {
+                    acc.activeCall = held
+                    acc.otherCall = current
+                    acc.conference = false
+                }
                 return true
             }
 
@@ -389,6 +436,16 @@ class PjsuaEndpointHolder : IpChangeNotifier {
 
             override fun answer(): Boolean {
                 val call = account?.activeCall ?: return false
+                return answerCall(call)
+            }
+
+            override fun answer(callId: Int): Boolean {
+                // Only the call on screen: a waiting call is taken via answerWaiting (holds the other).
+                val call = account?.activeCall?.takeIf { it.id == callId } ?: return false
+                return answerCall(call)
+            }
+
+            private fun answerCall(call: HAPhoneCall): Boolean {
                 val prm = org.pjsip.pjsua2.CallOpParam(true)
                 prm.statusCode = org.pjsip.pjsua2.pjsip_status_code.PJSIP_SC_OK
                 call.answer(prm)
@@ -448,15 +505,29 @@ class PjsuaEndpointHolder : IpChangeNotifier {
 
             override fun hangup() {
                 val call = account?.activeCall ?: return
-                // activeCall is cleared by the DISCONNECTED callback; only clear it here if
+                hangupCall(call)
+            }
+
+            override fun hangup(callId: Int) {
+                val acc = account ?: return
+                val call = listOfNotNull(acc.activeCall, acc.otherCall).firstOrNull { it.id == callId } ?: return
+                hangupCall(call)
+            }
+
+            private fun hangupCall(call: HAPhoneCall) {
+                // The slot is cleared by the DISCONNECTED callback; only clear it here if
                 // hangup throws (e.g. the session had already terminated).
                 try {
                     call.hangup(org.pjsip.pjsua2.CallOpParam())
                 } catch (e: Exception) {
                     account?.let { acc ->
-                        if (acc.activeCall === call) {
-                            acc.activeCall = acc.otherCall
-                            acc.otherCall = null
+                        synchronized(acc.lock) {
+                            if (acc.activeCall === call) {
+                                acc.activeCall = acc.otherCall
+                                acc.otherCall = null
+                            } else if (acc.otherCall === call) {
+                                acc.otherCall = null
+                            }
                         }
                     }
                     throw e
@@ -470,14 +541,21 @@ class PjsuaEndpointHolder : IpChangeNotifier {
  * PjsuaBridge.mm's HAPhoneAccount).
  */
 private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
+    /**
+     * Guards [activeCall]/[otherCall]/[conference]: [onIncomingCall] and the DISCONNECTED
+     * branch of HAPhoneCall.onCallState run on the PJSIP worker, everything else on main.
+     * Held only for field reads/writes, NEVER around a PJSIP call (the worker holds PJSIP's
+     * own locks while it waits for this one -> deadlock).
+     */
+    val lock = Any()
     /** The call on screen. */
-    var activeCall: HAPhoneCall? = null
+    @Volatile var activeCall: HAPhoneCall? = null
     /** Second call: on hold behind [activeCall], or ringing as call waiting. */
-    var otherCall: HAPhoneCall? = null
+    @Volatile var otherCall: HAPhoneCall? = null
     /** Both calls are mixed together (3-way conference in our own audio bridge). */
-    var conference = false
+    @Volatile var conference = false
     /** DTMF to send once the active call is answered (e.g. "Tür öffnen" from the ringing screen). */
-    var pendingDtmf: String? = null
+    @Volatile var pendingDtmf: String? = null
     /** Calls rejected by the ring policy, held until their DISCONNECTED callback frees them. */
     val rejectedCalls = java.util.Collections.synchronizedSet(mutableSetOf<HAPhoneCall>())
 
@@ -512,6 +590,8 @@ private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
      * the meantime.
      */
     override fun onIncomingCall(prm: org.pjsip.pjsua2.OnIncomingCallParam) {
+        // Doze: keep the CPU up until the ringing UI / notification is posted on main.
+        de.haphone.app.test.ShortWakeLock.acquire(de.haphone.app.test.ShortWakeLock.INCOMING_CALL)
         val call = HAPhoneCall(this, prm.callId)
         // "Klingeln auf diesem Handy" off / muted: 480 before any ringing UI or Telecom,
         // so ring groups go on to the other devices and direct calls reach the PBX fallback.
@@ -526,17 +606,29 @@ private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
             runCatching { call.hangup(unavailable) }
                 .onFailure { android.util.Log.w(de.haphone.app.test.ring.RingPolicyStore.TAG, "480 reply failed", it) }
             android.util.Log.i(de.haphone.app.test.ring.RingPolicyStore.TAG, "rejected call ${prm.callId} from $caller with 480 ($decision)")
+            de.haphone.app.test.ShortWakeLock.release(de.haphone.app.test.ShortWakeLock.INCOMING_CALL)
             return
         }
-        if (activeCall != null && otherCall != null) {
+        // Classified under the lock: the previous call's DISCONNECTED clears its slot on this
+        // same worker thread (synchronously), so a call arriving right after a hangup is not
+        // mistaken for call waiting, and main cannot change the slots halfway.
+        val waiting: Boolean? = synchronized(lock) {
+            when {
+                activeCall != null && otherCall != null -> null
+                activeCall != null -> { otherCall = call; true }
+                else -> { activeCall = call; false }
+            }
+        }
+        if (waiting == null) {
             val busy = org.pjsip.pjsua2.CallOpParam()
             busy.statusCode = org.pjsip.pjsua2.pjsip_status_code.PJSIP_SC_BUSY_HERE
-            call.hangup(busy)
+            // Keep a reference until DISCONNECTED (which deletes it), or the GC could free it early.
+            rejectedCalls.add(call)
+            runCatching { call.hangup(busy) }
+                .onFailure { android.util.Log.w("PJSIP", "486 reply failed", it) }
+            de.haphone.app.test.ShortWakeLock.release(de.haphone.app.test.ShortWakeLock.INCOMING_CALL)
             return
         }
-        // Call waiting: a second call rings while we talk; it only becomes the active one on answer.
-        val waiting = activeCall != null
-        if (waiting) otherCall = call else activeCall = call
         // No early media for a waiting call: its video would take the window of the running call.
         val hasVideo = !waiting && runCatching { prm.rdata.wholeMsg.contains("m=video") }.getOrDefault(false)
         val (number, name) = parseRemoteUri(runCatching { call.info.remoteUri }.getOrDefault(""))
@@ -553,11 +645,17 @@ private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
             // caller's ringback tone with silence.
             reply.statusCode = org.pjsip.pjsua2.pjsip_status_code.PJSIP_SC_RINGING
         }
-        call.answer(reply)
+        // An exception must not escape into the PJSIP callback; the call can still be answered with 200.
+        runCatching { call.answer(reply) }
+            .onFailure { android.util.Log.w("PJSIP", "provisional ${reply.statusCode} reply failed", it) }
         android.util.Log.i("PJSIP", "incoming call from $number ($name) video=$hasVideo waiting=$waiting")
         val callId = prm.callId
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            SipCallEvents.onIncomingCall?.invoke(IncomingSipCall(callId, number, name, hasVideo, waiting))
+            try {
+                SipCallEvents.onIncomingCall?.invoke(IncomingSipCall(callId, number, name, hasVideo, waiting))
+            } finally {
+                de.haphone.app.test.ShortWakeLock.release(de.haphone.app.test.ShortWakeLock.INCOMING_CALL)
+            }
         }
     }
 }
@@ -568,6 +666,13 @@ private class HAPhoneCall(
     callId: Int = -1, // PJSUA_INVALID_ID -- outgoing calls (makeCall) omit this and let PJSUA2 assign a fresh id; onIncomingCall (above) passes the real inbound call-id.
 ) : org.pjsip.pjsua2.Call(owner, callId) {
     var lastAnswerSucceeded: Boolean = true
+
+    /** INCOMING/EARLY: not answered, not ended (call waiting may have been cancelled meanwhile). */
+    fun isStillRinging(): Boolean = runCatching {
+        val state = getInfo().state
+        state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_INCOMING ||
+            state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_EARLY
+    }.getOrDefault(false)
 
     /** Set once CONFIRMED: before that (early media) mic and speaker stay disconnected. */
     private var answered = false
@@ -646,12 +751,18 @@ private class HAPhoneCall(
     override fun onCallState(prm: org.pjsip.pjsua2.OnCallStateParam) {
         val info = getInfo()
         val myId = info.id
-        val ringback = de.haphone.app.test.calls.Ringback.shouldPlay(
+        val ringback = de.haphone.app.test.calls.Ringback.actionFor(
+            isCallOnScreen = owner.activeCall === this,
             isOutgoing = info.role == org.pjsip.pjsua2.pjsip_role_e.PJSIP_ROLE_UAC,
             isEarly = info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_EARLY,
         )
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            if (ringback) de.haphone.app.test.calls.Ringback.start() else de.haphone.app.test.calls.Ringback.stop()
+        if (ringback != null) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                when (ringback) {
+                    de.haphone.app.test.calls.Ringback.Action.START -> de.haphone.app.test.calls.Ringback.start()
+                    de.haphone.app.test.calls.Ringback.Action.STOP -> de.haphone.app.test.calls.Ringback.stop()
+                }
+            }
         }
         if (info.state == org.pjsip.pjsua2.pjsip_inv_state.PJSIP_INV_STATE_CONFIRMED) {
             answered = true
@@ -670,20 +781,25 @@ private class HAPhoneCall(
             lastAnswerSucceeded = info.lastStatusCode < 400
             val reason = "${info.lastStatusCode} ${info.lastReason}"
             android.util.Log.i("PJSIP", "call $myId disconnected: $reason")
-            // Arrives on the PJSIP worker thread; call refs and Telecom are only touched on main.
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                owner.rejectedCalls.remove(this)
-                val wasActive = owner.activeCall === this
-                val wasOther = owner.otherCall === this
-                if (wasActive) {
+            // Free the slot right here on the worker (under the lock), so an INVITE that arrives
+            // before main has run is classified against the real state (see onIncomingCall).
+            val (wasActive, wasOther) = synchronized(owner.lock) {
+                val active = owner.activeCall === this
+                val other = owner.otherCall === this
+                if (active) {
                     owner.activeCall = owner.otherCall
                     owner.otherCall = null
                     owner.pendingDtmf = null
-                } else if (wasOther) {
+                } else if (other) {
                     owner.otherCall = null
                 }
+                if (active || other) owner.conference = false
+                active to other
+            }
+            // Telecom, UI and delete() only on main.
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                owner.rejectedCalls.remove(this)
                 if (wasActive || wasOther) {
-                    owner.conference = false
                     SipCallEvents.onCallDisconnected?.invoke(myId, reason)
                 }
                 // Free now, not at GC time: ~Call() hangs up whatever call currently

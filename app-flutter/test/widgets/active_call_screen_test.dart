@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/screens/active_call_screen.dart';
 import 'package:ha_phone_test/services/call_events.dart';
@@ -10,6 +11,7 @@ import 'package:ha_phone_test/services/recordings_repository.dart';
 import 'package:ha_phone_test/theme/app_theme.dart';
 import 'package:ha_phone_test/widgets/call_controls.dart';
 import 'package:ha_phone_test/widgets/call_video_card.dart';
+import 'package:ha_phone_test/widgets/transfer_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,7 +47,6 @@ void main() {
   late FakeSip sip;
 
   setUp(() {
-    CallEvents.instance.lastDisconnected = null;
     SharedPreferences.setMockInitialValues({});
   });
   tearDown(() => sip.uninstall());
@@ -66,7 +67,7 @@ void main() {
 
   Future<void> pumpCall(
     WidgetTester tester,
-    Map<String, Object?> call, {
+    Map<String, Object?>? call, {
     Map<String, Object?>? routes,
     DirectoryRepository? dir,
     RecordingsRepository? recordings,
@@ -182,6 +183,91 @@ void main() {
       await tester.tap(find.byKey(const Key('hangup')));
       await tester.pump();
       expect(sip.callsTo('hangup'), hasLength(1));
+      await dispose(tester);
+    });
+  });
+
+  group('stale call end', () {
+    CallStateEvent ended(String id) =>
+        CallStateEvent(callId: id, direction: 'outgoing', state: 'disconnected', disconnectReason: '');
+
+    testWidgets('previous call disconnected → new call answered → screen stays', (tester) async {
+      // The listener keeps the last end; the next call's states clear it.
+      sip = FakeSip({})..install();
+      CallEvents.instance.start();
+      sip.emit({'type': 'callState', 'callId': '1', 'direction': 'outgoing', 'state': 'disconnected'});
+      await tester.pump();
+      expect(CallEvents.instance.lastDisconnected?.callId, '1');
+      sip.emit({'type': 'callState', 'callId': '2', 'direction': 'incoming', 'state': 'ringing'});
+      await tester.pump();
+      expect(CallEvents.instance.lastDisconnected, isNull);
+
+      await pumpCall(tester, _person());
+      await settle(tester);
+      expect(find.text('Oma Erika'), findsOneWidget);
+      expect(find.textContaining('Anruf beendet'), findsNothing);
+      await dispose(tester);
+    });
+
+    testWidgets('stale end event while a call is live (Zurück banner): screen stays', (tester) async {
+      CallEvents.instance.lastDisconnected = ended('old');
+      await pumpCall(tester, _person());
+      await settle(tester);
+      expect(find.textContaining('Anruf beendet'), findsNothing);
+      expect(CallEvents.instance.lastDisconnected, isNull);
+      await dispose(tester);
+    });
+
+    testWidgets('call ended before the screen subscribed and none is live: leaves', (tester) async {
+      CallEvents.instance.lastDisconnected = ended('gone');
+      await pumpCall(tester, null);
+      await settle(tester);
+      expect(find.text('Anruf beendet'), findsOneWidget);
+      CallEvents.instance.lastDisconnected = null;
+      await dispose(tester);
+    });
+  });
+
+  group('native failures', () {
+    Object? fail(Object? _) => throw PlatformException(code: 'ERR');
+
+    testWidgets('hang-up failure keeps the screen and explains', (tester) async {
+      await pumpCall(tester, _person());
+      sip.responses['hangup'] = fail;
+      await tester.tap(find.byKey(const Key('hangup')));
+      await tester.pump();
+      expect(find.text('Auflegen fehlgeschlagen – bitte erneut versuchen'), findsOneWidget);
+      expect(find.text('Oma Erika'), findsOneWidget);
+      await dispose(tester);
+    });
+
+    testWidgets('mute and hold failures keep the state and show a SnackBar', (tester) async {
+      await pumpCall(tester, _person());
+      sip.responses['mute'] = fail;
+      sip.responses['hold'] = fail;
+      await tester.tap(find.text('Stumm'));
+      await tester.pump();
+      expect(control(tester, 'mute').active, isFalse);
+      expect(find.text('Stummschalten fehlgeschlagen'), findsOneWidget);
+      await tester.tap(find.text('Halten'));
+      await tester.pump();
+      expect(find.text('Halten'), findsOneWidget);
+      await dispose(tester);
+    });
+
+    testWidgets('transfer failure is reported', (tester) async {
+      await pumpCall(tester, _person());
+      sip.responses['transfer'] = fail;
+      await tester.tap(find.text('Weiterleiten'));
+      await tester.pumpAndSettle();
+      final sheet = find.byType(TransferSheet);
+      for (final d in ['1', '3']) {
+        await tester.tap(find.descendant(of: sheet, matching: find.text(d)));
+        await tester.pump();
+      }
+      await tester.tap(find.text('Sofort weiterleiten'));
+      await tester.pumpAndSettle();
+      expect(find.text('Weiterleiten an 13 fehlgeschlagen'), findsOneWidget);
       await dispose(tester);
     });
   });
@@ -481,7 +567,7 @@ void main() {
     testWidgets('403 from the PBX shows a German SnackBar, no chip', (tester) async {
       await pumpRecording(tester, allowed: true, onRecording: (_) => http.Response('{}', 403));
       await tapRecord(tester);
-      expect(find.text('Gesprächsaufzeichnung ist für Ihre Nebenstelle nicht freigegeben.'), findsOneWidget);
+      expect(find.text('Gesprächsaufzeichnung ist für deine Nebenstelle nicht freigegeben.'), findsOneWidget);
       expect(find.byKey(const Key('recording-indicator')), findsNothing);
       await dispose(tester);
     });

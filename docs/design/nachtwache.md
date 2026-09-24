@@ -15,12 +15,17 @@ online: https://claude.ai/artifact/HqTj56a1kVtjLv8Civ45Ne
 | stroke (Linien) | #2A3544 | #D5DCE4 |
 | text | #EAF0F6 | #0F172A |
 | muted | #A3B0BF | #475569 |
-| faint | #7B8898 | #64748B |
-| blue (App-Akzent, HA-Blau) | #38BDF8 · Ink #04263A · Soft #0E3148 | #0284C7 · Ink #FFFFFF · Soft #E0F2FE |
-| answer (nur Annehmen/Anrufen) | #2FBF71 · Ink #032313 | #1F9D57 · Ink #FFFFFF |
-| end (nur Auflegen, verpasst, REC) | #E5484D | #D92D32 |
-| door (nur Tür) | #F5A524 · Ink #2A1800 · Soft #3A2A0E | #C77A00 · Ink #FFFFFF · Soft #FFF1D6 |
+| faint | #8593A3 | #5B6778 |
+| blue (App-Akzent, HA-Blau) | #38BDF8 · Ink #04263A · Soft #0E3148 | #0369A1 · Ink #FFFFFF · Soft #E0F2FE |
+| answer (nur Annehmen/Anrufen) | #2FBF71 · Ink #032313 | #177E45 · Ink #FFFFFF |
+| end (nur Auflegen, verpasst, REC) | #E5484D · Ink #FFFFFF | #D92D32 · Ink #FFFFFF |
+| endStrong (end-Fläche mit Text: „Löschen“, REC-Chip, Zähler) | #CC3338 | #D92D32 |
+| door (nur Tür) | #F5A524 · Ink #2A1800 · Soft #3A2A0E | #A86500 · Ink #FFFFFF · Soft #FFF1D6 |
 | ok-Fläche (grüne Hinweise) | #0F2A1C, Rand #1E4D33, Text #7EE2A8 | #E7F7EE, Rand #B7E4C9, Text #166534 |
+
+Kontrast (WCAG AA, Text ≥ 4,5:1, geprüft in `app-flutter/test/contrast_test.dart`): text/muted/faint auf
+ground, surface und raised; Ink auf blue, door, answer und endStrong – in beiden Themes. Weiß auf dem
+dunklen end (#E5484D) hat nur 3,9:1: dort nur Symbole (Auflegen-Taste); Flächen mit Text nutzen endStrong.
 
 Präsenz = Farbe **und** Form (farbenblind-sicher): Ring um den Avatar + Glyph unten rechts.
 verfügbar grün ✓ · abwesend bernstein ☾ · nicht stören rot ⊖ · telefoniert rot (Hörer) · offline grau, kein Ring.

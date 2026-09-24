@@ -73,6 +73,7 @@ class SipChannelHandler(
                 }
 
                 "hangup" -> {
+                    app.incoming.stopAlerting()
                     // A call that already failed/ended throws ESESSIONTERMINATED; Telecom must still be released below.
                     runCatching { app.sipCallController.hangup() }
                         .onFailure { android.util.Log.w("SipChannelHandler", "SIP hangup failed", it) }
@@ -88,15 +89,10 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
-                "answerWaiting" -> {
-                    CallNotificationBuilder.cancelWaiting(app)
-                    val ok = app.sipCallController.answerWaiting() && app.calls.acceptWaiting()
-                    result.success(ok)
-                }
+                "answerWaiting" -> result.success(app.incoming.answerWaiting())
 
                 "rejectWaiting" -> {
-                    CallNotificationBuilder.cancelWaiting(app)
-                    app.sipCallController.rejectWaiting()
+                    app.incoming.rejectWaiting()
                     result.success(null)
                 }
 

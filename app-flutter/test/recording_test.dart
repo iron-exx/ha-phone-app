@@ -118,7 +118,7 @@ void main() {
   group('recordingErrorText', () {
     test('maps the PBX answers to German messages', () {
       expect(recordingErrorText(const ApiException(ApiErrorKind.notAllowed, 403), starting: true),
-          'Gesprächsaufzeichnung ist für Ihre Nebenstelle nicht freigegeben.');
+          'Gesprächsaufzeichnung ist für deine Nebenstelle nicht freigegeben.');
       expect(recordingErrorText(const ApiException(ApiErrorKind.server, 409), starting: true),
           'Aufnahme nicht gestartet – Gespräch auf der Anlage nicht eindeutig gefunden.');
       expect(recordingErrorText(const ApiException(ApiErrorKind.server, 409), starting: false),

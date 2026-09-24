@@ -81,6 +81,8 @@ class _DialpadKey extends StatelessWidget {
     return Semantics(
       button: true,
       label: _kSpoken[label] ?? label,
+      // excludeSemantics drops the InkWell's action, so TalkBack needs it here.
+      onTap: onTap,
       excludeSemantics: true,
       child: Material(
         color: c.surface,

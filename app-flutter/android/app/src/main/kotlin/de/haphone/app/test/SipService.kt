@@ -24,33 +24,54 @@ class SipService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning = true
+        instance = java.lang.ref.WeakReference(this)
+        inCallMode = false
         android.util.Log.i(de.haphone.app.test.reach.ReachabilityMonitor.TAG, "service created")
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "HA-Phone Verbindung", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CHANNEL_ID, "Verbindung", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "Hält die Verbindung zur Telefonanlage, damit Anrufe ankommen."
                 setShowBadge(false)
             },
         )
-        val openApp = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
+        enterForeground(inCall = false)
+    }
+
+    private fun buildNotification(inCall: Boolean) = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_stat_haphone)
+        .setContentTitle(if (inCall) "HA-Phone: Gespräch läuft" else "HA-Phone ist bereit")
+        .setContentText(if (inCall) "Tippen, um zum Gespräch zu wechseln" else "Eingehende Anrufe werden empfangen")
+        .setContentIntent(
+            PendingIntent.getActivity(
+                this, 0,
+                Intent(this, MainActivity::class.java).apply { if (inCall) putExtra("route", "active_call") },
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            ),
         )
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_haphone)
-            .setContentTitle("HA-Phone ist bereit")
-            .setContentText("Eingehende Anrufe werden empfangen")
-            .setContentIntent(openApp)
-            .setOngoing(true)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .build()
-        // specialUse, not phoneCall: Android 15 forbids starting phoneCall-type services
-        // from BOOT_COMPLETED, and this service must come back after a reboot.
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-        } else {
-            0
+        .setOngoing(true)
+        .setCategory(if (inCall) NotificationCompat.CATEGORY_CALL else NotificationCompat.CATEGORY_SERVICE)
+        .build()
+
+    /**
+     * Idle: specialUse only -- Android 15 forbids starting phoneCall-type services from
+     * BOOT_COMPLETED, and this service must come back after a reboot.
+     * In a call: phoneCall|microphone on top, so the microphone keeps working when the call
+     * was answered from the background (car, headset) -- without a microphone-type foreground
+     * service Android 11+ records silence for an app that is not visible. Falls back step by
+     * step if the system refuses a type (SecurityException, e.g. RECORD_AUDIO not granted or
+     * a while-in-use restriction on Android 14+).
+     */
+    private fun enterForeground(inCall: Boolean) {
+        val notification = buildNotification(inCall)
+        for (type in ForegroundTypes.candidates(Build.VERSION.SDK_INT, inCall)) {
+            val ok = runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type) }
+                .onFailure { android.util.Log.w("SipService", "startForeground type=$type refused", it) }
+                .isSuccess
+            if (ok) {
+                android.util.Log.i("SipService", "foreground inCall=$inCall type=$type")
+                return
+            }
         }
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -69,6 +90,7 @@ class SipService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        instance = null
         android.util.Log.w(de.haphone.app.test.reach.ReachabilityMonitor.TAG, "service destroyed")
         super.onDestroy()
     }
@@ -83,6 +105,24 @@ class SipService : Service() {
 
         private const val CHANNEL_ID = "haphone_service"
         private const val NOTIFICATION_ID = 1002
+
+        private var instance: java.lang.ref.WeakReference<SipService>? = null
+        private var inCallMode = false
+
+        /**
+         * Switch the running service between idle and in-call foreground types. Main thread.
+         * No-op when the service is not running (not provisioned): it cannot be started with
+         * the microphone type from the background anyway.
+         */
+        fun setInCall(inCall: Boolean) {
+            // Call screen over the keyguard (MainActivity) follows the same lifecycle; also
+            // when the service is not running.
+            de.haphone.app.test.calls.InCallWindow.setActive(inCall)
+            if (inCallMode == inCall) return
+            val service = instance?.get() ?: return
+            inCallMode = inCall
+            service.enterForeground(inCall)
+        }
     }
 }
 

@@ -62,4 +62,31 @@ class CallControlTest {
         controller.mute(false)
         assertEquals(listOf("mute:true", "mute:false"), fake.invocations)
     }
+
+    @Test
+    fun answerAndHangupByCallIdFallBackToCurrentCallInOldFakes() {
+        // Fakes that only implement answer()/hangup() keep working through the interface defaults.
+        val fake = FakeSipCallOperations()
+        val controller = SipCallController(fake, sipDomain = "pbx.local:5061")
+        fake.answerSucceeds = false
+        assertEquals(false, controller.answer(4))
+        controller.hangup(4)
+        assertEquals(listOf("register", "answer", "hangup"), fake.invocations)
+    }
+
+    @Test
+    fun answerByCallIdTargetsThatCall() {
+        val fake = object : SipCallOperations by FakeSipCallOperations() {
+            val answered = mutableListOf<Int>()
+            val hungUp = mutableListOf<Int>()
+            override fun answer(callId: Int): Boolean { answered.add(callId); return callId == 2 }
+            override fun hangup(callId: Int) { hungUp.add(callId) }
+        }
+        val controller = SipCallController(fake, sipDomain = "pbx.local:5061")
+        assertEquals(true, controller.answer(2))
+        assertEquals(false, controller.answer(3))
+        controller.hangup(5)
+        assertEquals(listOf(2, 3), fake.answered)
+        assertEquals(listOf(5), fake.hungUp)
+    }
 }

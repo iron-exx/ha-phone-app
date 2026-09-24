@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,8 +7,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../app_info.dart';
+import '../services/pairing_reset.dart';
 import '../services/provisioning_events.dart';
 import '../services/sip_channel.dart';
+import 'reachability_screen.dart';
 
 enum _ScreenState { checkingPermission, permissionDenied, scanning, processing, error }
 
@@ -148,6 +151,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
       final domainPort = lastColon > 0 ? sipDomain.substring(lastColon + 1) : '';
       final port = sipPort != null ? sipPort.toString() : domainPort;
 
+      // Possibly another box: nothing of the old pairing may survive.
+      await resetForPairing();
+
       await SipChannel.instance.saveCredentials(
         host: sipHost,
         port: port,
@@ -172,7 +178,11 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
       provisioningRevision.value++;
       if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      // Straight to the reachability checklist (battery, notifications, test call).
+      unawaited(Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const ReachabilityScreen()),
+        (route) => route.isFirst,
+      ));
     } catch (_) {
       _showError('Netzwerkfehler');
     }
@@ -239,7 +249,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Gerät wird eingerichtet...'),
+              Text('Gerät wird eingerichtet…'),
             ],
           ),
         );

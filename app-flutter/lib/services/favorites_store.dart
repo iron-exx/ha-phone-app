@@ -34,6 +34,16 @@ class FavoritesStore extends ChangeNotifier {
     await _pushToCar();
   }
 
+  /// Forget all favourites (device unpaired / paired with another box).
+  Future<void> clear() async {
+    _numbers = {};
+    _loaded = true;
+    notifyListeners();
+    final prefs = await loadPrefs();
+    await prefs?.remove(StoreKeys.favorites);
+    await _pushToCar();
+  }
+
   /// The Android Auto Favoriten tab reads a native copy.
   Future<void> _pushToCar() async {
     try {

@@ -36,10 +36,13 @@ object ReachabilityMonitor {
     fun attach(application: HAPhoneTestApplication) {
         if (app != null) return
         app = application
-        tracker = RegistrationTracker(load(application))
+        tracker = RegistrationTracker(ReachClock.toElapsed(load(application), now(), wallNow()))
     }
 
-    private fun now() = System.currentTimeMillis()
+    /** Monotonic clock for all expiry/due maths (see [ReachClock]); wall clock only for display. */
+    private fun now() = android.os.SystemClock.elapsedRealtime()
+    private fun wallNow() = System.currentTimeMillis()
+    private fun wall(elapsedMs: Long?): Long? = ReachClock.toWall(elapsedMs, now(), wallNow())
 
     // ---- PJSIP events (already on main) ----
 
@@ -231,11 +234,12 @@ object ReachabilityMonitor {
             "ignoringBatteryOptimizations" to (power?.isIgnoringBatteryOptimizations(context.packageName) == true),
             "canScheduleExactAlarms" to RegistrationAlarm.canScheduleExact(context),
             "registered" to tracker.isRegisteredAt(now),
-            "lastRegisteredAt" to tracker.lastRegisteredAtMs,
-            "registrationExpiresAt" to tracker.expiresAtMs,
-            "lastWakeupAt" to tracker.lastWakeupAtMs,
-            "lastTransportDropAt" to tracker.lastTransportDropAtMs,
-            "nextAlarmAt" to tracker.nextAlarmAtMs,
+            // Epoch ms for display; the tracker itself runs on elapsedRealtime.
+            "lastRegisteredAt" to wall(tracker.lastRegisteredAtMs),
+            "registrationExpiresAt" to wall(tracker.expiresAtMs),
+            "lastWakeupAt" to wall(tracker.lastWakeupAtMs),
+            "lastTransportDropAt" to wall(tracker.lastTransportDropAtMs),
+            "nextAlarmAt" to wall(tracker.nextAlarmAtMs),
             "serviceRunning" to SipService.isRunning,
             "manufacturer" to Build.MANUFACTURER,
             "oemFamily" to ReachPolicy.oemFamily(Build.MANUFACTURER.orEmpty()),
@@ -256,7 +260,7 @@ object ReachabilityMonitor {
         else -> "state$state"
     }
 
-    // ---- Persistence (timestamps only, not secret) ----
+    // ---- Persistence (wall-clock timestamps, display only, not secret) ----
 
     private fun load(context: Context): PersistedReach {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -265,7 +269,8 @@ object ReachabilityMonitor {
     }
 
     private fun save(context: Context) {
-        val s = tracker.persisted()
+        // Persisted as wall clock: elapsedRealtime restarts at 0 after a reboot.
+        val s = ReachClock.toWall(tracker.persisted(), now(), wallNow())
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
             fun put(key: String, v: Long?) { if (v == null) remove(key) else putLong(key, v) }
             put("lastRegisteredAt", s.lastRegisteredAtMs)

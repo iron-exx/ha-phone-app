@@ -25,6 +25,9 @@ class RingSettingsRepository extends ChangeNotifier {
   Timer? _expiry;
 
   RingSettings get settings => _settings;
+
+  /// Label and end of the last mute chip tapped, so that chip stays selected.
+  (String, DateTime)? muteChoice;
   bool get hasLoaded => _loaded;
   DateTime now() => _clock();
 

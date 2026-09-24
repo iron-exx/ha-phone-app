@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../models/directory.dart';
+import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'local_store.dart';
 import 'phone_contacts_repository.dart';
@@ -33,7 +34,12 @@ class DirectoryRepository extends ChangeNotifier {
   Directory? _directory;
   ApiException? _error;
   bool _loading = false;
+  final _flight = SingleFlight();
   bool _cacheLoaded = false;
+
+  /// Bumped by [clear]: a refresh still in flight from the old pairing
+  /// must not bring the old directory (and its door codes) back.
+  int _epoch = 0;
 
   /// Last successfully loaded directory (fresh or cached), null if never loaded.
   Directory? get directory => _directory;
@@ -69,22 +75,27 @@ class DirectoryRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> refresh() async {
-    if (_loading) return;
+  Future<void> refresh() => _flight.run(_refresh);
+
+  Future<void> _refresh() async {
     _loading = true;
     notifyListeners();
+    final epoch = _epoch;
+    bool stale() => epoch != _epoch;
     try {
       final auth = await _authLoader();
       final fresh = await _api.fetchDirectory(auth);
+      if (stale()) return;
       _directory = fresh;
       _error = null;
       await _saveCache(fresh);
+      if (stale()) return;
       await _pushDoorCodes(fresh);
     } on ApiException catch (e) {
-      _error = e;
+      if (!stale()) _error = e;
     } catch (e) {
       debugPrint('directory refresh failed: $e');
-      _error = const ApiException(ApiErrorKind.unreachable);
+      if (!stale()) _error = const ApiException(ApiErrorKind.unreachable);
     } finally {
       _loading = false;
       notifyListeners();
@@ -124,7 +135,11 @@ class DirectoryRepository extends ChangeNotifier {
   }
 
   /// Forget everything (device unpaired).
+  /// A refresh in flight is dropped; the next [refresh] starts fresh.
   Future<void> clear() async {
+    _epoch++;
+    _flight.reset();
+    _loading = false;
     _directory = null;
     _error = null;
     final prefs = await loadPrefs();

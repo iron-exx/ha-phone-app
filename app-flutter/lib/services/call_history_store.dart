@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/pbx_call.dart';
 import '../utils/call_merge.dart';
+import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'directory_repository.dart';
 import 'foreground_poller.dart';
@@ -38,7 +39,7 @@ class CallHistoryStore extends ChangeNotifier {
   DateTime? _lastSeen;
   bool _lastSeenLoaded = false;
   bool _visible = false;
-  bool _pbxLoading = false;
+  final _flight = SingleFlight();
   String? _error;
   ApiException? _pbxError;
 
@@ -52,6 +53,10 @@ class CallHistoryStore extends ChangeNotifier {
   /// Error of the last PBX fetch (null on success); the list still shows
   /// the local entries.
   ApiException? get pbxError => _pbxError;
+
+  /// Time of the last successful PBX fetch ("Stand hh:mm" while offline).
+  DateTime? get pbxLoadedAt => _pbxLoadedAt;
+  DateTime? _pbxLoadedAt;
   int get unseenMissed => countMergedMissedSince(_calls, _lastSeen);
 
   /// When the Verlauf was last looked at (missed calls after it are new), null if never.
@@ -81,21 +86,20 @@ class CallHistoryStore extends ChangeNotifier {
   }
 
   /// Fetches the PBX log; errors keep the last known PBX entries.
-  Future<void> refreshPbx() async {
-    if (_pbxLoading) return;
-    _pbxLoading = true;
+  Future<void> refreshPbx() => _flight.run(_refreshPbx);
+
+  Future<void> _refreshPbx() async {
     try {
       await _loadHidden();
       _pbx = await _api.fetchCalls(await _authLoader());
       _pbxError = null;
+      _pbxLoadedAt = DateTime.now();
       await _pruneHidden();
     } on ApiException catch (e) {
       _pbxError = e;
     } catch (e) {
       debugPrint('calls refresh failed: $e');
       _pbxError = const ApiException(ApiErrorKind.unreachable);
-    } finally {
-      _pbxLoading = false;
     }
     await _changed();
   }

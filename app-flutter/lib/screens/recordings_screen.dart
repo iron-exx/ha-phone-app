@@ -66,7 +66,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.hangup),
+            style: FilledButton.styleFrom(backgroundColor: ctx.nw.endStrong, foregroundColor: ctx.nw.endInk),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Löschen'),
           ),
@@ -157,7 +157,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
         icon: Icons.mic_none,
         message: _repo.isAllowed
             ? 'Keine Aufnahmen\nIm Gespräch auf „Aufnehmen“ tippen.'
-            : 'Keine Aufnahmen\nGesprächsaufzeichnung ist für Ihre Nebenstelle nicht freigegeben.',
+            : 'Keine Aufnahmen\nGesprächsaufzeichnung ist für deine Nebenstelle nicht freigegeben.',
       );
 
   Widget _errorState(ApiException error) {

@@ -49,7 +49,8 @@ class CallEvents {
   Stream<CallEvent>? _stream;
 
   /// Last call-ended event, kept because a call can fail before the
-  /// active-call screen has subscribed. Cleared before each new call.
+  /// active-call screen has subscribed. Cleared by every later call-state
+  /// event (a new call ringing/connecting) and before each outgoing call.
   CallStateEvent? lastDisconnected;
 
   Stream<CallEvent> get stream {
@@ -69,8 +70,9 @@ class CallEvents {
     _started = true;
     stream.listen(
       (event) {
-        if (event is CallStateEvent && event.state == 'disconnected') {
-          lastDisconnected = event;
+        if (event is CallStateEvent) {
+          // Any other state belongs to a (new) live call: the old end is stale.
+          lastDisconnected = event.state == 'disconnected' ? event : null;
         }
       },
       onError: (Object e) => debugPrint('call events error: $e'),

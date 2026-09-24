@@ -216,6 +216,10 @@ class _StatusPanelState extends State<StatusPanel> {
   Widget _ringCard(BuildContext context) {
     final c = context.nw;
     final now = _ring.now();
+    final options = muteOptions(now);
+    final choice = _ring.muteChoice;
+    final selectedMute = selectedMuteOption(options, _ring.settings, now,
+        chosenLabel: choice?.$1, chosenUntil: choice?.$2);
     final s = _ring.settings;
     final rings = s.ringsAt(now);
     return NwCard(
@@ -258,14 +262,17 @@ class _StatusPanelState extends State<StatusPanel> {
           Wrap(
             spacing: 8,
             children: [
-              for (final (i, o) in muteOptions(now).indexed)
+              for (final (i, o) in options.indexed)
                 NwChip(
                   key: ValueKey('mute-${o.label}'),
                   label: o.label,
                   icon: i == 0 ? Icons.notifications_off_outlined : null,
-                  selected: s.enabled && s.mutedUntil == o.until,
+                  selected: i == selectedMute,
                   semanticLabel: 'Stumm ${o.label}',
-                  onTap: () => _setRing(s.mutedTill(o.until)),
+                  onTap: () {
+                    _ring.muteChoice = (o.label, o.until);
+                    _setRing(s.mutedTill(o.until));
+                  },
                 ),
             ],
           ),
@@ -312,6 +319,7 @@ class _StatusPanelState extends State<StatusPanel> {
     return Semantics(
       button: true,
       label: 'Weiterleitung bei ${p.label}: $rule. Bearbeiten',
+      onTap: widget.onOpenForwarding,
       excludeSemantics: true,
       child: NwCard(
         key: const Key('status-forwarding'),

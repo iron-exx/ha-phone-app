@@ -14,6 +14,18 @@ object Ringback {
     /** Outgoing call reached EARLY (180/183): the callee is ringing. */
     fun shouldPlay(isOutgoing: Boolean, isEarly: Boolean): Boolean = isOutgoing && isEarly
 
+    enum class Action { START, STOP }
+
+    /**
+     * Only the call on screen drives the tone: a state change of the other (held or
+     * waiting) call must not cut the ringback of the call being dialled. Null = leave it.
+     */
+    fun actionFor(isCallOnScreen: Boolean, isOutgoing: Boolean, isEarly: Boolean): Action? = when {
+        !isCallOnScreen -> null
+        shouldPlay(isOutgoing, isEarly) -> Action.START
+        else -> Action.STOP
+    }
+
     fun start() {
         if (tone != null) return
         tone = runCatching {

@@ -6,9 +6,12 @@ import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
 import androidx.core.telecom.CallControlScope
 import androidx.core.telecom.CallsManager
-import de.haphone.app.test.sip.SipCallController
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
@@ -31,9 +34,13 @@ import kotlinx.coroutines.launch
 /** sip: address with the plain number, so Android Auto / Bluetooth show the number, not an app id. */
 internal fun callAddress(number: String): Uri = Uri.fromParts("sip", number.ifBlank { "unknown" }, null)
 
-class CallRegistration(private val context: Context, private val sipCallController: SipCallController) {
+class CallRegistration(private val context: Context) {
     private val callsManager = CallsManager(context)
-    private val scope = CoroutineScope(Dispatchers.Default)
+
+    // A failing child (CallException from addCall, a SWIG exception in a callback) must neither
+    // kill the process nor cancel the scope for every later call: SupervisorJob + handler.
+    private val errors = CoroutineExceptionHandler { _, e -> Log.e(TAG, "uncaught in Telecom coroutine", e) }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + errors)
 
     // Code review WR-1 fix: Endpoint.libCreate()/libInit()/libStart() run on
     // the main thread (HAPhoneTestApplication.onCreate()) -- PJSIP aborts
@@ -42,12 +49,18 @@ class CallRegistration(private val context: Context, private val sipCallControll
     // androidx.core.telecom's addCall callbacks (onAnswer/onDisconnect) and
     // its trailing onRegistered block run on the calling coroutine's
     // dispatcher or on Telecom's own binder thread is not documented by the
-    // library, so every call that reaches sipCallController/sipOps is
-    // routed through this main-dispatcher scope explicitly rather than
-    // relying on that undocumented behavior.
-    private val mainScope = CoroutineScope(Dispatchers.Main)
+    // library, so every call that reaches the SIP layer or the app's call
+    // state is routed through this main-dispatcher scope explicitly.
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main + errors)
 
     private val app get() = context.applicationContext as HAPhoneTestApplication
+
+    /** Runs [block] on main; a PJSIP/SWIG exception is logged instead of crashing (HANDOFF 7). */
+    private fun onMain(what: String, block: () -> Unit) {
+        mainScope.launch {
+            runCatching(block).onFailure { Log.e(TAG, "$what failed", it) }
+        }
+    }
 
     /**
      * The car's (or a headset's) mute button goes through Telecom, which mutes the
@@ -55,7 +68,9 @@ class CallRegistration(private val context: Context, private val sipCallControll
      */
     private fun watchTelecomMute(callScope: CallControlScope) {
         callScope.launch {
-            callScope.isMuted.collect { muted -> mainScope.launch { app.onTelecomMuteChanged(muted) } }
+            runCatching {
+                callScope.isMuted.collect { muted -> onMain("mute sync") { app.onTelecomMuteChanged(muted) } }
+            }.onFailure { if (it is CancellationException) throw it else Log.w(TAG, "mute watch ended", it) }
         }
     }
 
@@ -63,136 +78,134 @@ class CallRegistration(private val context: Context, private val sipCallControll
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
     }
 
+    /** Called on main once Telecom handed back the scope; a call ended meanwhile is disconnected at once. */
+    private fun registered(token: Int, callScope: CallControlScope, direction: String, number: String): Boolean {
+        if (!app.telecom.onRegistered(token, callScope)) {
+            Log.i(TAG, "Telecom call $token registered after its call ended -> disconnected")
+            return false
+        }
+        de.haphone.app.test.calls.AudioRouting.attach(callScope)
+        watchTelecomMute(callScope)
+        if (app.telecom.isAnswered(token)) {
+            // Answered on our screen before Telecom was ready: tell Telecom now.
+            callScope.launch {
+                runCatching { callScope.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL) }
+                    .onFailure { if (it is CancellationException) throw it else Log.w(TAG, "late Telecom answer failed", it) }
+            }
+        } else {
+            CallEventBus.emitCallState(number, direction, if (direction == "incoming") "ringing" else "connecting")
+        }
+        return true
+    }
+
     /**
-     * [onRegistered] runs inside the [CallControlScope] Telecom hands back once
-     * the call is registered -- receiver type deliberately exposes `disconnect()`
-     * (not just a plain `() -> Unit`) so a caller that determines the envelope
-     * is invalid/expired can end the call itself, mirroring iOS's
-     * `PushHandler.handleIncomingPush` which calls `callEnder.endCall(uuid:)`
-     * after reporting. Without this, the equivalent Android call would ring
-     * forever on a forged/expired push (see code review CR-01).
+     * Reports an incoming call to Telecom. Main thread. Returns the Telecom token (see
+     * [TelecomCalls]); the Telecom call is bound to [sipCallId] (null for a push-woken call
+     * whose INVITE has not arrived yet). Telecom's answer/disconnect act on exactly that
+     * SIP call, not on whatever call happens to be on screen.
      *
-     * NOT `suspend`: `CallsManager.addCall`'s trailing block parameter is a
-     * plain `Function1<CallControlScope, Unit>` per the compiled API (confirmed
-     * via javap), not a suspend function type. `CallControlScope` itself extends
-     * `CoroutineScope`, so callers that need to call a suspend member like
-     * `disconnect()` must wrap that call in `launch { ... }`.
+     * NOT `suspend` block: `CallsManager.addCall`'s trailing block parameter is a plain
+     * `Function1<CallControlScope, Unit>` per the compiled API (confirmed via javap).
      */
     fun reportIncomingCall(
-        callId: String,
-        displayName: String = "HA-Phone Testanruf",
-        onRegistered: CallControlScope.() -> Unit,
-    ) {
+        sipCallId: Int?,
+        number: String,
+        displayName: String = CallNotificationBuilder.UNKNOWN_CALLER,
+    ): Int {
+        val token = app.telecom.beginIncoming(sipCallId)
         val attributes = CallAttributesCompat(
-            displayName = displayName,
-            address = callAddress(callId),
+            displayName = displayName.ifBlank { CallNotificationBuilder.UNKNOWN_CALLER },
+            address = callAddress(number),
             direction = CallAttributesCompat.DIRECTION_INCOMING,
             callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
         )
         scope.launch {
-            // Blocker fix (checker iteration 4): addCall's onAnswer/
-            // onDisconnect/onSetActive/onSetInactive lambdas are NOT
-            // CallControlScope receivers themselves -- only the trailing
-            // `block` lambda below is. The live scope is captured into
-            // this local var from inside that trailing block so onAnswer
-            // (which fires later, only on the platform's genuine
-            // user-answer signal) can reach disconnect() on SIP-answer
-            // failure (CR-01 precedent).
-            var liveScope: CallControlScope? = null
-            callsManager.addCall(
-                attributes,
-                {
-                    // Blocker fix: Telecom invokes this lambda ONLY when
-                    // the user actually answers via the system CallStyle
-                    // action -- the genuine user-answer signal. The real
-                    // SIP answer() call is gated HERE, not in the
-                    // trailing onRegistered block below (which fires at
-                    // registration-complete time -- essentially at
-                    // push-arrival time, long before any user
-                    // interaction or SIP INVITE could plausibly exist).
-                    // A prior revision called sipCallController.answer()
-                    // unconditionally in the trailing block instead,
-                    // which meant answer() always ran before any call
-                    // could actually be answered. Mirrors iOS's
-                    // already-correct CXAnswerCallAction gating in
-                    // CallProvider.swift.
-                    liveScope?.let { s ->
-                        mainScope.launch {
-                            sipCallController.answer(s)
-                            app.onAnsweredRemotely()
-                        }
-                    }
-                    CallEventBus.emitCallState(callId, "incoming", "active")
-                },
-                { cause: DisconnectCause ->
-                    mainScope.launch { sipCallController.hangup() }
-                    CallEventBus.emitCallState(callId, "incoming", "disconnected", cause.toString())
-                },
-                // Remote surfaces (Android Auto's in-call view, Bluetooth) hold/resume through these.
-                { mainScope.launch { app.onTelecomHoldRequest(false) } },
-                { mainScope.launch { app.onTelecomHoldRequest(true) } },
-            ) {
-                // Stash the live CallControlScope BEFORE onRegistered()
-                // runs, so ActiveCallActivity (Plan 06) always has a real
-                // scope to read for Audio Routing (CALL-01), for both
-                // incoming and outgoing calls -- and so the onAnswer
-                // callback above (captured via liveScope) has a scope to
-                // call disconnect() on if SIP negotiation fails once the
-                // user actually answers.
-                liveScope = this
-                (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
-                de.haphone.app.test.calls.AudioRouting.attach(this)
-                watchTelecomMute(this)
-                CallEventBus.emitCallState(callId, "incoming", "ringing")
-                val receiverScope = this
-                mainScope.launch { receiverScope.onRegistered() }
+            try {
+                callsManager.addCall(
+                    attributes,
+                    {
+                        // Telecom invokes this ONLY on a genuine user answer from a system surface
+                        // (car, Bluetooth, watch) -- never at registration time. Mirrors iOS's
+                        // CXAnswerCallAction gating in CallProvider.swift.
+                        onMain("Telecom answer") { app.onTelecomAnswer(token) }
+                        CallEventBus.emitCallState(number, "incoming", "active")
+                    },
+                    { cause: DisconnectCause ->
+                        onMain("Telecom disconnect") { app.onTelecomDisconnect(token) }
+                        CallEventBus.emitCallState(number, "incoming", "disconnected", cause.toString())
+                    },
+                    // Remote surfaces (Android Auto's in-call view, Bluetooth) hold/resume through these.
+                    { onMain("Telecom resume") { app.onTelecomHoldRequest(false) } },
+                    { onMain("Telecom hold") { app.onTelecomHoldRequest(true) } },
+                ) {
+                    val callScope = this
+                    onMain("Telecom registered") { registered(token, callScope, "incoming", number) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // CallException (e.g. Telecom refuses during an emergency call): the SIP call keeps
+                // ringing on our own screen and stays answerable, just without car/Bluetooth.
+                Log.e(TAG, "Telecom addCall (incoming) failed", e)
+                onMain("Telecom failure") { app.telecom.onFailed(token) }
             }
         }
+        return token
     }
 
     /**
-     * Outbound counterpart to [reportIncomingCall] (Blocker fix). Mirrors
-     * its exact shape with DIRECTION_OUTGOING; `addCall` is
-     * direction-agnostic on the Telecom side, so only the `direction`
-     * value and what the trailing lambda does differ -- there is no SIP
-     * answer step for an outgoing call, only the scope stash. The caller
-     * (SipChannelHandler's makeCall, formerly Plan 06's OutgoingCallActivity)
-     * invokes `sipCallController.makeCall(...)` from inside its own
-     * `onRegistered` block, so the SIP INVITE only fires once Telecom has
-     * actually reported the call (Report-First pattern, same discipline
-     * as the incoming path).
+     * Outbound counterpart to [reportIncomingCall]. Main thread. [onRegistered] runs on main
+     * once Telecom registered the call (Report-First: the SIP INVITE fires from there) and
+     * gets the token so the SIP call id can be bound to it; it is skipped if the call was
+     * already released. [onFailed] runs on main when Telecom refused the call.
      */
-    fun reportOutgoingCall(callId: String, displayName: String = callId, onRegistered: CallControlScope.() -> Unit) {
+    fun reportOutgoingCall(
+        number: String,
+        displayName: String = number,
+        onFailed: (Throwable) -> Unit = {},
+        onRegistered: (token: Int) -> Unit,
+    ): Int {
+        val token = app.telecom.beginOutgoing()
         val attributes = CallAttributesCompat(
             displayName = displayName,
-            address = callAddress(callId),
+            address = callAddress(number),
             direction = CallAttributesCompat.DIRECTION_OUTGOING,
             callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
         )
         scope.launch {
-            callsManager.addCall(
-                attributes,
-                { /* onAnswer: Telecom may invoke this for a self-managed
-                     outgoing call once the far end picks up -- no SIP
-                     action needed here; the SIP 200 OK for an outgoing
-                     call already drives media setup via makeCall's own
-                     INVITE transaction, not a Telecom-side callback. */
-                    CallEventBus.emitCallState(callId, "outgoing", "active")
-                },
-                { cause: DisconnectCause ->
-                    mainScope.launch { sipCallController.hangup() }
-                    CallEventBus.emitCallState(callId, "outgoing", "disconnected", cause.toString())
-                },
-                { mainScope.launch { app.onTelecomHoldRequest(false) } },
-                { mainScope.launch { app.onTelecomHoldRequest(true) } },
-            ) {
-                (context.applicationContext as HAPhoneTestApplication).currentCallControlScope = this
-                de.haphone.app.test.calls.AudioRouting.attach(this)
-                watchTelecomMute(this)
-                CallEventBus.emitCallState(callId, "outgoing", "connecting")
-                val receiverScope = this
-                mainScope.launch { receiverScope.onRegistered() }
+            try {
+                callsManager.addCall(
+                    attributes,
+                    { /* onAnswer: the SIP 200 OK of our own INVITE drives media, nothing to do. */
+                        CallEventBus.emitCallState(number, "outgoing", "active")
+                    },
+                    { cause: DisconnectCause ->
+                        onMain("Telecom disconnect") { app.onTelecomDisconnect(token) }
+                        CallEventBus.emitCallState(number, "outgoing", "disconnected", cause.toString())
+                    },
+                    { onMain("Telecom resume") { app.onTelecomHoldRequest(false) } },
+                    { onMain("Telecom hold") { app.onTelecomHoldRequest(true) } },
+                ) {
+                    val callScope = this
+                    onMain("Telecom registered") {
+                        if (registered(token, callScope, "outgoing", number)) onRegistered(token)
+                        else onFailed(IllegalStateException("call ended before Telecom registered it"))
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Telecom addCall (outgoing) failed", e)
+                onMain("Telecom failure") {
+                    app.telecom.onFailed(token)
+                    onFailed(e)
+                }
             }
         }
+        return token
+    }
+
+    private companion object {
+        const val TAG = "CallRegistration"
     }
 }

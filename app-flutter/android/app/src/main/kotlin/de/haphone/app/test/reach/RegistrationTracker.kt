@@ -34,6 +34,7 @@ data class PersistedReach(
 /**
  * Registration bookkeeping for the reachability layer. Pure: every method gets the
  * current time, nothing touches Android or PJSIP. Main thread only (no locking).
+ * All times are on the monotonic elapsedRealtime axis (see [ReachClock]), never wall clock.
  */
 class RegistrationTracker(restored: PersistedReach = PersistedReach()) {
     var registered = false

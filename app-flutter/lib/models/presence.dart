@@ -28,3 +28,12 @@ enum Presence {
     return unknown;
   }
 }
+
+/// The five presence states the user can pick, in Linkus order.
+const kSelectablePresences = [
+  Presence.available,
+  Presence.away,
+  Presence.lunch,
+  Presence.doNotDisturb,
+  Presence.offWork,
+];

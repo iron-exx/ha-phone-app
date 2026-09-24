@@ -110,6 +110,8 @@ class ReachabilityLinkCard extends StatelessWidget {
     return Semantics(
       button: true,
       label: hasProblems ? 'Erreichbarkeit: nicht alles in Ordnung' : 'Erreichbarkeit prüfen',
+      // excludeSemantics drops the card's action, so TalkBack needs it here.
+      onTap: onTap,
       excludeSemantics: true,
       child: NwCard(
         key: const Key('status-reachability'),

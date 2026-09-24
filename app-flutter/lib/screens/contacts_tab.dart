@@ -291,24 +291,34 @@ class _ContactsTabState extends State<ContactsTab> {
         constraints: const BoxConstraints(minHeight: 64),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            children: [
-              const PresenceAvatar.door(size: 46),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(door.displayName, style: NwType.rowTitle.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 3),
-                    Text('Türstation · $meta', style: NwType.meta.copyWith(color: c.faint)),
-                  ],
+          child: LayoutBuilder(builder: (context, box) {
+            final button = DoorOpenButton(door: door, compact: true, opener: widget.doorOpener, onCall: () => _call(door));
+            final texts = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(door.displayName, style: NwType.rowTitle.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text('Türstation · $meta', style: NwType.meta.copyWith(color: c.faint)),
+              ],
+            );
+            // Large system font on a narrow phone: the button goes below the name.
+            final stacked = box.maxWidth < 200 + 90 * MediaQuery.textScalerOf(context).scale(1);
+            return Row(
+              children: [
+                const PresenceAvatar.door(size: 46),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: stacked
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [texts, const SizedBox(height: 6), button],
+                        )
+                      : texts,
                 ),
-              ),
-              const SizedBox(width: 8),
-              DoorOpenButton(door: door, compact: true, opener: widget.doorOpener, onCall: () => _call(door)),
-            ],
-          ),
+                if (!stacked) ...[const SizedBox(width: 8), button],
+              ],
+            );
+          }),
         ),
       ),
     );
@@ -341,8 +351,8 @@ class _ContactsTabState extends State<ContactsTab> {
         key: const Key('phone-contacts-explain'),
         icon: Icons.contacts_outlined,
         title: 'Handy-Adressbuch einbinden',
-        message: 'HA-Phone kann die Kontakte auf diesem Handy anzeigen, damit Sie sie direkt '
-            'über die Anlage anrufen können und Anrufer mit Namen erscheinen.\n'
+        message: 'HA-Phone kann die Kontakte auf diesem Handy anzeigen, damit du sie direkt '
+            'über die Anlage anrufen kannst und Anrufer mit Namen erscheinen.\n'
             'Die Kontakte bleiben auf dem Gerät und werden nicht an die Anlage übertragen.',
         actionLabel: 'Zugriff erlauben',
         onAction: _phone.requestAccess,
@@ -353,7 +363,7 @@ class _ContactsTabState extends State<ContactsTab> {
         key: const Key('phone-contacts-denied'),
         icon: Icons.block,
         title: 'Kein Zugriff auf die Kontakte',
-        message: 'Der Zugriff auf das Adressbuch wurde abgelehnt. Sie können ihn in den '
+        message: 'Der Zugriff auf das Adressbuch wurde abgelehnt. Du kannst ihn in den '
             'App-Einstellungen unter „Berechtigungen → Kontakte“ erlauben.',
         actionLabel: 'Einstellungen öffnen',
         onAction: _phone.openSettings,
@@ -394,7 +404,7 @@ class _ContactsTabState extends State<ContactsTab> {
       ContactSegment.all || ContactSegment.extensions => 'Keine Nebenstellen in der Anlage.',
       ContactSegment.phonebook => 'Das Telefonbuch der Anlage ist leer.',
       ContactSegment.phone => 'Keine Kontakte mit Telefonnummer auf dem Handy.',
-      ContactSegment.favorites => 'Noch keine Favoriten.\nKontakt antippen → „Favorit“.',
+      ContactSegment.favorites => 'Noch keine Favoriten.\nIn Kontakte einen Eintrag antippen → „Favorit“.',
     };
   }
 }

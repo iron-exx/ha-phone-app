@@ -286,7 +286,7 @@ abstract final class AppTheme {
         decoration: BoxDecoration(color: c.text, borderRadius: BorderRadius.circular(10)),
         textStyle: text.bodySmall?.copyWith(color: c.ground, fontWeight: FontWeight.w700),
       ),
-      badgeTheme: BadgeThemeData(backgroundColor: c.end, textColor: c.endInk),
+      badgeTheme: BadgeThemeData(backgroundColor: c.endStrong, textColor: c.endInk),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: c.blue,
         foregroundColor: c.blueInk,

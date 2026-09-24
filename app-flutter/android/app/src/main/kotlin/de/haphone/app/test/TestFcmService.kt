@@ -18,22 +18,14 @@ class TestFcmService : FirebaseMessagingService() {
         val callId = data["call_id"] as? String ?: java.util.UUID.randomUUID().toString()
 
         if (isValid && !isExpired) {
-            // Fix: this used to go straight to CallNotificationBuilder.show()
-            // without ever telling Android Telecom about the call.
-            // CallRegistration.reportIncomingCall() had zero call sites
-            // anywhere in the app, so HAPhoneTestApplication.currentCallControlScope
-            // was never populated for inbound calls, and
-            // IncomingCallActivity.onAnswer's real SIP-answer step silently
-            // no-op'd even when the user tapped Answer. Reporting the call
-            // here is what actually makes it answerable.
+            // onMessageReceived runs on an FCM worker thread; PJSIP, Telecom bookkeeping and
+            // the ringtone are main-thread only. IncomingCallFlow reports the call to Telecom,
+            // rings, and disconnects it as MISSED after the ring limit.
             val app = applicationContext as HAPhoneTestApplication
-            app.callRegistration.reportIncomingCall(callId) {
-                // onRegistered: CallRegistration already stashed the live
-                // CallControlScope into app.currentCallControlScope before
-                // this runs; nothing further needed here until the user
-                // taps Answer (IncomingCallActivity) or Decline.
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching { app.incoming.onPushCall(callId, callType) }
+                    .onFailure { Log.e("HAPhoneTest", "push call $callId could not be shown", it) }
             }
-            CallNotificationBuilder.show(applicationContext, callId, callType, isValid, isExpired)
         } else {
             Log.w("HAPhoneTest", "FCM call REJECTED: callId=$callId, valid=$isValid, expired=$isExpired")
         }

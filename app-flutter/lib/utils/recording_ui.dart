@@ -13,7 +13,7 @@ Set<String> lineKeysOf(CurrentCall? call) => {
 
 /// SnackBar text for a failed start/stop of a call recording.
 String recordingErrorText(ApiException e, {required bool starting}) {
-  if (e.kind == ApiErrorKind.notAllowed) return 'Gesprächsaufzeichnung ist für Ihre Nebenstelle nicht freigegeben.';
+  if (e.kind == ApiErrorKind.notAllowed) return 'Gesprächsaufzeichnung ist für deine Nebenstelle nicht freigegeben.';
   if (e.kind == ApiErrorKind.unreachable) {
     return 'Anlage nicht erreichbar – Aufnahme nicht ${starting ? 'gestartet' : 'gestoppt'}.';
   }
