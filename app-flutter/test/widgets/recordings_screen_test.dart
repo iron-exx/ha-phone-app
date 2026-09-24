@@ -152,6 +152,10 @@ void main() {
         await dir.refresh();
         await repo.refresh();
       });
+      // Tall enough that the settings group below the status panel is built.
+      tester.view.physicalSize = const Size(390, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(MaterialApp(
         home: MeTab(onSetupChanged: () async {}, onUnpaired: () async {}, recordings: repo, directory: dir),
       ));

@@ -7,8 +7,10 @@ import '../services/call_events.dart';
 import '../services/call_history_store.dart';
 import '../services/directory_repository.dart';
 import '../services/presence_repository.dart';
+import '../services/reachability_repository.dart';
 import '../services/recordings_repository.dart';
 import '../services/registration_watcher.dart';
+import '../services/ring_settings_repository.dart';
 import '../services/voicemail_repository.dart';
 import '../utils/timeline.dart';
 import '../widgets/app_nav_bar.dart';
@@ -33,7 +35,11 @@ class AppShell extends StatefulWidget {
     PresenceRepository? presence,
     DirectoryRepository? directory,
     RecordingsRepository? recordings,
-  })  : _navigation = navigation,
+    ReachabilityRepository? reachability,
+    RingSettingsRepository? ring,
+  })  : _reachability = reachability,
+        _ring = ring,
+        _navigation = navigation,
         _history = history,
         _voicemail = voicemail,
         _presence = presence,
@@ -48,18 +54,22 @@ class AppShell extends StatefulWidget {
   final PresenceRepository? _presence;
   final DirectoryRepository? _directory;
   final RecordingsRepository? _recordings;
+  final ReachabilityRepository? _reachability;
+  final RingSettingsRepository? _ring;
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   StreamSubscription<CallEvent>? _events;
 
   AppNavigation get _nav => widget._navigation ?? AppNavigation.instance;
   CallHistoryStore get _history => widget._history ?? CallHistoryStore.instance;
   PresenceRepository get _presence => widget._presence ?? PresenceRepository.instance;
   VoicemailRepository get _voicemail => widget._voicemail ?? VoicemailRepository.instance;
+  ReachabilityRepository get _reach => widget._reachability ?? ReachabilityRepository.instance;
+  RingSettingsRepository get _ring => widget._ring ?? RingSettingsRepository.instance;
 
   @override
   void initState() {
@@ -73,11 +83,21 @@ class _AppShellState extends State<AppShell> {
     // line state) poll for the shell's lifetime (foreground only).
     _voicemail.setPolling(true);
     _presence.setVisible(true);
+    // Start pill ("Stumm bis …") and the amber dot on Ich.
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_ring.load());
+    unawaited(_reach.refresh());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_reach.refresh());
   }
 
   @override
   void dispose() {
     _events?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _voicemail.setPolling(false);
     _presence.setVisible(false);
     super.dispose();
@@ -100,6 +120,8 @@ class _AppShellState extends State<AppShell> {
                   voicemail: _voicemail,
                   history: _history,
                   navigation: _nav,
+                  ring: _ring,
+                  reachability: _reach,
                 ),
                 HistoryTab(
                   isActive: tab == AppTab.history,
@@ -116,6 +138,9 @@ class _AppShellState extends State<AppShell> {
                   isActive: tab == AppTab.me,
                   recordings: widget._recordings,
                   directory: widget._directory,
+                  presence: _presence,
+                  ring: _ring,
+                  reachability: _reach,
                   onSetupChanged: widget.onSetupChanged,
                   onUnpaired: widget.onUnpaired,
                 ),
@@ -123,7 +148,7 @@ class _AppShellState extends State<AppShell> {
             ),
           ),
           bottomNavigationBar: ListenableBuilder(
-            listenable: Listenable.merge([_history, _voicemail]),
+            listenable: Listenable.merge([_history, _voicemail, _reach]),
             builder: (context, _) => AppNavBar(
               selected: tab,
               onSelect: _nav.select,
@@ -131,6 +156,7 @@ class _AppShellState extends State<AppShell> {
                 unseenMissed: _history.unseenMissed,
                 unheardVoicemails: _voicemail.unheardCount,
               ),
+              meWarning: _reach.hasProblems,
             ),
           ),
         );

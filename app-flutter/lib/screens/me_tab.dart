@@ -8,7 +8,9 @@ import '../services/call_history_store.dart';
 import '../services/directory_repository.dart';
 import '../services/forwarding_repository.dart';
 import '../services/presence_repository.dart';
+import '../services/reachability_repository.dart';
 import '../services/recordings_repository.dart';
+import '../services/ring_settings_repository.dart';
 import '../services/sip_channel.dart';
 import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
@@ -16,9 +18,10 @@ import '../theme/app_theme.dart';
 import '../utils/recording_ui.dart';
 import '../utils/registration_ui.dart';
 import '../widgets/nw_widgets.dart';
-import '../widgets/own_status_header.dart';
+import '../widgets/status_panel.dart';
 import 'diagnostics_screen.dart';
 import 'forwarding_screen.dart';
+import 'reachability_screen.dart';
 import 'recordings_screen.dart';
 
 /// Ich tab: Status (own extension, presence, registration), Einstellungen
@@ -33,8 +36,16 @@ class MeTab extends StatefulWidget {
     this.isActive = false,
     RecordingsRepository? recordings,
     DirectoryRepository? directory,
+    PresenceRepository? presence,
+    ForwardingRepository? forwarding,
+    RingSettingsRepository? ring,
+    ReachabilityRepository? reachability,
   })  : _recordings = recordings,
-        _directory = directory;
+        _directory = directory,
+        _presence = presence,
+        _forwarding = forwarding,
+        _ring = ring,
+        _reachability = reachability;
 
   /// Called after returning from QR pairing or settings.
   final Future<void> Function() onSetupChanged;
@@ -46,6 +57,10 @@ class MeTab extends StatefulWidget {
   final bool isActive;
   final RecordingsRepository? _recordings;
   final DirectoryRepository? _directory;
+  final PresenceRepository? _presence;
+  final ForwardingRepository? _forwarding;
+  final RingSettingsRepository? _ring;
+  final ReachabilityRepository? _reachability;
 
   @override
   State<MeTab> createState() => _MeTabState();
@@ -57,6 +72,7 @@ class _MeTabState extends State<MeTab> {
 
   RecordingsRepository get _recordings => widget._recordings ?? RecordingsRepository.instance;
   DirectoryRepository get _dir => widget._directory ?? DirectoryRepository.instance;
+  ReachabilityRepository get _reach => widget._reachability ?? ReachabilityRepository.instance;
 
   @override
   void initState() {
@@ -81,7 +97,10 @@ class _MeTabState extends State<MeTab> {
     // listen to the same repository.
     if (widget.isActive && !oldWidget.isActive) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_recordings.refresh());
+        if (mounted) {
+          unawaited(_recordings.refresh());
+          unawaited(_reach.refresh());
+        }
       });
     }
   }
@@ -181,10 +200,20 @@ class _MeTabState extends State<MeTab> {
           padding: const EdgeInsets.only(bottom: 24),
           children: [
             const PageHeader('Ich'),
-            const OwnStatusHeader(),
-            _group([_registrationTile(context)]),
+            StatusPanel(
+              directory: widget._directory,
+              presence: widget._presence,
+              forwarding: widget._forwarding,
+              ring: widget._ring,
+              onOpenForwarding: () => _push(ForwardingScreen(
+                repository: widget._forwarding,
+                directory: widget._directory,
+                presence: widget._presence,
+              )),
+            ),
             const SectionHeader('Einstellungen'),
             _group([
+              _reachabilityTile(),
               _recordingsTile(),
               _tile(
                 icon: Icons.phone_forwarded_outlined,
@@ -201,6 +230,7 @@ class _MeTabState extends State<MeTab> {
             ]),
             const SectionHeader('Gerät'),
             _group([
+              _registrationTile(context),
               _tile(icon: Icons.refresh, title: 'Neu verbinden', onTap: _reconnect, chevron: false),
               _tile(icon: Icons.qr_code_scanner, title: 'Neu koppeln (QR-Code)', onTap: () => _open('/qr-scan')),
               _tile(
@@ -277,7 +307,40 @@ class _MeTabState extends State<MeTab> {
     );
   }
 
-/// Shown while recording is allowed (directory or list) or recordings exist.
+  /// "Erreichbarkeit" with an amber dot while a check fails.
+  Widget _reachabilityTile() {
+    final c = context.nw;
+    return ListenableBuilder(
+      listenable: _reach,
+      builder: (context, _) {
+        final problems = _reach.hasProblems;
+        return ListTile(
+          key: const Key('me-reachability'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: Icon(Icons.verified_user_outlined, color: problems ? c.door : c.blue),
+          title: const Text('Erreichbarkeit'),
+          subtitle: Text(problems ? 'Nicht alles in Ordnung – bitte prüfen' : 'Klingelt das Handy zuverlässig?'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (problems)
+                Container(
+                  key: const Key('me-reach-dot'),
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(color: c.door, shape: BoxShape.circle),
+                ),
+              Icon(Icons.chevron_right, color: c.faint),
+            ],
+          ),
+          onTap: () => _push(ReachabilityScreen(repository: widget._reachability)),
+        );
+      },
+    );
+  }
+
+  /// Shown while recording is allowed (directory or list) or recordings exist.
   Widget _recordingsTile() {
     return ListenableBuilder(
       listenable: Listenable.merge([_recordings, _dir]),

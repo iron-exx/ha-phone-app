@@ -13,6 +13,8 @@ import 'package:ha_phone_test/services/favorites_store.dart';
 import 'package:ha_phone_test/services/phone_contacts_repository.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
 import 'package:ha_phone_test/services/registration_watcher.dart';
+import 'package:ha_phone_test/services/ring_settings_repository.dart';
+import 'package:ha_phone_test/models/ring_settings.dart';
 import 'package:ha_phone_test/services/voicemail_repository.dart';
 import 'package:ha_phone_test/theme/app_theme.dart';
 import 'package:ha_phone_test/utils/registration_ui.dart';
@@ -92,7 +94,7 @@ void main() {
               }),
       });
 
-  Future<_Start> pump(WidgetTester tester, FakePbx fake, {double textScale = 1}) async {
+  Future<_Start> pump(WidgetTester tester, FakePbx fake, {double textScale = 1, RingSettingsRepository? ring}) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -123,6 +125,7 @@ void main() {
           history: history,
           registration: reg,
           navigation: nav,
+          ring: ring,
           phoneContacts: PhoneContactsRepository(source: FakePhoneContactsSource()),
           doorActionRunner: (n, i) async => actions.add((n, i)),
           doorOpener: DoorOpener(api: fake.api, authLoader: testAuthLoader),
@@ -136,6 +139,7 @@ void main() {
   test('pill text follows registration and presence', () {
     expect(startPillText(RegistrationUi.online, Presence.available), 'Klingelt hier · verfügbar');
     expect(startPillText(RegistrationUi.online, Presence.unknown), 'Klingelt hier');
+    expect(startPillText(RegistrationUi.online, Presence.away, ring: 'Stumm bis 17:00'), 'Stumm bis 17:00 · abwesend');
     expect(startPillText(RegistrationUi.offline, Presence.available), 'Nicht verbunden');
   });
 
@@ -146,13 +150,28 @@ void main() {
     expect(find.text('Klingelt hier · verfügbar'), findsOneWidget);
     await tester.tap(find.byKey(const Key('start-status')));
     await tester.pumpAndSettle();
-    expect(find.text('Status wählen'), findsOneWidget);
-    Navigator.of(tester.element(find.text('Status wählen'))).pop();
+    expect(find.text('STATUS FÜR ALLE'), findsOneWidget);
+    expect(find.text('Klingeln auf diesem Handy'), findsOneWidget);
+    Navigator.of(tester.element(find.text('STATUS FÜR ALLE'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Kontakte suchen'));
     expect(s.nav.tab, AppTab.contacts);
     expect(s.nav.contactSearchRequests, 1);
+  });
+
+  testWidgets('pill: "Stumm bis 17:00 · verfügbar" with bell-off while this handset is muted', (tester) async {
+    final ring = RingSettingsRepository(clock: () => DateTime(2026, 9, 24, 10));
+    await tester.runAsync(() => ring.update(RingSettings(mutedUntil: DateTime(2026, 9, 24, 17))));
+    await pump(tester, pbx(), ring: ring);
+    expect(find.text('Stumm bis 17:00 · verfügbar'), findsOneWidget);
+    expect(find.byKey(const Key('start-pill-bell-off')), findsOneWidget);
+
+    await tester.runAsync(() => ring.update(ring.settings.ringing()));
+    await tester.pumpAndSettle();
+    expect(find.text('Klingelt hier · verfügbar'), findsOneWidget);
+    expect(find.byKey(const Key('start-pill-bell')), findsOneWidget);
+    ring.dispose();
   });
 
   testWidgets('door card: last ring, "Tür anrufen" calls the door, HA action runs without a call', (tester) async {

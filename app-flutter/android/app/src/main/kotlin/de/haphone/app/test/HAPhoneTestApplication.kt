@@ -188,6 +188,10 @@ class HAPhoneTestApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         de.haphone.app.test.reach.ReachabilityMonitor.attach(this)
+        de.haphone.app.test.ring.RingPolicyStore.attach(this) { number ->
+            doorCodes.forNumber(number).isNotBlank() || doorCodes.hasOpenRemote(number) ||
+                doorActions.labelsFor(number).isNotEmpty()
+        }
         val channel = NotificationChannel(
             CallNotificationBuilder.CHANNEL_ID,
             "HA-Phone Test Calls",

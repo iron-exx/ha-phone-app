@@ -9,11 +9,20 @@ import 'nw_widgets.dart';
 /// button with a soft glow) · Kontakte · Ich. [historyBadge] is the red
 /// count on Verlauf (missed calls + new voicemails).
 class AppNavBar extends StatelessWidget {
-  const AppNavBar({super.key, required this.selected, required this.onSelect, this.historyBadge = 0});
+  const AppNavBar({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    this.historyBadge = 0,
+    this.meWarning = false,
+  });
 
   final AppTab selected;
   final ValueChanged<AppTab> onSelect;
   final int historyBadge;
+
+  /// Small amber dot on Ich: something keeps calls from ringing (Erreichbarkeit).
+  final bool meWarning;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +51,7 @@ class AppNavBar extends StatelessWidget {
                 _tab(context, AppTab.history, 'Verlauf', Icons.history, Icons.history, badge: historyBadge),
                 _dialButton(context),
                 _tab(context, AppTab.contacts, 'Kontakte', Icons.people_outline, Icons.people_rounded),
-                _tab(context, AppTab.me, 'Ich', Icons.person_outline, Icons.person_rounded),
+                _tab(context, AppTab.me, 'Ich', Icons.person_outline, Icons.person_rounded, warning: meWarning),
               ],
             ),
           ),
@@ -51,10 +60,15 @@ class AppNavBar extends StatelessWidget {
     );
   }
 
-  Widget _tab(BuildContext context, AppTab tab, String label, IconData icon, IconData selectedIcon, {int badge = 0}) {
+  Widget _tab(BuildContext context, AppTab tab, String label, IconData icon, IconData selectedIcon,
+      {int badge = 0, bool warning = false}) {
     final c = context.nw;
     final on = selected == tab;
-    final semantic = badge > 0 ? '$label, $badge neu' : label;
+    final semantic = badge > 0
+        ? '$label, $badge neu'
+        : warning
+            ? '$label, Erreichbarkeit prüfen'
+            : label;
     return Expanded(
       child: Semantics(
         button: true,
@@ -92,6 +106,21 @@ class AppNavBar extends StatelessWidget {
                         left: 32,
                         top: -6,
                         child: CountBadge(badge, key: ValueKey('badge-${tab.name}')),
+                      ),
+                    if (warning)
+                      Positioned(
+                        right: 10,
+                        top: 2,
+                        child: Container(
+                          key: ValueKey('warning-${tab.name}'),
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: c.door,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: c.ground, width: 1.5),
+                          ),
+                        ),
                       ),
                   ],
                 ),

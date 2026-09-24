@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/contact.dart';
 import '../models/extension_status.dart';
 import '../models/presence.dart';
+import '../models/ring_settings.dart';
 import '../models/voicemail.dart';
 import '../services/app_navigation.dart';
 import '../services/call_history_store.dart';
@@ -14,7 +15,10 @@ import '../services/door_opener.dart';
 import '../services/favorites_store.dart';
 import '../services/phone_contacts_repository.dart';
 import '../services/presence_repository.dart';
+import '../services/forwarding_repository.dart';
+import '../services/reachability_repository.dart';
 import '../services/registration_watcher.dart';
+import '../services/ring_settings_repository.dart';
 import '../services/voicemail_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -27,11 +31,13 @@ import '../widgets/contact_details_sheet.dart';
 import '../widgets/door_card.dart';
 import '../widgets/nw_widgets.dart';
 import '../widgets/presence_avatar.dart';
-import '../widgets/presence_sheet.dart';
+import '../widgets/status_sheet.dart';
 
-/// Text of the Start status pill: where calls ring and the own status.
-String startPillText(RegistrationUi registration, Presence presence) => switch (registration) {
-      RegistrationUi.online => presence == Presence.unknown ? 'Klingelt hier' : 'Klingelt hier · ${presence.label}',
+/// Text of the Start status pill: where calls ring ([ring], from
+/// [ringStateText]: "Klingelt hier" / "Stumm bis 17:00") and the own status.
+String startPillText(RegistrationUi registration, Presence presence, {String ring = 'Klingelt hier'}) =>
+    switch (registration) {
+      RegistrationUi.online => presence == Presence.unknown ? ring : '$ring · ${presence.label}',
       RegistrationUi.connecting => 'Verbinde mit der Anlage…',
       RegistrationUi.offline => 'Nicht verbunden',
     };
@@ -49,6 +55,9 @@ class StartTab extends StatelessWidget {
     PhoneContactsRepository? phoneContacts,
     RegistrationWatcher? registration,
     AppNavigation? navigation,
+    RingSettingsRepository? ring,
+    this.reachability,
+    this.forwarding,
     this.doorActionRunner,
     this.doorOpener,
   })  : _directory = directory,
@@ -57,9 +66,15 @@ class StartTab extends StatelessWidget {
         _history = history,
         _phone = phoneContacts,
         _registration = registration,
-        _navigation = navigation;
+        _navigation = navigation,
+        _ringRepo = ring;
 
   final DirectoryRepository? _directory;
+  final RingSettingsRepository? _ringRepo;
+
+  /// Seams for the status sheet (default: the singletons).
+  final ReachabilityRepository? reachability;
+  final ForwardingRepository? forwarding;
   final PresenceRepository? _presence;
   final VoicemailRepository? _voicemail;
   final CallHistoryStore? _history;
@@ -80,6 +95,7 @@ class StartTab extends StatelessWidget {
   PhoneContactsRepository get _phoneContacts => _phone ?? PhoneContactsRepository.instance;
   RegistrationWatcher get _reg => _registration ?? RegistrationWatcher.instance;
   AppNavigation get _nav => _navigation ?? AppNavigation.instance;
+  RingSettingsRepository get _ring => _ringRepo ?? RingSettingsRepository.instance;
 
   Future<void> _refresh() => Future.wait([_dir.refresh(), _pres.refresh(), _vm.refresh()]);
 
@@ -89,7 +105,7 @@ class StartTab extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
-          listenable: Listenable.merge([_dir, _pres, _vm, _calls, _reg, _phoneContacts, FavoritesStore.instance]),
+          listenable: Listenable.merge([_dir, _pres, _vm, _calls, _reg, _phoneContacts, _ring, FavoritesStore.instance]),
           builder: (context, _) => RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
@@ -117,9 +133,12 @@ class StartTab extends StatelessWidget {
     final status = ExtensionStatus(presence: presence, line: live?.line ?? LineState.unknown);
     final kind = avatarPresenceFor(ExtensionStatus(presence: presence, line: LineState.idle));
     final reg = _reg.state;
+    final rings = _ring.ringsNow;
+    final pill = startPillText(reg, presence, ring: ringStateText(_ring.settings, _ring.now()));
     final (Color bg, Color fg) = switch (reg) {
       RegistrationUi.offline => (c.end.withOpacity(0.14), c.end),
       RegistrationUi.connecting => (c.raised, c.muted),
+      RegistrationUi.online when !rings => (c.raised, c.text),
       RegistrationUi.online => switch (kind) {
           AvatarPresence.available || null => (c.okSurface, c.okText),
           AvatarPresence.away => (c.doorSoft, c.door),
@@ -143,13 +162,13 @@ class StartTab extends StatelessWidget {
           Expanded(
             child: Semantics(
               button: true,
-              label: '$who, ${startPillText(reg, presence)}',
-              hint: 'Status ändern',
+              label: '$who, $pill',
+              hint: 'Status und Klingeln',
               excludeSemantics: true,
               child: InkWell(
                 key: const Key('start-status'),
                 borderRadius: BorderRadius.circular(14),
-                onTap: () => pickOwnPresence(context, _pres, presence),
+                onTap: () => StatusSheet.show(context, directory: _dir, presence: _pres, ring: _ring, reachability: reachability, forwarding: forwarding),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: kMinTap),
                   child: Column(
@@ -166,12 +185,19 @@ class StartTab extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(reg == RegistrationUi.online ? Icons.notifications_active_outlined : Icons.sync_problem,
-                                size: 14, color: fg),
+                            Icon(
+                                reg != RegistrationUi.online
+                                    ? Icons.sync_problem
+                                    : rings
+                                        ? Icons.notifications_active_outlined
+                                        : Icons.notifications_off_outlined,
+                                key: Key(rings ? 'start-pill-bell' : 'start-pill-bell-off'),
+                                size: 14,
+                                color: fg),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
-                                startPillText(reg, presence),
+                                pill,
                                 key: const Key('start-pill'),
                                 style: NwType.chip.copyWith(color: fg, fontWeight: FontWeight.w800, fontSize: 12.5),
                               ),

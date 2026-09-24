@@ -21,6 +21,23 @@ class DiagnosticsService {
   final ApiClient _api;
   final Future<DeviceAuth> Function() _authLoader;
 
+  /// Response time of GET /api/mobile/presence in ms, null if the PBX did not answer.
+  Future<int?> ping() async {
+    try {
+      final auth = await _authLoader();
+      final watch = Stopwatch()..start();
+      final error = await _check(() => _api.fetchPresence(auth));
+      watch.stop();
+      if (error != null && (error.kind == ApiErrorKind.unreachable || error.kind == ApiErrorKind.notPaired)) {
+        return null;
+      }
+      return watch.elapsedMilliseconds;
+    } catch (e) {
+      debugPrint('diagnostics ping failed: $e');
+      return null;
+    }
+  }
+
   Future<PbxProbe> probe() async {
     final DeviceAuth auth;
     try {

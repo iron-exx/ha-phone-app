@@ -478,6 +478,8 @@ private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
     var conference = false
     /** DTMF to send once the active call is answered (e.g. "Tür öffnen" from the ringing screen). */
     var pendingDtmf: String? = null
+    /** Calls rejected by the ring policy, held until their DISCONNECTED callback frees them. */
+    val rejectedCalls = java.util.Collections.synchronizedSet(mutableSetOf<HAPhoneCall>())
 
     override fun onRegState(prm: org.pjsip.pjsua2.OnRegStateParam) {
         val code = prm.code
@@ -511,6 +513,21 @@ private class HAPhoneAccount : org.pjsip.pjsua2.Account() {
      */
     override fun onIncomingCall(prm: org.pjsip.pjsua2.OnIncomingCallParam) {
         val call = HAPhoneCall(this, prm.callId)
+        // "Klingeln auf diesem Handy" off / muted: 480 before any ringing UI or Telecom,
+        // so ring groups go on to the other devices and direct calls reach the PBX fallback.
+        val offersVideo = runCatching { prm.rdata.wholeMsg.contains("m=video") }.getOrDefault(false)
+        val caller = parseRemoteUri(runCatching { call.info.remoteUri }.getOrDefault("")).first
+        val decision = de.haphone.app.test.ring.RingPolicyStore.decide(caller, offersVideo)
+        if (with(de.haphone.app.test.ring.RingPolicy) { decision.rejects() }) {
+            val unavailable = org.pjsip.pjsua2.CallOpParam()
+            unavailable.statusCode = org.pjsip.pjsua2.pjsip_status_code.PJSIP_SC_TEMPORARILY_UNAVAILABLE
+            // Keep a reference until DISCONNECTED (which deletes it), or the GC could free it early.
+            rejectedCalls.add(call)
+            runCatching { call.hangup(unavailable) }
+                .onFailure { android.util.Log.w(de.haphone.app.test.ring.RingPolicyStore.TAG, "480 reply failed", it) }
+            android.util.Log.i(de.haphone.app.test.ring.RingPolicyStore.TAG, "rejected call ${prm.callId} from $caller with 480 ($decision)")
+            return
+        }
         if (activeCall != null && otherCall != null) {
             val busy = org.pjsip.pjsua2.CallOpParam()
             busy.statusCode = org.pjsip.pjsua2.pjsip_status_code.PJSIP_SC_BUSY_HERE
@@ -655,6 +672,7 @@ private class HAPhoneCall(
             android.util.Log.i("PJSIP", "call $myId disconnected: $reason")
             // Arrives on the PJSIP worker thread; call refs and Telecom are only touched on main.
             android.os.Handler(android.os.Looper.getMainLooper()).post {
+                owner.rejectedCalls.remove(this)
                 val wasActive = owner.activeCall === this
                 val wasOther = owner.otherCall === this
                 if (wasActive) {

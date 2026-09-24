@@ -135,6 +135,8 @@ void main() {
     await pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('tab-me')));
     await tester.pumpAndSettle();
+    // The connection row sits in "Gerät", below the status panel.
+    await tester.scrollUntilVisible(find.text('Online (TLS)'), 300, scrollable: find.byType(Scrollable).last);
     expect(find.text('Online (TLS)'), findsOneWidget);
 
     sip.emit({'type': 'registrationState', 'state': 'failed'});

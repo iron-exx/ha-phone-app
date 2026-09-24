@@ -251,6 +251,20 @@ class SipChannelHandler(
                     }
                 }
 
+                // "Klingeln auf diesem Handy" (local, see ring/RingPolicy.kt).
+                "getRingPolicy" -> result.success(de.haphone.app.test.ring.RingPolicyStore.load().toMap())
+
+                "setRingPolicy" -> {
+                    val args = call.arguments as? Map<*, *>
+                    if (args == null) {
+                        result.error("BAD_ARGS", "map expected", null)
+                    } else {
+                        val store = de.haphone.app.test.ring.RingPolicyStore
+                        val next = de.haphone.app.test.ring.RingPolicy.fromMap(args, store.load())
+                        result.success(store.save(next).toMap())
+                    }
+                }
+
                 "getDeviceId" -> {
                     val deviceId = Settings.Secure.getString(
                         app.contentResolver,

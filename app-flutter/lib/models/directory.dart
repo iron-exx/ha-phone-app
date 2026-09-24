@@ -8,6 +8,7 @@ class Directory {
     this.extensions = const [],
     this.phonebook = const [],
     this.recordingAllowed = false,
+    this.pbxVersion = '',
   });
 
   factory Directory.fromJson(Map<String, dynamic> json) {
@@ -18,6 +19,7 @@ class Directory {
       recordingAllowed: hasSelf && selfJson['recording_allowed'] == true,
       extensions: _list(json['extensions'], isExtension: true),
       phonebook: _list(json['phonebook'], isExtension: false),
+      pbxVersion: (json['pbx_version'] ?? '').toString(),
     );
   }
 
@@ -38,10 +40,15 @@ class Directory {
   /// (HA-Phone 0.7.114; false on older versions).
   final bool recordingAllowed;
 
+  /// HA-Phone version, if the PBX reports it (`pbx_version`; not sent up to
+  /// 0.7.116, then '').
+  final String pbxVersion;
+
   Map<String, dynamic> toJson() => {
         if (self != null) 'self': {...self!.toJson(), 'recording_allowed': recordingAllowed},
         'extensions': extensions.map((e) => e.toJson()).toList(),
         'phonebook': phonebook.map((e) => e.toJson()).toList(),
+        if (pbxVersion.isNotEmpty) 'pbx_version': pbxVersion,
       };
 
   /// Number -> DTMF open code for SipChannel.setDoorCodes.
