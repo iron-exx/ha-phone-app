@@ -1,4 +1,5 @@
 import 'contact.dart';
+import '../utils/phone_number.dart';
 
 /// Parsed response of GET /api/mobile/directory.
 class Directory {
@@ -46,10 +47,15 @@ class Directory {
           if (e.doorActions.isNotEmpty) e.number: e.doorActions,
       };
 
-  /// Name for a number (extensions first), or '' if unknown.
+  /// Name for a number (extensions first), or '' if unknown. Exact match
+  /// first, then ignoring formatting and +49 vs. 0 (phonebook numbers).
   String nameFor(String number) {
-    for (final c in [...extensions, ...phonebook]) {
+    final all = [...extensions, ...phonebook];
+    for (final c in all) {
       if (c.number == number && c.name.isNotEmpty) return c.name;
+    }
+    for (final c in phonebook) {
+      if (c.name.isNotEmpty && phoneNumbersMatch(c.number, number)) return c.name;
     }
     return '';
   }

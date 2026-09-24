@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/screens/contacts_tab.dart';
 import 'package:ha_phone_test/services/api_client.dart';
 import 'package:ha_phone_test/services/directory_repository.dart';
+import 'package:ha_phone_test/services/phone_contacts_repository.dart';
+import 'package:ha_phone_test/services/phone_contacts_source.dart';
 import 'package:ha_phone_test/services/presence_repository.dart';
 import 'package:ha_phone_test/theme/app_colors.dart';
 import 'package:ha_phone_test/widgets/contact_avatar.dart';
@@ -13,6 +15,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/fake_api.dart';
+import '../helpers/fake_phone_contacts.dart';
 import '../helpers/fake_sip.dart';
 
 const _body = {
@@ -41,8 +44,13 @@ void main() {
         authLoader: () async => const DeviceAuth(apiHost: 'box', deviceId: '1', deviceToken: 't'),
       );
 
-  Future<void> pumpTab(WidgetTester tester, DirectoryRepository r) async {
-    await tester.pumpWidget(MaterialApp(home: ContactsTab(repository: r)));
+  Future<void> pumpTab(WidgetTester tester, DirectoryRepository r, {PhoneContactsRepository? phone}) async {
+    await tester.pumpWidget(MaterialApp(
+      home: ContactsTab(
+        repository: r,
+        phoneContacts: phone ?? PhoneContactsRepository(source: FakePhoneContactsSource()),
+      ),
+    ));
     await tester.runAsync(r.init);
     await tester.pumpAndSettle();
   }
@@ -102,7 +110,13 @@ void main() {
     });
     final dir = DirectoryRepository(api: pbx.api, authLoader: testAuthLoader);
     final presence = PresenceRepository(api: pbx.api, authLoader: testAuthLoader);
-    await tester.pumpWidget(MaterialApp(home: ContactsTab(repository: dir, presence: presence)));
+    await tester.pumpWidget(MaterialApp(
+      home: ContactsTab(
+        repository: dir,
+        presence: presence,
+        phoneContacts: PhoneContactsRepository(source: FakePhoneContactsSource()),
+      ),
+    ));
     await tester.runAsync(() async {
       await dir.init();
       await presence.refresh();
@@ -128,5 +142,74 @@ void main() {
     expect(dotOf('sandro'), AppColors.presenceBusy);
     expect(dotOf('Büro'), AppColors.presenceOffline);
     expect(dotOf('Lager'), AppColors.presenceLunch);
+  });
+
+  group('Handy source', () {
+    Future<(PhoneContactsRepository, FakePhoneContactsSource)> pumpPhone(
+      WidgetTester tester,
+      FakePhoneContactsSource src,
+    ) async {
+      final phone = PhoneContactsRepository(source: src);
+      await pumpTab(tester, repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200)), phone: phone);
+      await tester.ensureVisible(find.text('Handy'));
+      await tester.tap(find.text('Handy'));
+      await tester.runAsync(phone.ensureLoaded);
+      await tester.pumpAndSettle();
+      return (phone, src);
+    }
+
+    testWidgets('first visit explains and asks, granting lists one row per number', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final (phone, src) = await pumpPhone(
+        tester,
+        FakePhoneContactsSource(contacts: [
+          phoneContact('Mama', '+49 171 5550', 'Mobil'),
+          phoneContact('Mama', '030 998877', 'Privat'),
+        ]),
+      );
+
+      expect(find.byKey(const Key('phone-contacts-explain')), findsOneWidget);
+      expect(find.text('Zugriff erlauben'), findsOneWidget);
+      expect(src.loadCount, 0);
+      expect(tester.takeException(), isNull); // no overflow at 360 dp
+
+      await tester.tap(find.text('Zugriff erlauben'));
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+      expect(src.requestCount, 1);
+      expect(phone.access, PhoneContactsAccess.granted);
+      expect(find.text('Mobil · +49 171 5550'), findsOneWidget);
+      expect(find.text('Privat · 030 998877'), findsOneWidget);
+      expect(find.text('Mama'), findsNWidgets(2));
+    });
+
+    testWidgets('denied shows the settings hint', (tester) async {
+      final (_, src) = await pumpPhone(tester, FakePhoneContactsSource(access: PhoneContactsAccess.denied));
+      expect(find.byKey(const Key('phone-contacts-denied')), findsOneWidget);
+      await tester.tap(find.text('Einstellungen öffnen'));
+      await tester.pump();
+      expect(src.settingsOpened, 1);
+    });
+
+    testWidgets('search covers all sources with section headers', (tester) async {
+      final phone = PhoneContactsRepository(
+        source: FakePhoneContactsSource(
+          access: PhoneContactsAccess.granted,
+          contacts: [phoneContact('Pizza Handy', '0171 1')],
+        ),
+      );
+      await pumpTab(tester, repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200)), phone: phone);
+      await tester.enterText(find.byType(TextField), 'pizz');
+      await tester.runAsync(phone.ensureLoaded);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Telefonbuch · 1'), findsOneWidget);
+      expect(find.text('Handy · 1'), findsOneWidget);
+      expect(find.text('Nebenstellen · 1'), findsNothing);
+      expect(find.text('Pizzeria'), findsOneWidget);
+      expect(find.text('Pizza Handy'), findsOneWidget);
+    });
   });
 }

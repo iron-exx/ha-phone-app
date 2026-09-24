@@ -1,6 +1,7 @@
 import 'presence.dart';
 
-/// One callable entry: a PBX extension or a phonebook number.
+/// One callable entry: a PBX extension, a PBX phonebook number or a number
+/// from the phone's own address book.
 class Contact {
   const Contact({
     required this.number,
@@ -10,6 +11,7 @@ class Contact {
     this.doorOpenCode = '',
     this.doorActions = const [],
     this.isExtension = true,
+    this.label = '',
   });
 
   /// Tolerant of nulls: the backend sends `door_open_code`/`video` as null
@@ -47,6 +49,9 @@ class Contact {
 
   /// false for phonebook entries (no presence, no avatar dot).
   final bool isExtension;
+
+  /// Kind of number for phone address book entries ("Mobil", "Arbeit"), else ''.
+  final String label;
 
   /// Door stations are recognised by an open code or by video capability.
   // Video alone is no door: desk phones and the app itself can be video-capable.

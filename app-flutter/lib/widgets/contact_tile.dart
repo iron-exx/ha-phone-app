@@ -29,7 +29,11 @@ class ContactTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final live = status ?? ExtensionStatus(presence: contact.presence);
-    final subtitle = contact.isExtension ? '${contact.number} · ${live.label}' : contact.number;
+    final subtitle = contact.isExtension
+        ? '${contact.number} · ${live.label}'
+        : contact.label.isNotEmpty
+            ? '${contact.label} · ${contact.number}'
+            : contact.number;
     return ListTile(
       onTap: onTap,
       onLongPress: onLongPress,
