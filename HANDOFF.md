@@ -120,10 +120,15 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Behoben dabei: Kanäle werden jetzt in `HAPhoneTestApplication.onCreate` **vor** dem Dart-Start registriert (Kaltstart verlor sonst das EventChannel-Listen → Gesprächsbildschirm ohne Ereignisse). `_invokeResilient` ist damit eigentlich überflüssig.
 - Nicht testbar im Emulator: echter Ton, Bluetooth, Türstation-Video (braucht die Akuvox), Anklopfen (braucht einen zweiten Anrufer).
 
+## 5a2. Nachtrag 2026-09-24
+
+- App **0.5.0**: Handy-Adressbuch (Quelle "Handy", Suche über alle Quellen, Anrufernamen mit +49/0-Abgleich), "Heranholen" bei klingelnden Kontakten, App-Symbol + Splash.
+- Anlage **0.7.113** installiert: `**<ext>` Heranholen (app_directed_pickup).
+- Weiterleitungen im Emulator gegen die Anlage gespeichert und wieder entfernt: funktioniert.
+- `deploy_pbx.py` prüft jetzt die installierte Version (vorher meldete es Erfolg, obwohl noch die alte lief).
+
 ## 5b. Nächste Schritte
 
-1. Weiterleitungen-Bildschirm im Emulator durchklicken (lädt; Speichern prüfen).
-2. App-Symbol + Startbildschirm im HA-Blau (Phase 2 Rest).
 3. Anklopfen testen: zweites Gerät/Softphone auf einer anderen Nebenstelle ruft die 12 an, während sie telefoniert.
 4. Phase 8: Push-Wecken über FCM (Anlage sendet bei Anruf), Tailscale; Phase 7 iOS.
 
