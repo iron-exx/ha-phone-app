@@ -5,7 +5,7 @@ description: >
   and, for iOS, a future platform-channel port of ios-app's Swift PJSIP/
   CallKit layer -- not yet built, see the Phase 1 plan).
 publish_to: 'none'
-version: 1.1.2+19
+version: 1.2.0+20
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

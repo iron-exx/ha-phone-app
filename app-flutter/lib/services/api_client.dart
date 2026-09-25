@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../models/doorbell_event.dart';
 import '../models/directory.dart';
 import '../models/extension_status.dart';
 import '../models/forwarding.dart';
@@ -185,6 +186,22 @@ class ApiClient {
   }
 
   /// PBX call log of the own extension (all devices), newest first.
+  /// Rings at door stations, newest first. 404 = PBX older than 0.7.126 (unsupported).
+  Future<List<DoorbellEvent>> fetchDoorbell(DeviceAuth auth, {int limit = 30}) async {
+    final response = await _send(auth, 'GET', '/api/mobile/doorbell?limit=$limit');
+    try {
+      return parseDoorbellEvents(jsonDecode(utf8.decode(response.bodyBytes)));
+    } on FormatException {
+      throw const ApiException(ApiErrorKind.server);
+    }
+  }
+
+  Future<List<int>> downloadDoorbellImage(DeviceAuth auth, int eventId) async {
+    final response = await _send(auth, 'GET', '/api/mobile/doorbell/$eventId/image',
+        notFoundIsUnsupported: false, timeout: _downloadTimeout);
+    return response.bodyBytes;
+  }
+
   Future<List<PbxCall>> fetchCalls(DeviceAuth auth, {int limit = 200}) async {
     final response = await _send(auth, 'GET', '/api/mobile/calls?limit=$limit', minVersion: kMinPbxVersionPhase5);
     return parsePbxCalls(_decodeObject(response));

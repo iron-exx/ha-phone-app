@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/contact.dart';
+import '../models/doorbell_event.dart';
+import '../screens/doorbell_history_screen.dart';
+import '../services/doorbell_repository.dart';
 import '../services/door_opener.dart';
 import '../services/sip_channel.dart';
 import '../theme/app_colors.dart';
@@ -35,11 +38,14 @@ Future<void> _runOnPbx(String number, int index) => SipChannel.instance.runDoorA
 /// the door ("Tür anrufen", then "Tür öffnen" on the call screen). The door's
 /// Home Assistant actions run directly as icon buttons.
 class DoorCard extends StatefulWidget {
-  const DoorCard({super.key, required this.door, this.lastRing, DoorActionRunner? runAction, this.opener})
+  const DoorCard({super.key, required this.door, this.lastRing, DoorActionRunner? runAction, this.opener, this.doorbell})
       : _runAction = runAction ?? _runOnPbx;
 
   /// Webhook door opener (test seam, default [DoorOpener.instance]).
   final DoorOpener? opener;
+
+  /// Doorbell history with pictures (default [DoorbellRepository.instance]).
+  final DoorbellRepository? doorbell;
 
   final Contact door;
 
@@ -124,23 +130,58 @@ class _DoorCardState extends State<DoorCard> {
   }
 
   Widget _picture(NwColors c) {
-    final last = widget.lastRing;
+    final repo = widget.doorbell ?? DoorbellRepository.instance;
+    return ListenableBuilder(
+      listenable: repo,
+      builder: (context, _) {
+        final ring = repo.latestFor(widget.door.number);
+        return GestureDetector(
+          key: ValueKey('door-picture-${widget.door.number}'),
+          onTap: ring == null
+              ? null
+              : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => DoorbellHistoryScreen(door: widget.door.number, repository: repo),
+                  )),
+          child: _pictureBody(c, repo, ring),
+        );
+      },
+    );
+  }
+
+  Widget _pictureBody(NwColors c, DoorbellRepository repo, DoorbellEvent? ring) {
+    final lastCall = widget.lastRing;
+    final last = ring != null && (lastCall == null || ring.startedAt.isAfter(lastCall)) ? ring.startedAt : lastCall;
     final overlay = c.ground.withOpacity(0.72);
+    final placeholder = Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.videocam_outlined, size: 32, color: c.faint),
+          const SizedBox(height: 6),
+          Text('Live-Bild beim Klingeln', style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
+        ],
+      ),
+    );
     return Container(
       height: 132,
       color: Color.alphaBlend(c.door.withOpacity(0.07), c.raised),
       child: Stack(
         children: [
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.videocam_outlined, size: 32, color: c.faint),
-                const SizedBox(height: 6),
-                Text('Live-Bild beim Klingeln', style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
-              ],
-            ),
-          ),
+          if (ring != null && ring.hasImage)
+            Positioned.fill(
+              child: FutureBuilder(
+                future: repo.image(ring),
+                builder: (context, snap) => snap.data == null
+                    ? placeholder
+                    : Semantics(
+                        label: 'Letztes Klingelbild ${ring.title}',
+                        image: true,
+                        child: Image.memory(snap.data!, fit: BoxFit.cover, gaplessPlayback: true),
+                      ),
+              ),
+            )
+          else
+            placeholder,
           Positioned(
             left: 12,
             top: 12,

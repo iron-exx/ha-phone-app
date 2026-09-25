@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/doorbell_repository.dart';
 import '../services/app_navigation.dart';
 import '../services/call_events.dart';
 import '../services/call_history_store.dart';
@@ -75,13 +76,19 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _events = CallEvents.instance.stream.listen((e) {
-      if (e is CallHistoryChangedEvent) unawaited(_history.refreshAll());
+      if (e is CallHistoryChangedEvent) {
+        unawaited(_history.refreshAll());
+        unawaited(DoorbellRepository.instance.refresh());
+      }
     });
     unawaited(_history.refreshAll());
     unawaited(RegistrationWatcher.instance.start());
     // The Verlauf badge (missed + voicemail) and the call-flip card (own
     // line state) poll for the shell's lifetime (foreground only).
     _voicemail.setPolling(true);
+    // Start page door picture + Klingel-Verlauf (also refreshed after every call below).
+    DoorbellRepository.instance.setPolling(true);
+    unawaited(DoorbellRepository.instance.refresh());
     _presence.setVisible(true);
     // Start pill ("Stumm bis …") and the amber dot on Ich.
     WidgetsBinding.instance.addObserver(this);
@@ -99,6 +106,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _events?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _voicemail.setPolling(false);
+    DoorbellRepository.instance.setPolling(false);
     _presence.setVisible(false);
     super.dispose();
   }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/ring_settings.dart';
 import 'call_history_store.dart';
 import 'directory_repository.dart';
+import 'doorbell_repository.dart';
 import 'favorites_store.dart';
 import 'forwarding_repository.dart';
 import 'presence_repository.dart';
@@ -33,6 +34,7 @@ Future<void> resetForPairing({
   await (history ?? CallHistoryStore.instance).clearPbx();
   await (voicemail ?? VoicemailRepository.instance).clear();
   (recordings ?? RecordingsRepository.instance).clear();
+  DoorbellRepository.instance.clear();
   await (favorites ?? FavoritesStore.instance).clear();
   try {
     await (ring ?? RingSettingsRepository.instance).update(const RingSettings());

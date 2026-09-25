@@ -12,6 +12,8 @@ class CallCoordinator(
     private val doorCodes: DoorCodes,
     private val doorActionLabels: (String) -> List<String> = { emptyList() },
     private val now: () -> Long = System::currentTimeMillis,
+    /** An incoming call ended without being answered (doorbell picture notification). */
+    private val onMissedIncoming: (number: String) -> Unit = {},
 ) {
     val session = CallSession()
 
@@ -66,6 +68,9 @@ class CallCoordinator(
         if (removed != null) {
             history.update { CallHistory.markEnded(it, removed.call.historyId, now()) }
             historyChanged()
+            if (removed.call.direction == "incoming" && removed.call.connectedAtMs == 0L) {
+                onMissedIncoming(removed.call.number)
+            }
         }
         return session.isEmpty
     }

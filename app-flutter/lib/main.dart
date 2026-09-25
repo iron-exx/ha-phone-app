@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'screens/doorbell_history_screen.dart';
 import 'screens/active_call_screen.dart';
 import 'screens/qr_scan_screen.dart';
 import 'screens/root_screen.dart';
@@ -62,6 +63,11 @@ class _HAPhoneAppState extends State<HAPhoneApp> {
       _navigatorKey.currentState?.push(MaterialPageRoute<void>(
         builder: (_) => QrScanScreen(initialLink: route.substring('provision:'.length)),
       ));
+      return;
+    }
+    if (route == 'doorbell') {
+      // "Es hat geklingelt" notification (DoorbellMissedNotifier.kt).
+      _navigatorKey.currentState?.push(MaterialPageRoute<void>(builder: (_) => const DoorbellHistoryScreen()));
       return;
     }
     if (route == 'active_call') {

@@ -220,7 +220,12 @@ class HAPhoneTestApplication : Application() {
     var sipMethodChannel: io.flutter.plugin.common.MethodChannel? = null
         private set
 
-    val calls by lazy { de.haphone.app.test.calls.CallCoordinator(callHistory, doorCodes, doorActions::labelsFor) }
+    val calls by lazy {
+        de.haphone.app.test.calls.CallCoordinator(
+            callHistory, doorCodes, doorActions::labelsFor,
+            onMissedIncoming = { number -> de.haphone.app.test.calls.DoorbellMissedNotifier.onMissed(this, number) },
+        )
+    }
 
     /** The call on screen, null when idle. */
     val currentCall: de.haphone.app.test.calls.CurrentCall? get() = calls.currentCall

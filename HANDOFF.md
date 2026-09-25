@@ -241,6 +241,16 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Handy-Test-Checkliste für den Nutzer: `docs/test/handy-test.md`.
 - **Nächster Schritt:** Etappe 2 Detailplan (Snapshot beim Klingeln in der Anlage, API, neue Start-Seite, Verlauf, Benachrichtigung mit Bild).
 
+## 5a16. Etappe 2: Klingel-Verlauf mit Foto (2026-09-25, App 1.2.0, Anlage 0.7.126) — E2E BESTANDEN
+
+- Detailplan: `docs/superpowers/plans/2026-09-25-etappe2-klingelverlauf.md`.
+- **Anlage:** `backend/doorbell.py` (DoorbellTracker: Newchannel der Tür = Ring, DialEnd ANSWER = angenommen, Hangup = Ende; fetch_snapshot mit HA-Kamera `camera.*` über Supervisor oder URL mit Basic/Digest, 4 s, max 2 MB; DoorbellStore mit 30 Tagen / 500 Einträgen), `backend/doorbell_listener.py` (eigene AMI-Event-Verbindung im Lifespan, in Tests aus per `BPX_DOORBELL_LISTENER=0`), Feld `Extension.doorbell_camera`, Tabelle `DoorbellEvent`, API `/api/mobile/doorbell` (+`/{id}/image`), Admin `/api/doorbell` + `test-snapshot`, Seite „Türklingel“, Feld „Klingelbild-Quelle“ mit „Testbild holen“. `door-open` markiert „Tür geöffnet“. Directory: `has_camera`. 287 Tests grün.
+- **App:** `DoorbellRepository` (Polling 60 s + nach jedem Anruf), Türkarte zeigt das letzte Klingelbild (Tipp → `DoorbellHistoryScreen`), native `calls/DoorbellMissedNotifier.kt` (verpasster Anruf → fragt die Anlage, Benachrichtigung „Es hat geklingelt“ mit BigPicture, Tipp → Verlauf per Route `doorbell`). 408 Dart-Tests grün.
+- **Test-Setup:** `no-git/tools/snapshot_server.py` (Port 8098, JPEG mit Uhrzeit) läuft auf CCsrv. Die Nebenstelle 17 (Tür-Simulator) hat als Quelle `http://192.168.101.113:8098/snapshot.jpg`. Ohne laufenden Server gibt es kein Bild (dann: `cd no-git/tools && nohup python3 snapshot_server.py &`).
+- E2E: door_sim → 18, nicht angenommen → Ereignis mit Bild in der Anlage, Benachrichtigung mit Bild, Start-Karte zeigt das Bild, Verlauf zeigt „verpasst“.
+- Nutzer muss: Bei der echten Akuvox (Nebenstelle 16) die Klingelbild-Quelle eintragen (HA-Kamera oder Akuvox-Snapshot-URL, z. B. `http://user:pass@192.168.7.46/jpeg/image.jpg`, vorher mit „Testbild holen“ prüfen).
+- Noch offen aus Etappe 2 (optional, klein): Heute-Leiste und Favoriten-Vorschläge auf der Start-Seite. **Danach Etappe 3** (Klingeln unterwegs nur, wenn keiner zu Hause ist) mit eigenem Detailplan, dann Etappe 4 (Widget/Schnellzugriff).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
