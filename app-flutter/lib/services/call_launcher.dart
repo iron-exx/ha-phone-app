@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'call_events.dart';
@@ -12,8 +13,26 @@ const kVoicemailNumber = '*97';
 
 abstract final class CallLauncher {
   /// Replaceable in tests (permission_handler has no test implementation).
-  static Future<bool> Function() requestMicrophone =
-      () async => (await Permission.microphone.request()).isGranted;
+  static Future<bool> Function() requestMicrophone = () => ensureGranted(
+        status: () async => (await Permission.microphone.status).isGranted,
+        request: () async => (await Permission.microphone.request()).isGranted,
+      );
+
+  /// Asks only when not granted yet. permission_handler throws while another
+  /// request is still open (e.g. the start-up dialog was swiped away): then the
+  /// current status decides instead of the call silently dying.
+  static Future<bool> ensureGranted({
+    required Future<bool> Function() status,
+    required Future<bool> Function() request,
+  }) async {
+    if (await status()) return true;
+    try {
+      return await request();
+    } on PlatformException catch (e) {
+      debugPrint('permission request busy: ${e.message}');
+      return status();
+    }
+  }
 
   static Future<void> call(BuildContext context, String number) async {
     final target = number.trim();

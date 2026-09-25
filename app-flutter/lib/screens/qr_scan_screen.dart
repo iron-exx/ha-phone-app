@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../app_info.dart';
+import '../services/call_launcher.dart';
 import '../services/pairing_reset.dart';
 import '../services/provisioning_events.dart';
 import '../services/sip_channel.dart';
@@ -58,10 +59,13 @@ class _QrScanScreenState extends State<QrScanScreen> {
   }
 
   Future<void> _checkPermission() async {
-    final status = await Permission.camera.request();
+    final granted = await CallLauncher.ensureGranted(
+      status: () async => (await Permission.camera.status).isGranted,
+      request: () async => (await Permission.camera.request()).isGranted,
+    );
     if (!mounted) return;
     setState(() {
-      _state = status.isGranted ? _ScreenState.scanning : _ScreenState.permissionDenied;
+      _state = granted ? _ScreenState.scanning : _ScreenState.permissionDenied;
     });
   }
 

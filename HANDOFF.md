@@ -232,6 +232,15 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Policy-Schnipsel enthält jetzt tcp:5063. Beim Nutzer steht noch die alte Variante (nur relevant, falls die Standard-Regel „alles erlaubt“ entfernt wurde).
 - Offen: echtes Handy im Mobilfunk, Deep-Doze mit Tunnel, Fremd-VPN, Akku.
 
+## 5a15. Ausbauplan, Etappe 1 fertig (2026-09-25 nachmittags, App 1.1.2)
+
+- **Plan:** `docs/superpowers/plans/2026-09-25-ausbau-release-klingelverlauf.md`. Etappen: 1 Release + Handy-Test (fertig bis auf den Handy-Test des Nutzers) → 2 Klingel-Verlauf mit Foto + neue Start-Seite → 3 Klingeln unterwegs nur, wenn keiner zu Hause ist → 4 Widget/Schnellzugriff. Vor 2–4 jeweils einen eigenen Detailplan schreiben.
+- **Release:** Upload-Key `no-git/release/haphone-upload.jks`, Passwort in `app-flutter/android/key.properties` (beides nie committen, **Nutzer soll den Keystore sichern**). Ohne `key.properties` wird der Build debug-signiert. R8 an, Regeln in `app/proguard-rules.pro`. `bash app-flutter/scripts/build_release.sh` → arm64 74 MB, x86_64 78 MB, AAB 64 MB.
+- Smoke-Test Release im Emulator bestanden: `docs/test/release-smoke.md`. Fix 1.1.2: Wählen, QR-Kamera und Adressbuch fragen Berechtigungen nur noch bei Bedarf und stürzen nicht mehr, wenn eine andere Anfrage offen ist (`CallLauncher.ensureGranted`).
+- Emulator läuft jetzt die **Release**-App (Upload-Signatur). Für Debug-Builds vorher deinstallieren (andere Signatur).
+- Handy-Test-Checkliste für den Nutzer: `docs/test/handy-test.md`.
+- **Nächster Schritt:** Etappe 2 Detailplan (Snapshot beim Klingeln in der Anlage, API, neue Start-Seite, Verlauf, Benachrichtigung mit Bild).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

@@ -1,3 +1,4 @@
+import 'call_launcher.dart';
 import 'package:flutter_contacts/flutter_contacts.dart' as fc;
 import 'package:permission_handler/permission_handler.dart';
 
@@ -46,8 +47,17 @@ class DevicePhoneContactsSource implements PhoneContactsSource {
 
   @override
   Future<PhoneContactsAccess> requestAccess() async {
-    final s = await Permission.contacts.request();
-    return (s.isGranted || s.isLimited) ? PhoneContactsAccess.granted : PhoneContactsAccess.denied;
+    final ok = await CallLauncher.ensureGranted(
+      status: () async {
+        final s = await Permission.contacts.status;
+        return s.isGranted || s.isLimited;
+      },
+      request: () async {
+        final s = await Permission.contacts.request();
+        return s.isGranted || s.isLimited;
+      },
+    );
+    return ok ? PhoneContactsAccess.granted : PhoneContactsAccess.denied;
   }
 
   @override
