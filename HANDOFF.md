@@ -251,6 +251,14 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Nutzer muss: Bei der echten Akuvox (Nebenstelle 16) die Klingelbild-Quelle eintragen (HA-Kamera oder Akuvox-Snapshot-URL, z. B. `http://user:pass@192.168.7.46/jpeg/image.jpg`, vorher mit „Testbild holen“ prüfen).
 - Noch offen aus Etappe 2 (optional, klein): Heute-Leiste und Favoriten-Vorschläge auf der Start-Seite. **Danach Etappe 3** (Klingeln unterwegs nur, wenn keiner zu Hause ist) mit eigenem Detailplan, dann Etappe 4 (Widget/Schnellzugriff).
 
+## 5a17. Etappe 3: Tür klingelt Handys unterwegs nur, wenn niemand zu Hause ist (Anlage 0.7.127)
+
+- `backend/ha_presence.py`: `Extension.ha_person` (z. B. `person.sandro`). Jede Minute werden die `person.*`-Zustände per Supervisor gelesen. `excluded_extensions()`: Ist jemand zu Hause, fallen Nebenstellen mit abwesender Person aus den **Tür-Klingelgruppen**. Ist niemand zu Hause, klingeln alle. Unbekannte Zustände klingeln immer. Ändert sich die Menge, wird `_regenerate_routing_conf` ausgeführt und der Wählplan neu geladen.
+- Wählplan: In `from-internal-restricted` (nur Türstationen mit „Nur intern“) steht jetzt `door_ring_group_dials` statt `ring_group_dials`. Ergibt der Filter eine leere Gruppe, klingelt die ungefilterte Gruppe. Direkte Anrufe an eine einzelne Nebenstelle werden nicht gefiltert.
+- Admin-Feld „Gehört zu (Home-Assistant-Person)“ im Nebenstellen-Editor. 294 Backend-Tests grün.
+- **Noch nicht live getestet** (braucht echte person.*-Zustände, z. B. eine Test-Person in HA oder die Personen des Nutzers). Test: Klingelgruppe mit 18 + 11 anlegen, 18 bekommt eine abwesende Person, 11 eine anwesende, door_sim ruft die Gruppe → 18 darf nicht klingeln.
+- Danach: **Etappe 4** Widget/Schnellzugriff (App-only: Glance-Widget „Tür öffnen“ + letztes Klingelbild, TileService, App-Shortcuts).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
