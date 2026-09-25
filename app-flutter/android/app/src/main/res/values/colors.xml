@@ -3,12 +3,10 @@
     <color name="haphone_brand">#0284C7</color>
     <color name="haphone_brand_light">#38BDF8</color>
 
-    <!-- "Nachtwache" tokens (light), same roles as lib/theme/app_colors.dart and
-         ring/NwTheme.kt. Used for the ringing screen's window background. -->
-    <color name="nw_ground">#F4F6F9</color>
-    <color name="nw_surface">#FFFFFF</color>
-    <color name="nw_text">#0F172A</color>
-    <color name="nw_answer">#1F9D57</color>
-    <color name="nw_end">#D92D32</color>
-    <color name="nw_door">#C77A00</color>
+    <!-- "Nachtwache" ground for the ringing screen's window background before
+         Compose draws. Dark on purpose (in-app default "Dunkel"), NOT via
+         values-night: the in-app "Erscheinungsbild" decides, not the system.
+         IncomingCallActivity/MainActivity set the effective colour at runtime
+         (ring/Appearance.kt, ring/NwTheme.kt). -->
+    <color name="nw_ground">#0B0F14</color>
 </resources>

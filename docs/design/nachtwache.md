@@ -64,4 +64,4 @@ Verpasste + neue Voicemails als roter Zähler am Verlauf.
 
 - Haptik: leichter Tick beim Tippen im Tastenfeld, mittlerer beim Annehmen/Auflegen, doppelter Impuls bei „Tür geöffnet“.
 - „Tür geöffnet ✓“-Zustand (grün, 2 s) nach dem Öffnen.
-- Hell/Dunkel folgt dem System, Wechsel ohne Neustart.
+- Erscheinungsbild in der App wählbar (Ich → Erscheinungsbild: Dunkel · Hell · Wie System), Standard **Dunkel**; gilt app-weit inklusive nativem Klingelbildschirm, Wechsel ohne Neustart.

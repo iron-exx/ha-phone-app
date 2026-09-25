@@ -165,6 +165,10 @@ void main() {
     testWidgets('shown while recording is allowed, opens the list', (tester) async {
       await pumpMe(tester, allowed: true);
       expect(find.text('Aufnahmen'), findsOneWidget);
+      // Ich also offers the appearance row (default Dunkel).
+      expect(find.byKey(const Key('me-appearance')), findsOneWidget);
+      expect(find.text('Erscheinungsbild'), findsOneWidget);
+      expect(find.text('Dunkel'), findsOneWidget);
       expect(find.text('Keine Aufnahmen'), findsOneWidget);
 
       await tester.tap(find.text('Aufnahmen'));

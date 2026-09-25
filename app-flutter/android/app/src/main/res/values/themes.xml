@@ -4,7 +4,8 @@
          the native IncomingCallActivity (Compose UI, MaterialTheme handles
          actual theming; this is just the window-level platform theme). -->
     <style name="Theme.HAPhoneTest" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- No white flash before Compose draws the Nachtwache ground. -->
+        <!-- No white flash before Compose draws the Nachtwache ground (dark default;
+             the activity sets the in-app appearance colour in onCreate). -->
         <item name="android:windowBackground">@color/nw_ground</item>
     </style>
 

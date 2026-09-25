@@ -17,11 +17,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
+import de.haphone.app.test.ring.AppearanceStore
 import de.haphone.app.test.ring.DoorOpenClient
 import de.haphone.app.test.ring.DoorOpenMethod
 import de.haphone.app.test.ring.DoorOpenOutcome
 import de.haphone.app.test.ring.DoorSlideState
 import de.haphone.app.test.ring.DoorSlideTexts
+import de.haphone.app.test.ring.NwColors
 import de.haphone.app.test.ring.RingActions
 import de.haphone.app.test.ring.RingInput
 import de.haphone.app.test.ring.RingLayout
@@ -88,15 +91,20 @@ class IncomingCallActivity : ComponentActivity() {
         )
         val meta = RingLayouts.meta(callId, LocalTime.now())
         val baseLayout = RingLayouts.of(input)
-        // The door screen is a dark picture in any theme: light status bar icons.
-        if (baseLayout.variant == RingVariant.DOOR) {
-            enableEdgeToEdge(
-                statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
-                navigationBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
-            )
+        // In-app "Erscheinungsbild" (default Dunkel), not the system's night mode.
+        val dark = AppearanceStore.isDark(this)
+        val colors = if (dark) NwColors.Dark else NwColors.Light
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(colors.ground.toArgb()))
+        val themed = if (dark) {
+            SystemBarStyle.dark(AndroidColor.TRANSPARENT)
         } else {
-            enableEdgeToEdge()
+            SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
         }
+        // The door screen is a dark picture in any theme: light status bar icons.
+        enableEdgeToEdge(
+            statusBarStyle = if (baseLayout.variant == RingVariant.DOOR) SystemBarStyle.dark(AndroidColor.TRANSPARENT) else themed,
+            navigationBarStyle = themed,
+        )
         val actions = RingActions(
             onAnswer = { haptic(); answer() },
             onDecline = { haptic(); decline() },
@@ -114,7 +122,7 @@ class IncomingCallActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                RingScreen(baseLayout.copy(showLockedChip = keyguardLocked), meta, slideState, actions)
+                RingScreen(baseLayout.copy(showLockedChip = keyguardLocked), meta, slideState, actions, colors)
             }
         }
     }

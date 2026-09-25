@@ -229,6 +229,15 @@ class SipChannelHandler(
                     }
                 }
 
+                // In-app "Erscheinungsbild" (dark/light/system), persisted natively for
+                // the ringing screen, which may start without the Flutter engine.
+                "setAppearance" -> {
+                    val mode = de.haphone.app.test.ring.Appearance.fromWire(call.arguments as? String)
+                    de.haphone.app.test.ring.AppearanceStore.save(app, mode)
+                    MainActivity.current?.get()?.applyAppearanceBackground()
+                    result.success(mode.wire)
+                }
+
                 // "Klingeln auf diesem Handy" (local, see ring/RingPolicy.kt).
                 "getRingPolicy" -> result.success(de.haphone.app.test.ring.RingPolicyStore.load().toMap())
 

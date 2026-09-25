@@ -64,8 +64,9 @@ abstract final class NwType {
   static const button = TextStyle(fontFamily: NwFonts.ui, fontSize: 15, fontWeight: FontWeight.w800, height: 1.2);
 }
 
-/// Material 3 themes built from the Nachtwache roles. The app follows the
-/// system brightness (ThemeMode.system) and switches live.
+/// Material 3 themes built from the Nachtwache roles. Which one shows is the
+/// in-app "Erscheinungsbild" (services/appearance.dart, default Dunkel);
+/// switches live.
 abstract final class AppTheme {
   static ThemeData light() => build(NwColors.light, Brightness.light);
   static ThemeData dark() => build(NwColors.dark, Brightness.dark);

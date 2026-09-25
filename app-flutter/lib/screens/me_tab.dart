@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_info.dart';
+import '../services/appearance.dart';
 import '../services/call_events.dart';
 import '../services/directory_repository.dart';
 import '../services/forwarding_repository.dart';
@@ -16,6 +17,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/recording_ui.dart';
 import '../utils/registration_ui.dart';
+import '../widgets/appearance_sheet.dart';
 import '../widgets/nw_widgets.dart';
 import '../widgets/status_panel.dart';
 import 'diagnostics_screen.dart';
@@ -39,7 +41,9 @@ class MeTab extends StatefulWidget {
     ForwardingRepository? forwarding,
     RingSettingsRepository? ring,
     ReachabilityRepository? reachability,
-  })  : _recordings = recordings,
+    AppearanceController? appearance,
+  })  : _appearance = appearance,
+        _recordings = recordings,
         _directory = directory,
         _presence = presence,
         _forwarding = forwarding,
@@ -60,6 +64,7 @@ class MeTab extends StatefulWidget {
   final ForwardingRepository? _forwarding;
   final RingSettingsRepository? _ring;
   final ReachabilityRepository? _reachability;
+  final AppearanceController? _appearance;
 
   @override
   State<MeTab> createState() => _MeTabState();
@@ -72,6 +77,7 @@ class _MeTabState extends State<MeTab> {
   RecordingsRepository get _recordings => widget._recordings ?? RecordingsRepository.instance;
   DirectoryRepository get _dir => widget._directory ?? DirectoryRepository.instance;
   ReachabilityRepository get _reach => widget._reachability ?? ReachabilityRepository.instance;
+  AppearanceController get _appearance => widget._appearance ?? AppearanceController.instance;
 
   @override
   void initState() {
@@ -215,6 +221,7 @@ class _MeTabState extends State<MeTab> {
                 subtitle: 'Was mit Anrufen passiert, je nach Status',
                 onTap: () => _push(const ForwardingScreen()),
               ),
+              _appearanceTile(),
               _tile(
                 icon: Icons.monitor_heart_outlined,
                 title: 'Diagnose',
@@ -298,6 +305,20 @@ class _MeTabState extends State<MeTab> {
       subtitle: subtitle == null ? null : Text(subtitle),
       trailing: chevron ? Icon(Icons.chevron_right, color: c.faint) : null,
       onTap: onTap,
+    );
+  }
+
+  /// "Erscheinungsbild" with the current choice; opens the small sheet.
+  Widget _appearanceTile() {
+    return ValueListenableBuilder<AppAppearance>(
+      valueListenable: _appearance,
+      builder: (context, current, _) => _tile(
+        key: const Key('me-appearance'),
+        icon: Icons.contrast,
+        title: 'Erscheinungsbild',
+        subtitle: current.label,
+        onTap: () => AppearanceSheet.show(context, _appearance),
+      ),
     );
   }
 

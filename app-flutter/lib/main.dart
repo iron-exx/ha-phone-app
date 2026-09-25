@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'screens/qr_scan_screen.dart';
 import 'screens/root_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/app_navigation.dart';
+import 'services/appearance.dart';
 import 'services/sip_channel.dart';
 import 'theme/app_theme.dart';
 
@@ -30,7 +33,10 @@ Stream<LicenseEntry> _fontLicenses() async* {
 }
 
 class HAPhoneApp extends StatefulWidget {
-  const HAPhoneApp({super.key});
+  const HAPhoneApp({super.key, this.appearance});
+
+  /// In-app "Erscheinungsbild" (default Dunkel); injectable for tests.
+  final AppearanceController? appearance;
 
   @override
   State<HAPhoneApp> createState() => _HAPhoneAppState();
@@ -39,9 +45,13 @@ class HAPhoneApp extends StatefulWidget {
 class _HAPhoneAppState extends State<HAPhoneApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
 
+  AppearanceController get _appearance => widget.appearance ?? AppearanceController.instance;
+
   @override
   void initState() {
     super.initState();
+    // Stored choice + one push to native (ringing screen reads it there).
+    unawaited(_appearance.load());
     // Native -> Dart hand-off, e.g. IncomingCallActivity's post-answer
     // navigation (see SipChannel.setNavigationHandler / MainActivity.kt).
     SipChannel.instance.setNavigationHandler(_handleNativeRoute);
@@ -66,21 +76,25 @@ class _HAPhoneAppState extends State<HAPhoneApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      title: 'HA-Phone',
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) => NwSystemUi(child: child ?? const SizedBox.shrink()),
-      initialRoute: '/',
-      routes: {
-        '/': (_) => const RootScreen(),
-        '/settings': (_) => const SettingsScreen(),
-        '/active-call': (_) => const ActiveCallScreen(),
-        '/qr-scan': (_) => const QrScanScreen(),
-      },
+    return ValueListenableBuilder<AppAppearance>(
+      valueListenable: _appearance,
+      builder: (context, appearance, _) => MaterialApp(
+        navigatorKey: _navigatorKey,
+        title: 'HA-Phone',
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: appearance.themeMode,
+        debugShowCheckedModeBanner: false,
+        // Inside the themed subtree: the bars follow the effective theme.
+        builder: (context, child) => NwSystemUi(child: child ?? const SizedBox.shrink()),
+        initialRoute: '/',
+        routes: {
+          '/': (_) => const RootScreen(),
+          '/settings': (_) => const SettingsScreen(),
+          '/active-call': (_) => const ActiveCallScreen(),
+          '/qr-scan': (_) => const QrScanScreen(),
+        },
+      ),
     );
   }
 }

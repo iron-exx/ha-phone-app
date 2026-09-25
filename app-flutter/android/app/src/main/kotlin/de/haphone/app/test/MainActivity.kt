@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.compose.ui.graphics.toArgb
 import de.haphone.app.test.calls.InCallWindow
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -34,12 +35,29 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyAppearanceBackground()
+        current = java.lang.ref.WeakReference(this)
         InCallWindow.observe(inCallListener)
     }
 
     override fun onDestroy() {
+        if (current?.get() === this) current = null
         InCallWindow.remove(inCallListener)
         super.onDestroy()
+    }
+
+    /**
+     * Window background behind the Flutter surface in the in-app appearance
+     * (default Dunkel), so no light flash shows before the first frame or
+     * during resizes. Also called when Dart changes the setting.
+     */
+    fun applyAppearanceBackground() {
+        val c = if (de.haphone.app.test.ring.AppearanceStore.isDark(this)) {
+            de.haphone.app.test.ring.NwColors.Dark
+        } else {
+            de.haphone.app.test.ring.NwColors.Light
+        }
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(c.ground.toArgb()))
     }
 
     private fun showOverKeyguard(show: Boolean) {
@@ -88,5 +106,8 @@ class MainActivity : FlutterActivity() {
     companion object {
         const val SIP_METHOD_CHANNEL = "de.haphone.app.test/sip_calls"
         const val SIP_EVENT_CHANNEL = "de.haphone.app.test/call_events"
+
+        /** The live activity, for [applyAppearanceBackground] after `setAppearance`. */
+        @Volatile var current: java.lang.ref.WeakReference<MainActivity>? = null
     }
 }

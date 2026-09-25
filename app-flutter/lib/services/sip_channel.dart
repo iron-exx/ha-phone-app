@@ -149,6 +149,10 @@ class SipChannel {
   /// Sends the current call's door-open code as DTMF. No-op if the caller is no door station.
   Future<void> openDoor() => _channel.invokeMethod('openDoor');
 
+  /// In-app appearance ('dark' | 'light' | 'system'), persisted natively for
+  /// the ringing screen (IncomingCallActivity), which may start without Dart.
+  Future<void> setAppearance(String mode) => _channel.invokeMethod('setAppearance', mode);
+
   // ---- Current call ----
 
   /// null when there is no call.

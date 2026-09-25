@@ -11,7 +11,6 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,8 +85,7 @@ private val ThumbInset = 6.dp
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
 @Composable
-fun RingScreen(layout: RingLayout, meta: String, slideState: DoorSlideState, actions: RingActions) {
-    val c = if (isSystemInDarkTheme()) NwColors.Dark else NwColors.Light
+fun RingScreen(layout: RingLayout, meta: String, slideState: DoorSlideState, actions: RingActions, c: NwColors) {
     when (layout.variant) {
         RingVariant.DOOR -> DoorRing(layout, meta, slideState, actions, c)
         RingVariant.NORMAL -> NormalRing(layout, actions, c)
