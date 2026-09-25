@@ -41,6 +41,7 @@ object DoorbellMissedNotifier {
                 val event = latestMissedRing(host, auth, number) ?: return@thread
                 val picture = if (event.hasImage) image(host, auth, event.id) else null
                 show(app, event, picture)
+                de.haphone.app.test.quick.DoorWidgetProvider.refresh(app)
             } catch (e: Exception) {
                 Log.w(TAG, "missed ring notification failed", e)
             }

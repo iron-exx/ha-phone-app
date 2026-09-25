@@ -447,6 +447,7 @@ class HAPhoneTestApplication : Application() {
     fun clearCredentials() {
         SecurePrefs.get(this).edit().clear().apply()
         de.haphone.app.test.net.PbxTls.configure(de.haphone.app.test.net.PbxTls.Pin.NONE)
+        de.haphone.app.test.quick.DoorWidgetProvider.clear(this)
         de.haphone.app.test.reach.ReachabilityMonitor.stop(this)
     }
 

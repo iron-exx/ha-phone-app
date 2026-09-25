@@ -106,6 +106,9 @@ class SipChannel {
     });
   }
 
+  /// Re-renders the home screen door widget with the latest ring (native fetch).
+  Future<void> refreshDoorWidget() => _channel.invokeMethod('refreshDoorWidget');
+
   /// Cert pin learned after pairing (PBX updated to 0.7.130+), see DirectoryRepository.
   Future<void> saveTlsPin(String tlsPin, int httpsPort) =>
       _channel.invokeMethod('saveTlsPin', {'tlsPin': tlsPin, 'httpsPort': httpsPort});

@@ -2,4 +2,5 @@
 <resources>
     <string name="shortcut_door_open">Tür öffnen</string>
     <string name="shortcut_doorbell">Klingel-Verlauf</string>
+    <string name="door_widget_description">Letztes Klingelbild und Tür öffnen</string>
 </resources>

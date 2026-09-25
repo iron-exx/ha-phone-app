@@ -145,6 +145,11 @@ class SipChannelHandler(
 
                 "getDeviceAuth" -> result.success(app.getDeviceAuth())
 
+                "refreshDoorWidget" -> {
+                    de.haphone.app.test.quick.DoorWidgetProvider.refresh(app)
+                    result.success(null)
+                }
+
                 "setDoorCodes" -> {
                     val codes = (call.arguments as? Map<*, *>).orEmpty()
                         .mapNotNull { (k, v) -> (k as? String)?.let { key -> (v as? String)?.let { key to it } } }

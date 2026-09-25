@@ -142,6 +142,15 @@
             android:exported="true"
             android:permission="android.permission.DUMP" />
 
+        <!-- Home screen widget: last doorbell picture + "Tür öffnen" (with confirmation). -->
+        <receiver android:name=".quick.DoorWidgetProvider" android:exported="false"
+            android:label="@string/shortcut_door_open">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/door_widget_info" />
+        </receiver>
+
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

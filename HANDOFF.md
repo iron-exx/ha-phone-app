@@ -308,6 +308,13 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Ein einzelner Fehlschlag „Netzwerkfehler“ bei der ersten gepinnten Kopplung ließ sich nicht wiederholen. Seitdem loggt `qr_scan_screen` den Fehler (`provisioning failed:`).
 - Nicht live getestet: der Negativfall (falsches Zertifikat), nur Unit-Tests (Kotlin `PbxTlsTest`, Dart `pbx_tls_test`).
 
+## 5a23. App 1.6.0: Startbildschirm-Widget „Tür öffnen“ mit letztem Klingelbild
+
+- `quick/DoorWidgetProvider.kt` (klassische RemoteViews, kein Glance): Titel = Türname, „zuletzt 15:13“/„gestern …“ (`DoorWidgetText`, getestet), letztes Klingelbild (in `filesDir/door_widget.jpg`, auf ≤ 480 px verkleinert), „Tür öffnen“ → `DoorOpenConfirmActivity` (fragt immer nach), Tipp aufs Bild → Klingel-Verlauf. Aktualisierung: System alle 30 min, Dart `DoorbellRepository` bei neuem Klingeln (`refreshDoorWidget`), `DoorbellMissedNotifier` nach verpasstem Klingeln. Entkoppeln löscht Bild und Zeit.
+- Im Emulator geprüft: Widget hinzugefügt, Bild + Uhrzeit sichtbar, „Tür öffnen“ → Rückfrage „Tür-Simulator wird geöffnet.“ → Webhook `door_open` angekommen, Bild antippen → Klingel-Verlauf.
+- Test-Setup: Webhook-Empfänger `hook.py` (Port 8099) loggt nach `/tmp/claude-1000/-home-roto/597bb650-…/scratchpad/hook.log`.
+- Nächste eigene Vorschläge: Rückfall auf die Mobilnummer (braucht Entscheidungen des Nutzers: Trunk, Kosten), Lizenzfrage PJSIP (GPL), iOS (Mac nötig).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

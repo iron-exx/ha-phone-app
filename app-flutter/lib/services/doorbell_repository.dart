@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MissingPluginException, PlatformException;
 
 import '../models/doorbell_event.dart';
 import '../utils/single_flight.dart';
 import 'api_client.dart';
 import 'directory_repository.dart';
 import 'foreground_poller.dart';
+import 'sip_channel.dart';
 
 /// Doorbell history (GET /api/mobile/doorbell): the start page shows the latest
 /// picture, the history screen the list. Pictures are cached in memory.
@@ -51,9 +55,11 @@ class DoorbellRepository extends ChangeNotifier {
           if (!auth.isComplete) return;
           final list = await _api.fetchDoorbell(auth, limit: 50);
           if (epoch != _epoch) return;
+          final newRing = list.isNotEmpty && (_events.isEmpty || list.first.id != _events.first.id);
           _events = list;
           _unsupported = false;
           notifyListeners();
+          if (newRing) unawaited(_refreshWidget());
         } on ApiException catch (e) {
           if (e.kind == ApiErrorKind.unsupported && epoch == _epoch) {
             _unsupported = true;
@@ -77,6 +83,17 @@ class DoorbellRepository extends ChangeNotifier {
     } catch (e) {
       debugPrint('doorbell image ${event.id} failed: $e');
       return null;
+    }
+  }
+
+  /// Home screen widget shows the latest ring; the native side fetches it itself.
+  Future<void> _refreshWidget() async {
+    try {
+      await SipChannel.instance.refreshDoorWidget();
+    } on PlatformException catch (e) {
+      debugPrint('refreshDoorWidget failed: $e');
+    } on MissingPluginException {
+      // Widget tests: no native side.
     }
   }
 
