@@ -168,6 +168,10 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 - Nutzer muss: SIP-Passwort von Nebenstelle 13 im Admin ändern (steht im Git-Verlauf; Ändern war für Claude blockiert).
 - Offen aus Audit (bewusst später): HTTPS + Zertifikat-Pinning für App↔Anlage und SIP-TLS `verifyServer` (braucht Zertifikats-Fingerprint im QR), Kopplungs-Link-Rückfrage (prüfen ob umgesetzt), Lizenzfrage PJSIP (GPL) vs. "All Rights Reserved", CI für app-flutter, HANDOFF-Aufräumen.
 
+## 5a8. 2026-09-25: App 1.0.1 (Erscheinungsbild Dunkel/Hell/System, Standard Dunkel) gepusht. NÄCHSTES PROJEKT: eingebettetes Tailscale
+
+Nutzer-Entscheidung: nur Vollversion. HA-Phone hinterlegt Tailscale-Zugang (OAuth-Client), QR-Kopplung liefert pro Gerät einen Auth-Key in der Provisioning-Antwort, App bettet Tailscale ein (libtailscale, VpnService nur für 100.x) und ist unterwegs erreichbar. Schritt 1: Machbarkeit + Plan in `docs/design/tailscale.md`. Schritt 2: Umsetzung in Etappen.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
