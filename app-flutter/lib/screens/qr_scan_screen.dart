@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HandshakeException;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -7,8 +8,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../app_info.dart';
+import '../services/api_client.dart';
 import '../services/call_launcher.dart';
 import '../services/pairing_reset.dart';
+import '../services/pbx_tls.dart';
 import '../services/provisioning_events.dart';
 import '../services/sip_channel.dart';
 import 'reachability_screen.dart';
@@ -100,18 +103,25 @@ class _QrScanScreenState extends State<QrScanScreen> {
       return;
     }
 
+    // HA-Phone 0.7.130+: the box's cert fingerprint and HTTPS port. The QR code is the
+    // trusted channel, so pairing (it returns the SIP password) already runs pinned.
+    final fp = uri.queryParameters['fp'] ?? '';
+    final httpsPort = int.tryParse(uri.queryParameters['https'] ?? '') ?? 0;
+    final pin = DeviceAuth(apiHost: host, deviceId: '', deviceToken: '', tlsPin: fp, httpsPort: httpsPort);
+
     if (!mounted) return;
     setState(() => _state = _ScreenState.processing);
-    await _completeProvisioning(token: token, host: host);
+    await _completeProvisioning(token: token, host: host, pin: pin);
   }
 
-  Future<void> _completeProvisioning({required String token, required String host}) async {
+  Future<void> _completeProvisioning({required String token, required String host, required DeviceAuth pin}) async {
     try {
       final deviceId = await SipChannel.instance.getDeviceId();
       final fcmToken = await SipChannel.instance.getFcmToken();
 
-      final response = await http.post(
-        Uri.parse('http://$host/api/mobile/provision/complete'),
+      final client = pin.isPinned ? PinnedClients.forPin(pin.tlsPin) : http.Client();
+      final response = await client.post(
+        Uri.parse('${pin.baseUri}/api/mobile/provision/complete'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'provisioning_token': token,
@@ -175,6 +185,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
           apiHost: host,
           deviceId: deviceIdRaw.toString(),
           deviceToken: deviceToken,
+          tlsPin: pin.isPinned ? normalizePin(pin.tlsPin) : '',
+          httpsPort: pin.isPinned ? pin.httpsPort : 0,
         );
       } else {
         debugPrint('provision/complete returned no device token (PBX older than 0.7.102?)');
@@ -197,7 +209,11 @@ class _QrScanScreenState extends State<QrScanScreen> {
         MaterialPageRoute<void>(builder: (_) => const ReachabilityScreen()),
         (route) => route.isFirst,
       ));
-    } catch (_) {
+    } on HandshakeException catch (e) {
+      debugPrint('provisioning: TLS handshake failed: $e');
+      _showError('Zertifikat der Anlage passt nicht zum QR-Code');
+    } catch (e, st) {
+      debugPrint('provisioning failed: $e\n$st');
       _showError('Netzwerkfehler');
     }
   }

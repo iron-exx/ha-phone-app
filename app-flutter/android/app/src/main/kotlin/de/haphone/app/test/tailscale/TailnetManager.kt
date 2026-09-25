@@ -10,7 +10,6 @@ import de.haphone.app.test.HAPhoneTestApplication
 import de.haphone.app.test.SecurePrefs
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.Executors
 
 /**
@@ -219,7 +218,7 @@ object TailnetManager {
             val auth = (app as HAPhoneTestApplication).getDeviceAuth()
             val host = auth["apiHost"].orEmpty()
             if (host.isBlank() || auth["deviceToken"].isNullOrBlank()) return
-            val conn = URL("http://$host/api/mobile/device/tailscale").openConnection() as HttpURLConnection
+            val conn = de.haphone.app.test.net.PbxTls.open(host, "/api/mobile/device/tailscale")
             conn.requestMethod = "POST"
             conn.connectTimeout = 5_000
             conn.readTimeout = 10_000

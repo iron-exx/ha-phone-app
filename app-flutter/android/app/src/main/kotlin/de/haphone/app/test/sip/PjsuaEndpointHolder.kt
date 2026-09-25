@@ -98,9 +98,25 @@ private class HAPhoneEndpoint : Endpoint() {
         val type = runCatching { prm.type }.getOrDefault("?")
         val state = prm.state
         val lastError = prm.lastError
+        if (state == org.pjsip.pjsua2.pjsip_transport_state.PJSIP_TP_STATE_CONNECTED) checkPin(prm, type)
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             de.haphone.app.test.reach.ReachabilityMonitor.onTransportState(type, state, lastError)
         }
+    }
+
+    /**
+     * Cert pinning for SIP TLS (verifyServer stays off: the box's cert is self-signed and
+     * reached by LAN and tailnet IP). This callback runs before PJSIP flushes the queued
+     * REGISTER, so shutting the transport down here means nothing is sent to a wrong peer.
+     * Must stay synchronous on the PJSIP thread for exactly that reason.
+     */
+    private fun checkPin(prm: org.pjsip.pjsua2.OnTransportStateParam, type: String) {
+        val isTls = type.contains("TLS", ignoreCase = true)
+        val pem = runCatching { prm.tlsInfo.takeUnless { it.isEmpty }?.remoteCertInfo?.raw }.getOrNull()
+        if (de.haphone.app.test.net.PbxTls.acceptSipTls(de.haphone.app.test.net.PbxTls.current, isTls, pem)) return
+        android.util.Log.e("PJSIP", "TLS: PBX certificate does not match the paired fingerprint, dropping connection")
+        de.haphone.app.test.net.PbxTls.lastSipPinMismatchMs = System.currentTimeMillis()
+        runCatching { transportShutdown(prm.hnd) }
     }
 }
 

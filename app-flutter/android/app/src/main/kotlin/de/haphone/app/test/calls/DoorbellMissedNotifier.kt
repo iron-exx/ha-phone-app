@@ -14,7 +14,6 @@ import de.haphone.app.test.MainActivity
 import de.haphone.app.test.R
 import org.json.JSONArray
 import java.net.HttpURLConnection
-import java.net.URL
 import java.time.Instant
 import kotlin.concurrent.thread
 
@@ -51,7 +50,7 @@ object DoorbellMissedNotifier {
     private data class Ring(val id: Int, val door: String, val name: String, val at: Instant, val hasImage: Boolean)
 
     private fun get(host: String, auth: Map<String, String>, path: String): HttpURLConnection {
-        val conn = URL("http://$host$path").openConnection() as HttpURLConnection
+        val conn = de.haphone.app.test.net.PbxTls.open(host, path)
         conn.connectTimeout = 5_000
         conn.readTimeout = 10_000
         conn.setRequestProperty("X-Device-Id", auth["deviceId"].orEmpty())

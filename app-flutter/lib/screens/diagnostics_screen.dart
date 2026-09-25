@@ -125,6 +125,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 _tile(Icons.dns_outlined, 'SIP-Server', '${info.sipServer} · ${info.transport}'),
                 _tile(Icons.dialpad, 'Nebenstelle', info.sipUser),
                 _tile(Icons.lan_outlined, 'API-Host', info.apiHost),
+                _tile(Icons.lock_outline, 'Verbindung zur Anlage', info.apiSecurity),
                 _tile(Icons.info_outline, 'App-Version', info.appVersion),
                 const Divider(height: 24),
                 _reachabilityTile(info),

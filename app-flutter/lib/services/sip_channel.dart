@@ -94,13 +94,21 @@ class SipChannel {
     required String apiHost,
     required String deviceId,
     required String deviceToken,
+    String tlsPin = '',
+    int httpsPort = 0,
   }) {
     return _channel.invokeMethod('saveDeviceAuth', {
       'apiHost': apiHost,
       'deviceId': deviceId,
       'deviceToken': deviceToken,
+      'tlsPin': tlsPin,
+      'httpsPort': httpsPort,
     });
   }
+
+  /// Cert pin learned after pairing (PBX updated to 0.7.130+), see DirectoryRepository.
+  Future<void> saveTlsPin(String tlsPin, int httpsPort) =>
+      _channel.invokeMethod('saveTlsPin', {'tlsPin': tlsPin, 'httpsPort': httpsPort});
 
   /// Keys apiHost, deviceId, deviceToken; values are '' when not paired via QR.
   Future<Map<String, String>> getDeviceAuth() async {

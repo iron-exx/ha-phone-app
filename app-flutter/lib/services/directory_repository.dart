@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import '../models/directory.dart';
 import '../utils/single_flight.dart';
@@ -91,6 +92,7 @@ class DirectoryRepository extends ChangeNotifier {
       await _saveCache(fresh);
       if (stale()) return;
       await _pushDoorCodes(fresh);
+      await _learnTlsPin(auth);
     } on ApiException catch (e) {
       if (!stale()) _error = e;
     } catch (e) {
@@ -99,6 +101,24 @@ class DirectoryRepository extends ChangeNotifier {
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  bool _pinTried = false;
+
+  /// Paired before HA-Phone 0.7.130 (QR without cert fingerprint): take the box's pin
+  /// once from /api/mobile/config. The device token already proved it is our box; from
+  /// then on API and SIP TLS only accept that cert.
+  Future<void> _learnTlsPin(DeviceAuth auth) async {
+    if (auth.isPinned || _pinTried) return;
+    _pinTried = true;
+    try {
+      final pin = await _api.fetchTlsPin(auth);
+      if (pin != null) await SipChannel.instance.saveTlsPin(pin.fingerprint, pin.httpsPort);
+    } on ApiException catch (e) {
+      debugPrint('no TLS pin from the PBX: $e');
+    } on PlatformException catch (e) {
+      debugPrint('saveTlsPin failed: $e');
     }
   }
 

@@ -2,7 +2,6 @@ package de.haphone.app.test.ring
 
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * POST /api/mobile/door-open {extension} (HA-Phone 0.7.117) from the native ringing
@@ -14,7 +13,7 @@ object DoorOpenClient {
         if (apiHost.isBlank() || deviceToken.isBlank()) return DoorOpenOutcome.UNAUTHORIZED
         if (!DoorOpenOutcome.isValidExtension(extension)) return DoorOpenOutcome.UNREACHABLE
         return runCatching {
-            val conn = URL("http://$apiHost/api/mobile/door-open").openConnection() as HttpURLConnection
+            val conn = de.haphone.app.test.net.PbxTls.open(apiHost, "/api/mobile/door-open")
             try {
                 conn.requestMethod = "POST"
                 conn.connectTimeout = 5_000

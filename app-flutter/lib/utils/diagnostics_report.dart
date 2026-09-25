@@ -1,4 +1,5 @@
 import '../services/api_client.dart';
+import '../services/pbx_tls.dart';
 
 /// Whether the PBX offers an app feature (HA-Phone version check).
 enum FeatureSupport {
@@ -55,6 +56,7 @@ class DiagnosticsInfo {
     required this.transport,
     required this.apiHost,
     required this.deviceId,
+    this.apiSecurity = '–',
     this.reachability,
     this.features = const [],
   });
@@ -79,6 +81,7 @@ class DiagnosticsInfo {
       transport: 'TLS',
       apiHost: (deviceAuth['apiHost'] ?? '').isEmpty ? '– (nicht per QR gekoppelt)' : deviceAuth['apiHost']!,
       deviceId: (deviceAuth['deviceId'] ?? '').isEmpty ? '–' : deviceAuth['deviceId']!,
+      apiSecurity: apiSecurityText(DeviceAuth.fromMap(deviceAuth)),
       reachability: reachability,
       features: features,
     );
@@ -91,6 +94,9 @@ class DiagnosticsInfo {
   final String transport;
   final String apiHost;
   final String deviceId;
+
+  /// "HTTPS · Zertifikat geprüft (ab12cd…)" or "HTTP, unverschlüsselt".
+  final String apiSecurity;
   final Reachability? reachability;
   final List<FeatureCheck> features;
 
@@ -103,6 +109,7 @@ class DiagnosticsInfo {
         transport: transport,
         apiHost: apiHost,
         deviceId: deviceId,
+        apiSecurity: apiSecurity,
         reachability: reachability ?? this.reachability,
         features: features ?? this.features,
       );
@@ -117,9 +124,17 @@ class DiagnosticsInfo {
       'SIP-Server: $sipServer ($transport)',
       'Nebenstelle: $sipUser',
       'API-Host: $apiHost',
+      'Verbindung zur Anlage: $apiSecurity',
       'Geräte-ID: $deviceId',
       'Anlage: ${reachability?.text ?? 'nicht geprüft'}',
       for (final f in features) '${f.label}: ${f.text}',
     ].join('\n');
   }
+}
+
+/// How the app talks to the PBX API (and which cert SIP TLS accepts).
+String apiSecurityText(DeviceAuth auth) {
+  if (!auth.isComplete) return '–';
+  if (!auth.isPinned) return 'HTTP, unverschlüsselt (Anlage vor 0.7.130)';
+  return 'HTTPS · Zertifikat geprüft (${normalizePin(auth.tlsPin).substring(0, 12)}…)';
 }

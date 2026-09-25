@@ -2,7 +2,6 @@ package de.haphone.app.test.car
 
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * GET /api/mobile/presence with the device auth, for the car's Kontakte list (the Dart
@@ -13,7 +12,7 @@ object CarPresenceClient {
     fun fetch(apiHost: String, deviceId: String, deviceToken: String): Map<String, CarPresence> {
         if (apiHost.isBlank() || deviceToken.isBlank()) return emptyMap()
         return runCatching {
-            val conn = URL("http://$apiHost/api/mobile/presence").openConnection() as HttpURLConnection
+            val conn = de.haphone.app.test.net.PbxTls.open(apiHost, "/api/mobile/presence")
             try {
                 conn.connectTimeout = 5_000
                 conn.readTimeout = 8_000

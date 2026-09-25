@@ -4,7 +4,6 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Home Assistant quick actions of door stations (labels only; the PBX keeps service
@@ -32,7 +31,7 @@ class DoorActionClient(context: Context) {
     fun run(apiHost: String, deviceId: String, deviceToken: String, number: String, index: Int): String? {
         if (apiHost.isBlank() || deviceToken.isBlank()) return "Gerät neu koppeln (QR-Code)"
         return runCatching {
-            val conn = URL("http://$apiHost/api/mobile/door-action").openConnection() as HttpURLConnection
+            val conn = de.haphone.app.test.net.PbxTls.open(apiHost, "/api/mobile/door-action")
             conn.requestMethod = "POST"
             conn.connectTimeout = 5_000
             conn.readTimeout = 10_000

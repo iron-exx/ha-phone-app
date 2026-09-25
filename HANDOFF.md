@@ -300,6 +300,14 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Fix: `setMetered` nur ab Android 10. Alle Go-Callbacks ohne Fehler-Rückgabewert laufen jetzt durch `goSafe` (`tailscale/GoCallback.kt`). Lint `NewApi` ist sauber.
 - Anlage 0.7.130 ist eingespielt (HTTPS 8443, Fingerabdruck im QR). Die App-Seite der Absicherung (Pinning) folgt.
 
+## 5a22. Absicherung App 1.5.0 + Anlage 0.7.130: HTTPS und Zertifikat-Pinning
+
+- **Anlage:** `backend/tls_pin.py` (SHA-256 des PJSIP-Zertifikats), `backend/serve.py` (ein Prozess, HTTP :80 mit Lifespan + HTTPS :8443 ohne Lifespan). QR-Link `&fp=<sha256>&https=8443`, `/provision/complete` und `/config` liefern `tls_fingerprint` und `api_https_port`.
+- **App:** `net/PbxTls.kt` (Kotlin, alle nativen HTTP-Aufrufe über `PbxTls.open`), `services/pbx_tls.dart` (Dart, `PinnedClients`, keine Stammzertifikate, nur der Pin zählt). `DeviceAuth.baseUri` ist https://host:8443, sobald ein Pin da ist. Die Kopplung läuft gepinnt, wenn der QR `fp` enthält. Bestandskopplungen übernehmen den Pin einmalig aus `/api/mobile/config` (`DirectoryRepository._learnTlsPin`). SIP-TLS: `HAPhoneEndpoint.checkPin` trennt den Transport bei falschem Zertifikat **vor** dem Senden des REGISTER. Voicemail- und Aufnahme-Audio werden bei HTTPS direkt heruntergeladen (ExoPlayer kennt den Pin nicht). Diagnose zeigt „Verbindung zur Anlage: HTTPS · Zertifikat geprüft (…)“.
+- Im Emulator geprüft: frische Kopplung (API 35, Nst. 18) und Bestandskopplung (API 28, Nst. 12): beide HTTPS gepinnt, auch über das Tailnet, SIP registriert.
+- Ein einzelner Fehlschlag „Netzwerkfehler“ bei der ersten gepinnten Kopplung ließ sich nicht wiederholen. Seitdem loggt `qr_scan_screen` den Fehler (`provisioning failed:`).
+- Nicht live getestet: der Negativfall (falsches Zertifikat), nur Unit-Tests (Kotlin `PbxTlsTest`, Dart `pbx_tls_test`).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

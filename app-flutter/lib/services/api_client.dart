@@ -12,6 +12,7 @@ import '../models/pbx_call.dart';
 import '../models/presence.dart';
 import '../models/recording.dart';
 import '../models/voicemail.dart';
+import 'pbx_tls.dart';
 
 enum ApiErrorKind {
   /// No device token stored (paired before 0.2.0, or manual setup).
@@ -31,6 +32,9 @@ enum ApiErrorKind {
 
   /// 403 on a feature the admin has not enabled for this extension (call recording).
   notAllowed,
+
+  /// TLS handshake failed: the box presents a different cert than the paired one.
+  certificateMismatch,
 }
 
 /// First HA-Phone version with the presence and voicemail endpoints.
@@ -69,6 +73,8 @@ class ApiException implements Exception {
         ApiErrorKind.server => 'Anlage meldet einen Fehler${statusCode != null ? ' (HTTP $statusCode)' : ''}.',
         ApiErrorKind.unsupported => 'Funktion braucht HA-Phone $minPbxVersion oder neuer.',
         ApiErrorKind.notAllowed => 'Für deine Nebenstelle nicht freigegeben – bitte beim Administrator nachfragen.',
+        ApiErrorKind.certificateMismatch =>
+          'Sichere Verbindung abgelehnt: Die Anlage hat ein anderes Zertifikat. Gerät neu koppeln (QR-Code).',
       };
 
   @override
@@ -77,26 +83,58 @@ class ApiException implements Exception {
 
 /// Credentials for the /api/mobile/* endpoints, from SipChannel.getDeviceAuth.
 class DeviceAuth {
-  const DeviceAuth({required this.apiHost, required this.deviceId, required this.deviceToken});
+  const DeviceAuth({
+    required this.apiHost,
+    required this.deviceId,
+    required this.deviceToken,
+    this.tlsPin = '',
+    this.httpsPort = 0,
+  });
 
   factory DeviceAuth.fromMap(Map<String, String> m) => DeviceAuth(
         apiHost: m['apiHost'] ?? '',
         deviceId: m['deviceId'] ?? '',
         deviceToken: m['deviceToken'] ?? '',
+        tlsPin: m['tlsPin'] ?? '',
+        httpsPort: int.tryParse(m['httpsPort'] ?? '') ?? 0,
       );
 
   final String apiHost;
   final String deviceId;
   final String deviceToken;
 
+  /// SHA-256 of the box's TLS cert and its HTTPS port (HA-Phone 0.7.130+), see pbx_tls.dart.
+  final String tlsPin;
+  final int httpsPort;
+
   bool get isComplete => apiHost.isNotEmpty && deviceId.isNotEmpty && deviceToken.isNotEmpty;
+
+  bool get isPinned => httpsPort > 0 && isValidPin(tlsPin);
+
+  /// "https://host:8443" when pinned, else "http://<apiHost>" like before 0.7.130.
+  Uri get baseUri {
+    if (!isPinned) return Uri.parse('http://$apiHost');
+    return Uri(scheme: 'https', host: _hostOnly(apiHost), port: httpsPort);
+  }
+
+  static String _hostOnly(String h) {
+    final t = h.trim();
+    if (t.startsWith('[')) return t.substring(1, t.indexOf(']'));
+    return ':'.allMatches(t).length == 1 ? t.substring(0, t.indexOf(':')) : t;
+  }
 }
 
-/// Plain-HTTP client for the HA-Phone mobile API (port 80 on the box, LAN only).
+/// Client for the HA-Phone mobile API: pinned HTTPS (8443) when the pairing has a
+/// cert fingerprint, else plain HTTP on port 80 like before HA-Phone 0.7.130.
 class ApiClient {
-  ApiClient({http.Client? client}) : _client = client ?? http.Client();
+  ApiClient({http.Client? client}) : _injected = client;
 
-  final http.Client _client;
+  /// Test seam: used for every request, pinned or not.
+  final http.Client? _injected;
+  static final http.Client _plain = http.Client();
+
+  http.Client _clientFor(DeviceAuth auth) =>
+      _injected ?? (auth.isPinned ? PinnedClients.forPin(auth.tlsPin) : _plain);
 
   static const _timeout = Duration(seconds: 8);
   static const _downloadTimeout = Duration(seconds: 30);
@@ -105,7 +143,17 @@ class ApiClient {
   static Map<String, String> authHeaders(DeviceAuth auth) =>
       {'X-Device-Id': auth.deviceId, 'X-Device-Token': auth.deviceToken};
 
-  Uri _uri(DeviceAuth auth, String path) => Uri.parse('http://${auth.apiHost}$path');
+  Uri _uri(DeviceAuth auth, String path) => Uri.parse('${auth.baseUri}$path');
+
+  /// Cert pin of the box for a device paired before HA-Phone 0.7.130 (trust on first use,
+  /// the device token already proves it is our box); null when the PBX has none.
+  Future<({String fingerprint, int httpsPort})?> fetchTlsPin(DeviceAuth auth) async {
+    final response = await _send(auth, 'GET', '/api/mobile/config', notFoundIsUnsupported: false);
+    final body = _decodeObject(response);
+    final fp = body['tls_fingerprint'] as String? ?? '';
+    final port = (body['api_https_port'] as num?)?.toInt() ?? 0;
+    return isValidPin(fp) && port > 0 ? (fingerprint: normalizePin(fp), httpsPort: port) : null;
+  }
 
   Future<Directory> fetchDirectory(DeviceAuth auth) async {
     // 404 stays a server error here: the directory exists since 0.7.102.
@@ -307,14 +355,17 @@ class ApiClient {
       if (body != null) 'Content-Type': 'application/json',
     };
     final http.Response response;
+    final client = _clientFor(auth);
     try {
       final Future<http.Response> request = switch (method) {
-        'PUT' => _client.put(uri, headers: headers, body: jsonEncode(body)),
-        'POST' => _client.post(uri, headers: headers, body: jsonEncode(body)),
-        'DELETE' => _client.delete(uri, headers: headers),
-        _ => _client.get(uri, headers: headers),
+        'PUT' => client.put(uri, headers: headers, body: jsonEncode(body)),
+        'POST' => client.post(uri, headers: headers, body: jsonEncode(body)),
+        'DELETE' => client.delete(uri, headers: headers),
+        _ => client.get(uri, headers: headers),
       };
       response = await request.timeout(timeout);
+    } on HandshakeException {
+      throw const ApiException(ApiErrorKind.certificateMismatch);
     } on SocketException {
       throw const ApiException(ApiErrorKind.unreachable);
     } on TimeoutException {

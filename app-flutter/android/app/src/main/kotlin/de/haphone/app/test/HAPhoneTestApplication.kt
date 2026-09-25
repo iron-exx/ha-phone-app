@@ -300,6 +300,7 @@ class HAPhoneTestApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        loadTlsPin()
         ShortWakeLock.attach(this)
         de.haphone.app.test.reach.ReachabilityMonitor.attach(this)
         de.haphone.app.test.ring.RingPolicyStore.attach(this) { number ->
@@ -402,13 +403,31 @@ class HAPhoneTestApplication : Application() {
     }
 
     /** Device secret from QR pairing, needed for the phone-facing /api/mobile endpoints. */
-    fun saveDeviceAuth(apiHost: String, deviceId: String, deviceToken: String) {
+    fun saveDeviceAuth(apiHost: String, deviceId: String, deviceToken: String, tlsPin: String = "", httpsPort: Int = 0) {
         SecurePrefs.get(this).edit().apply {
             putString("api_host", apiHost)
             putString("device_id", deviceId)
             putString("device_token", deviceToken)
+            putString(K_TLS_PIN, tlsPin)
+            putInt(K_HTTPS_PORT, httpsPort)
             apply()
         }
+        de.haphone.app.test.net.PbxTls.configure(de.haphone.app.test.net.PbxTls.Pin(tlsPin, httpsPort))
+    }
+
+    /** Pin learned later for a device paired before HA-Phone 0.7.130 (from /api/mobile/config). */
+    fun saveTlsPin(tlsPin: String, httpsPort: Int) {
+        val pin = de.haphone.app.test.net.PbxTls.Pin(tlsPin, httpsPort)
+        if (!pin.isSet) return
+        SecurePrefs.get(this).edit().putString(K_TLS_PIN, tlsPin).putInt(K_HTTPS_PORT, httpsPort).apply()
+        de.haphone.app.test.net.PbxTls.configure(pin)
+    }
+
+    private fun loadTlsPin() {
+        val pin = runCatching {
+            SecurePrefs.read(this) { de.haphone.app.test.net.PbxTls.Pin(it.getString(K_TLS_PIN, "").orEmpty(), it.getInt(K_HTTPS_PORT, 0)) }
+        }.getOrNull() ?: return
+        de.haphone.app.test.net.PbxTls.configure(pin)
     }
 
     fun getDeviceAuth(): Map<String, String> = SecurePrefs.read(this) { prefs ->
@@ -420,11 +439,14 @@ class HAPhoneTestApplication : Application() {
             ),
             "deviceId" to prefs.getString("device_id", "").orEmpty(),
             "deviceToken" to prefs.getString("device_token", "").orEmpty(),
+            "tlsPin" to prefs.getString(K_TLS_PIN, "").orEmpty(),
+            "httpsPort" to prefs.getInt(K_HTTPS_PORT, 0).toString(),
         )
     }
 
     fun clearCredentials() {
         SecurePrefs.get(this).edit().clear().apply()
+        de.haphone.app.test.net.PbxTls.configure(de.haphone.app.test.net.PbxTls.Pin.NONE)
         de.haphone.app.test.reach.ReachabilityMonitor.stop(this)
     }
 
@@ -450,5 +472,7 @@ class HAPhoneTestApplication : Application() {
         /** Telecom echoes our own answer within a few seconds at most. */
         private const val LOCAL_ANSWER_WINDOW_MS = 5_000L
         const val FLUTTER_ENGINE_ID = "de.haphone.app.test.main_engine"
+        private const val K_TLS_PIN = "tls_pin"
+        private const val K_HTTPS_PORT = "https_port"
     }
 }

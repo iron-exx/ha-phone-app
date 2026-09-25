@@ -131,7 +131,15 @@ class SipChannelHandler(
                         apiHost = args["apiHost"] as? String ?: "",
                         deviceId = args["deviceId"] as? String ?: "",
                         deviceToken = args["deviceToken"] as? String ?: "",
+                        tlsPin = args["tlsPin"] as? String ?: "",
+                        httpsPort = (args["httpsPort"] as? Number)?.toInt() ?: 0,
                     )
+                    result.success(null)
+                }
+
+                "saveTlsPin" -> {
+                    val args = call.arguments as Map<*, *>
+                    app.saveTlsPin(args["tlsPin"] as? String ?: "", (args["httpsPort"] as? Number)?.toInt() ?: 0)
                     result.success(null)
                 }
 

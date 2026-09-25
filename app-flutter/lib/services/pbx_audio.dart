@@ -73,18 +73,25 @@ class JustAudioPbx implements PbxAudio {
 
   @override
   Future<void> load(PbxAudioSource source) async {
+    // Pinned HTTPS: ExoPlayer would reject the box's self-signed cert, so go straight
+    // to the (pinned) download.
+    if (source.uri.scheme == 'https') return _loadDownloaded(source);
     try {
       await _player.setAudioSource(AudioSource.uri(source.uri, headers: source.headers));
     } on ApiException {
       rethrow;
     } catch (e) {
       debugPrint('audio stream failed, downloading instead: $e');
-      final bytes = await source.download();
-      final file = File('${Directory.systemTemp.path}/${source.tempFileName}');
-      await file.writeAsBytes(bytes, flush: true);
-      _tempFile = file;
-      await _player.setFilePath(file.path);
+      await _loadDownloaded(source);
     }
+  }
+
+  Future<void> _loadDownloaded(PbxAudioSource source) async {
+    final bytes = await source.download();
+    final file = File('${Directory.systemTemp.path}/${source.tempFileName}');
+    await file.writeAsBytes(bytes, flush: true);
+    _tempFile = file;
+    await _player.setFilePath(file.path);
   }
 
   Future<void> _rewind() async {
