@@ -83,9 +83,9 @@ class TsAppContext(context: Context) : libtailscale.AppContext {
         return out.toString()
     }
 
-    // Empty: Go then reads the DNS config from the interfaces / Google fallback. We never
-    // make the tailnet the system DNS anyway (CorpDNS off).
-    override fun getPlatformDNSConfig(): String = ""
+    // DNS of the physical default network (Go's own resolver for control/DERP). We never
+    // make the tailnet the system DNS (CorpDNS off).
+    override fun getPlatformDNSConfig(): String = TsNetworkMonitor.platformDnsConfig
 
     // No MDM. The message must match syspolicy.ErrNoSuchKey, Go compares the text.
     override fun getSyspolicyStringValue(key: String): String = throw NoSuchKey()

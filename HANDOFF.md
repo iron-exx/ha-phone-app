@@ -210,6 +210,20 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Getestet: Unit-Tests (401 Dart, Kotlin grün), Emulator-Neukopplung ohne Tailscale auf der Box (keine Regression). **Noch nicht getestet:** der echte Beitritt, weil das Tailscale-Add-on auf der HA-Box noch fehlt. Der Nutzer installiert es gerade.
 - Nächster Test sobald das Add-on läuft: Emulator neu koppeln (`provision_link.py 18`), Erlaubnis bestätigen (bzw. `appops set … ACTIVATE_VPN allow`), Login-Seite im Emulator-Browser. Das muss der Nutzer machen, oder er richtet die Vollautomatik ein. Danach `TailnetManager`-Log: „PBX route -> tailnet“, Registrierung über 100.x.
 
+## 5a13. Tailscale E2E im Emulator BESTANDEN (2026-09-25 mittags, App 1.1.0, Anlage 0.7.124)
+
+- Tailnet des Nutzers: `tail4a5752.ts.net`, HA-Box `homeassistant` = **100.117.178.114**. Die Vollautomatik (OAuth-Client) ist in HA-Phone eingerichtet und grün.
+- Emulator (Nebenstelle 18): QR → Einmal-Key → Running in ca. 4 s → Node an die Anlage gemeldet → `REGISTER sip:100.117.178.114:5061;transport=tls` → 200 OK. Neustart der App: verbindet sich von allein (ohne neue Anmeldung), die Route bleibt auf tailnet. Ping auf die Box über den Tunnel geht.
+- Dabei behobene Fehler (alles in den Commits):
+  1. `start` mit AuthKey allein meldet nicht an. Danach muss `login-interactive` folgen (wie `tailscale up`).
+  2. Go braucht den Default-Netz-Namen: `TsNetworkMonitor` → `Libtailscale.onDNSConfigChanged(ifname)` + `onGatewayChanged`. Ohne das sieht Go `defIf=""`, und nach einem Neustart ging es nie wieder online.
+  3. `NoState` direkt nach dem Start nicht als „abgemeldet“ werten (`settledState`), sonst erzwingt jeder Neustart eine neue Anmeldung.
+  4. **Nie den State-Store löschen** beim Logout: Go benutzt den Machine Key aus dem RAM weiter, ohne ihn neu zu schreiben. Nach dem Neustart kam sonst „bad machine key“.
+  5. IPN-Notifications kommen außer der Reihe (ein veraltetes NoState nach Running): Der Zustand wird jetzt immer per `status` gelesen.
+  6. Android `optString` gibt für JSON-null den Text "null" zurück (BrowseToURL).
+  7. Anlage: Der Verbindungstest nahm ein gecachtes Token (Tags stecken im Token). Die Key-Sperre gilt jetzt pro Kopplung. Neukopplung desselben Handys widerruft die alte Kopplung und löscht deren Tailnet-Gerät.
+- Offen: der echte Mobilfunk-Test am Handy, Deep-Doze mit Tunnel, Türvideo über den Tunnel (door_sim über 100.x), Fremd-VPN-Fall, Akku-Messung. Der Nutzer-Weg ohne OAuth (Browser-Login) wurde nur bis zur Login-URL getestet.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

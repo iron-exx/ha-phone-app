@@ -31,6 +31,12 @@ object TailnetManager {
     private const val K_HOSTNAME = "ts_hostname"
     private const val K_PBX_IP = "ts_pbx_ip"
     private const val K_REPORTED = "ts_reported_node"
+    // ipn.State enum order (tailscale.com/ipn).
+    private val STATE_NAMES = listOf(
+        "NoState", "InUseOtherUser", "NeedsLogin", "NeedsMachineAuth", "Stopped", "Starting", "Running",
+    )
+    private const val SETTLE_TRIES = 20
+    private const val SETTLE_STEP_MS = 250L
 
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "tailnet") }
     private val main = Handler(Looper.getMainLooper())
@@ -109,15 +115,23 @@ object TailnetManager {
             val prefs = SecurePrefs.get(app)
             val hostname = prefs.getString(K_HOSTNAME, null) ?: "haphone"
             val key = prefs.getString(K_AUTH_KEY, null)
-            val state = Tailscale.status(app).optString("BackendState")
+            // Right after process start the backend still says NoState while it loads the
+            // stored identity. Deciding on that would force a new login on every restart.
+            val state = settledState(app)
+            Log.i(TAG, "join: state=$state key=${!key.isNullOrBlank()}")
+            val up = state == "Running" || state == "Starting"
             when {
-                !key.isNullOrBlank() && state != "Running" -> {
+                // Fresh pairing key: use it whenever the tunnel is not already up.
+                !key.isNullOrBlank() && !up -> {
                     Tailscale.loginWithAuthKey(app, key, hostname)
                     // One-time key: gone once used, never kept around.
                     prefs.edit().remove(K_AUTH_KEY).commit()
                 }
-                state == "NeedsLogin" || state == "NoState" -> Tailscale.startInteractiveLogin(app, hostname)
-                else -> Tailscale.connect(app)
+                key.isNullOrBlank() && state == "NeedsLogin" -> Tailscale.startInteractiveLogin(app, hostname)
+                else -> {
+                    if (!key.isNullOrBlank()) prefs.edit().remove(K_AUTH_KEY).commit()
+                    Tailscale.connect(app)
+                }
             }
         } catch (e: Exception) {
             lastError = e.message
@@ -125,24 +139,42 @@ object TailnetManager {
         }
     }
 
+    /** Backend state once it left NoState (at most ~5 s), as ipn.State name. */
+    private fun settledState(app: Context): String {
+        repeat(SETTLE_TRIES) {
+            val st = Tailscale.status(app).optString("BackendState")
+            if (st.isNotEmpty() && st != "NoState") return st
+            Thread.sleep(SETTLE_STEP_MS)
+        }
+        return Tailscale.status(app).optString("BackendState")
+    }
+
     private fun ensureWatching(app: Context) {
         if (watcher != null) return
         Tailscale.onVpnChanged = { updateRoute(app) }
         watcher = Tailscale.watch(
             app,
-            onState = { st ->
-                backendState = st
-                if (st == Tailscale.STATE_RUNNING) {
-                    lastLoginUrl = null
-                    worker.execute { reportNode(app) }
-                }
-                updateRoute(app)
-            },
+            // Notifications can arrive out of order (a stale NoState after Running), so they
+            // only trigger a re-read of the authoritative state.
+            onState = { worker.execute { refreshState(app) } },
             onLoginUrl = { url ->
                 lastLoginUrl = url
                 openBrowser(app, url)
             },
         )
+    }
+
+    private fun refreshState(app: Context) {
+        val name = runCatching { Tailscale.status(app).optString("BackendState") }.getOrDefault("")
+        val st = STATE_NAMES.indexOf(name)
+        if (st < 0) return
+        val wasRunning = backendState == Tailscale.STATE_RUNNING
+        backendState = st
+        if (st == Tailscale.STATE_RUNNING && !wasRunning) {
+            lastLoginUrl = null
+            reportNode(app)
+        }
+        updateRoute(app)
     }
 
     private fun openBrowser(app: Context, url: String) {
@@ -152,11 +184,12 @@ object TailnetManager {
     }
 
     /** Re-registers SIP when the route to the PBX changes (tunnel up/down). */
+    @Synchronized
     private fun updateRoute(app: Context) {
         val now = TailnetRoute.useTailnet(pbxTailnetIp(app), running)
         if (now == routedViaTailnet) return
         routedViaTailnet = now
-        Log.i(TAG, "PBX route -> ${if (now) "tailnet" else "LAN"}")
+        Log.i(TAG, "PBX route -> ${if (now) "tailnet" else "LAN"} (state=$backendState vpn=${Tailscale.vpnActive})")
         main.post {
             val a = app as? HAPhoneTestApplication ?: return@post
             if (!a.hasValidCredentials()) return@post

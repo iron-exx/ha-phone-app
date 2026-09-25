@@ -3,7 +3,6 @@ package de.haphone.app.test.tailscale
 import android.content.Context
 import android.net.VpnService
 import android.util.Log
-import de.haphone.app.test.SecurePrefs
 import libtailscale.Libtailscale
 import org.json.JSONObject
 
@@ -39,7 +38,10 @@ object Tailscale {
         val ctx = context.applicationContext
         // directFileRoot "" = Taildrop off; hardware attestation off.
         return Libtailscale.start(ctx.filesDir.absolutePath, "", false, TsAppContext(ctx))
-            .also { app = it }
+            .also {
+                app = it
+                TsNetworkMonitor.start(ctx)
+            }
     }
 
     /** Null when the VPN may be started right away, else the system consent intent. */
@@ -59,6 +61,9 @@ object Tailscale {
         if (!controlUrl.isNullOrBlank()) prefs.put("ControlURL", controlUrl)
         val body = JSONObject().put("AuthKey", authKey).put("UpdatePrefs", prefs)
         call(a, "POST", "start", body.toString())
+        // Like `tailscale up --authkey`: Start only hands the key to the control client,
+        // the login itself (silent, no URL, the key is used) needs StartLoginInteractive.
+        call(a, "POST", "login-interactive", null)
         connect(context)
     }
 
@@ -82,7 +87,7 @@ object Tailscale {
         var watcher: libtailscale.NotificationManager? = null
         watcher = a.watchNotifications(NOTIFY_INITIAL_STATE or NOTIFY_NO_NETMAP) { bytes ->
             val n = JSONObject(bytes.decodeToString())
-            n.optString("BrowseToURL").takeIf { it.isNotEmpty() }?.let(onUrl)
+            browseUrl(n)?.let(onUrl)
             if (n.has("State") && n.optInt("State") == STATE_RUNNING) {
                 onRunning()
                 watcher?.stop()
@@ -105,14 +110,15 @@ object Tailscale {
         TsVpnService.stop(context)
     }
 
-    /** Leaves the tailnet and forgets the node identity (unpairing). */
+    /**
+     * Leaves the tailnet (unpairing). Tailscale's own logout drops the node key and the
+     * login profile. The state store is deliberately NOT wiped here: Go keeps the machine
+     * key in memory and would reuse it for the next login without writing it again, so a
+     * wiped store gave a fresh machine key after the next restart ("bad machine key").
+     */
     fun logout(context: Context) {
         app?.let { runCatching { call(it, "POST", "logout", null) } }
         TsVpnService.stop(context)
-        val prefs = SecurePrefs.get(context)
-        val edit = prefs.edit()
-        prefs.all.keys.filter { it.startsWith(TsAppContext.STATE_PREFIX) }.forEach { edit.remove(it) }
-        edit.commit()
     }
 
     /** ipnstate.Status as JSON (BackendState, Self.TailscaleIPs, Self.ID, ...). */
@@ -130,7 +136,7 @@ object Tailscale {
         ensureStarted(context).watchNotifications(NOTIFY_INITIAL_STATE or NOTIFY_NO_NETMAP) { bytes ->
             val n = JSONObject(bytes.decodeToString())
             if (n.has("State")) onState(n.optInt("State"))
-            n.optString("BrowseToURL").takeIf { it.isNotEmpty() }?.let(onLoginUrl)
+            browseUrl(n)?.let(onLoginUrl)
         }
 
     /** Starts a browser login; the URL arrives through [watch]. */
@@ -157,6 +163,10 @@ object Tailscale {
         revoked = true
         onVpnActive(false)
     }
+
+    /** Android's optString turns JSON null into the text "null". */
+    private fun browseUrl(n: JSONObject): String? =
+        if (n.isNull("BrowseToURL")) null else n.optString("BrowseToURL").takeIf { it.startsWith("https://") }
 
     private fun call(a: libtailscale.Application, method: String, endpoint: String, body: String?): String {
         val stream = body?.let { ByteStream(it.toByteArray()) }
