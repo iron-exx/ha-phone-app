@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="door_open"
+        android:enabled="true"
+        android:icon="@drawable/ic_stat_haphone"
+        android:shortcutShortLabel="@string/shortcut_door_open">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="de.haphone.app.test"
+            android:targetClass="de.haphone.app.test.quick.DoorOpenConfirmActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="doorbell_history"
+        android:enabled="true"
+        android:icon="@drawable/ic_stat_haphone"
+        android:shortcutShortLabel="@string/shortcut_doorbell">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="de.haphone.app.test"
+            android:targetClass="de.haphone.app.test.MainActivity">
+            <extra android:name="route" android:value="doorbell" />
+        </intent>
+    </shortcut>
+</shortcuts>

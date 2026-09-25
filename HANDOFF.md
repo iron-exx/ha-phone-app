@@ -259,6 +259,12 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - **Noch nicht live getestet** (braucht echte person.*-Zustände, z. B. eine Test-Person in HA oder die Personen des Nutzers). Test: Klingelgruppe mit 18 + 11 anlegen, 18 bekommt eine abwesende Person, 11 eine anwesende, door_sim ruft die Gruppe → 18 darf nicht klingeln.
 - Danach: **Etappe 4** Widget/Schnellzugriff (App-only: Glance-Widget „Tür öffnen“ + letztes Klingelbild, TileService, App-Shortcuts).
 
+## 5a18. Etappe 4: Schnellzugriff (App 1.3.0) + Fix Anlage 0.7.128
+
+- `quick/DoorOpenConfirmActivity` (fragt immer nach, eine Tür: „Öffnen“, mehrere: Liste, dann `DoorOpenClient.open`), `quick/DoorOpenTileService` (Schnelleinstellungs-Kachel „Tür öffnen“, bei Sperre `unlockAndRun`), `res/xml/shortcuts.xml` (Kurzbefehle „Tür öffnen“ und „Klingel-Verlauf“ → Route `doorbell`). Türen = `DoorCodes.openRemoteNumbers()` (Türen mit Webhook). Im Emulator getestet: Rückfrage → „Tür 17 geöffnet“.
+- Noch nicht gebaut: Startbildschirm-Widget mit Klingelbild (Glance). Das ist optional, Kachel und Kurzbefehle decken den Hauptnutzen ab.
+- Anlage 0.7.128: Die HA-Personen des Nutzers melden zu Hause **„Zuhause“** (Name von zone.home) statt `home`. `ha_presence` zählt jetzt `home` plus den friendly_name von `zone.home`. Personen: person.sandro, person.larissa, person.nils, person.smarthome, person.ipad, person.kiosk, person.nfc1.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

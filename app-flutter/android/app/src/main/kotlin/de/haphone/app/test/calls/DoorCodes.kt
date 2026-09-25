@@ -24,6 +24,10 @@ class DoorCodes(context: Context) {
         remotePrefs.edit().clear().putStringSet(KEY_REMOTE, numbers.filter { it.isNotBlank() }.toSet()).apply()
     }
 
+    /** Doors that can be opened without a call (quick settings tile, shortcut). */
+    fun openRemoteNumbers(): List<String> =
+        remotePrefs.getStringSet(KEY_REMOTE, emptySet()).orEmpty().sorted()
+
     fun hasOpenRemote(number: String): Boolean =
         remotePrefs.getStringSet(KEY_REMOTE, emptySet()).orEmpty().contains(number)
 
