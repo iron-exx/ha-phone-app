@@ -293,6 +293,13 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - 414 Dart-Tests grün, Kotlin-Unit grün, Release gebaut und im Emulator installiert (Heute-Leiste sichtbar geprüft).
 - Offen aus den eigenen Vorschlägen: Glance-Widget, Sicherheitspunkte (TLS verifyServer + Fingerprint im QR, HTTPS), Rückfall auf die Mobilnummer.
 
+## 5a21. Fix App 1.4.1: Absturz nach dem Koppeln auf Android 8/9 (Mi 6 des Nutzers)
+
+- Symptom: SIGABRT `Unknown reference: 42` in `libgojni.so`, ca. 2 s nach dem Tailscale-Start. Auf einem Android-9-Emulator (`haphone_api28`, Port 5556) nachgestellt.
+- Ursache: `VpnService.Builder.setMetered` gibt es erst ab API 29. Der `NoSuchMethodError` in `TsVpnService.newBuilder()` blieb im Go-Callback offen (`NewBuilder` hat keinen Fehler-Rückgabewert), und der nächste JNI-Aufruf (`Seq.getRef` → null) brach die App ab.
+- Fix: `setMetered` nur ab Android 10. Alle Go-Callbacks ohne Fehler-Rückgabewert laufen jetzt durch `goSafe` (`tailscale/GoCallback.kt`). Lint `NewApi` ist sauber.
+- Anlage 0.7.130 ist eingespielt (HTTPS 8443, Fingerabdruck im QR). Die App-Seite der Absicherung (Pinning) folgt.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
@@ -347,6 +354,7 @@ Außerdem offen (unverändert):
 - `PATCH /extensions` nutzt `exclude_none`, Felder lassen sich also nicht auf null setzen, nur auf `""`.
 
 **Android / Flutter**
+- **Go-Callbacks (gomobile) dürfen nie werfen**, wenn die Go-Methode keinen `error` zurückgibt. Die Java-Ausnahme bleibt sonst offen, und der nächste JNI-Aufruf bricht mit `Unknown reference: <n>` ab. Immer `goSafe` benutzen. APIs über minSdk 26 per `SDK_INT` absichern und bei Android-Code `./gradlew :app:lintDebug` laufen lassen (NewApi).
 - **Die Manifest-Permission `RECORD_AUDIO` fehlte**, das ergab `PJMEDIA_EAUD_INIT` beim Wählen.
 - Fehler in Kotlin-Lambdas, die später in Coroutines laufen (z. B. `reportOutgoingCall { makeCall }`), liegen **außerhalb** des `try/catch` im MethodChannel-Handler und beenden die App. Dort selbst abfangen.
 - Aufgelegt wird immer auch in Telecom (`releaseTelecomCall`), sonst hängt ein "wählt"-Anruf im System fest.

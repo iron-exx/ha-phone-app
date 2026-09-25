@@ -20,8 +20,9 @@ import java.util.Collections
 class TsAppContext(context: Context) : libtailscale.AppContext {
     private val app = context.applicationContext
 
-    override fun log(tag: String, line: String) {
+    override fun log(tag: String, line: String) = goSafe("log", Unit) {
         Log.d("TS/$tag", line)
+        Unit
     }
 
     override fun encryptToPref(key: String, value: String) {
@@ -31,11 +32,11 @@ class TsAppContext(context: Context) : libtailscale.AppContext {
     override fun decryptFromPref(key: String): String =
         SecurePrefs.read(app) { it.getString(key, null) } ?: ""
 
-    override fun getStateStoreKeysJSON(): String {
+    override fun getStateStoreKeysJSON(): String = goSafe("getStateStoreKeysJSON", "[]") {
         val keys = SecurePrefs.read(app) { prefs ->
             prefs.all.keys.filter { it.startsWith(STATE_PREFIX) }.map { it.removePrefix(STATE_PREFIX) }
         }
-        return JSONArray(keys).toString()
+        JSONArray(keys).toString()
     }
 
     override fun getOSVersion(): String = Build.VERSION.RELEASE
@@ -85,7 +86,7 @@ class TsAppContext(context: Context) : libtailscale.AppContext {
 
     // DNS of the physical default network (Go's own resolver for control/DERP). We never
     // make the tailnet the system DNS (CorpDNS off).
-    override fun getPlatformDNSConfig(): String = TsNetworkMonitor.platformDnsConfig
+    override fun getPlatformDNSConfig(): String = goSafe("getPlatformDNSConfig", "") { TsNetworkMonitor.platformDnsConfig }
 
     // No MDM. The message must match syspolicy.ErrNoSuchKey, Go compares the text.
     override fun getSyspolicyStringValue(key: String): String = throw NoSuchKey()

@@ -3,6 +3,7 @@ package de.haphone.app.test.tailscale
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.system.OsConstants
 import android.util.Log
 import libtailscale.Libtailscale
@@ -37,29 +38,36 @@ class TsVpnService : VpnService(), libtailscale.IPNService {
 
     override fun id(): String = id
 
-    override fun protect(fd: Int): Boolean = super.protect(fd)
+    override fun protect(fd: Int): Boolean = goSafe("protect", false) { super.protect(fd) }
 
-    override fun newBuilder(): libtailscale.VPNServiceBuilder {
+    // Go calls the IPNService methods below without an error result: they must not throw.
+    override fun newBuilder(): libtailscale.VPNServiceBuilder = goSafe("newBuilder", null) { makeBuilder() }
+        ?: SplitTunnelBuilder(Builder())
+
+    private fun makeBuilder(): libtailscale.VPNServiceBuilder {
         val b = Builder()
             .setSession("HA-Phone")
             .allowFamily(OsConstants.AF_INET)
             .allowFamily(OsConstants.AF_INET6)
-            .setMetered(false)
+        // setMetered exists from Android 10. On 8/9 the NoSuchMethodError stayed pending in
+        // this Go callback (NewBuilder has no error result) and the next JNI call aborted
+        // the app with "Unknown reference: 42" (Mi 6, Android 9).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) b.setMetered(false)
         return SplitTunnelBuilder(b)
     }
 
-    override fun updateVpnStatus(active: Boolean) {
+    override fun updateVpnStatus(active: Boolean) = goSafe("updateVpnStatus", Unit) {
         Tailscale.onVpnActive(active)
     }
 
-    override fun close() {
-        if (closed) return
+    override fun close() = goSafe("close", Unit) {
+        if (closed) return@goSafe
         closed = true
         Libtailscale.serviceDisconnect(this)
         stopSelf()
     }
 
-    override fun disconnectVPN() {
+    override fun disconnectVPN() = goSafe("disconnectVPN", Unit) {
         stopSelf()
     }
 
