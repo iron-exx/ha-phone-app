@@ -19,7 +19,9 @@ object Tailscale {
     // ipn.NotifyWatchOpt bits and ipn.State names (tailscale.com/ipn).
     private const val NOTIFY_INITIAL_STATE = 2L
     private const val NOTIFY_NO_NETMAP = 8192L
-    private const val STATE_RUNNING = 6 // ipn.Running; Notify.State is the numeric enum
+    // ipn.State: Notify.State is the numeric enum.
+    const val STATE_NEEDS_LOGIN = 2
+    const val STATE_RUNNING = 6
 
     @Volatile private var app: libtailscale.Application? = null
 
@@ -117,14 +119,43 @@ object Tailscale {
     fun status(context: Context): JSONObject =
         JSONObject(call(ensureStarted(context), "GET", "status", null))
 
+    /** Listener for tunnel up/down ([TailnetManager] switches the PBX route on it). */
+    @Volatile var onVpnChanged: ((Boolean) -> Unit)? = null
+
+    /**
+     * Streams backend state changes (ipn.State ints) and login URLs until stopped.
+     * Callbacks come on a Go thread.
+     */
+    fun watch(context: Context, onState: (Int) -> Unit, onLoginUrl: (String) -> Unit): libtailscale.NotificationManager =
+        ensureStarted(context).watchNotifications(NOTIFY_INITIAL_STATE or NOTIFY_NO_NETMAP) { bytes ->
+            val n = JSONObject(bytes.decodeToString())
+            if (n.has("State")) onState(n.optInt("State"))
+            n.optString("BrowseToURL").takeIf { it.isNotEmpty() }?.let(onLoginUrl)
+        }
+
+    /** Starts a browser login; the URL arrives through [watch]. */
+    fun startInteractiveLogin(context: Context, hostname: String) {
+        val a = ensureStarted(context)
+        val prefs = JSONObject()
+            .put("WantRunning", true)
+            .put("CorpDNS", false)
+            .put("RouteAll", false)
+            .put("Hostname", hostname)
+        call(a, "POST", "start", JSONObject().put("UpdatePrefs", prefs).toString())
+        call(a, "POST", "login-interactive", null)
+        connect(context)
+    }
+
     internal fun onVpnActive(active: Boolean) {
+        val changed = vpnActive != active
         vpnActive = active
         Log.i(TAG, "VPN active=$active")
+        if (changed) onVpnChanged?.invoke(active)
     }
 
     internal fun onRevoked() {
         revoked = true
-        vpnActive = false
+        onVpnActive(false)
     }
 
     private fun call(a: libtailscale.Application, method: String, endpoint: String, body: String?): String {

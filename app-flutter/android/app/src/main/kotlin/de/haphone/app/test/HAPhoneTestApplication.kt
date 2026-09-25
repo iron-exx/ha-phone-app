@@ -366,6 +366,8 @@ class HAPhoneTestApplication : Application() {
             .registerViewFactory(RemoteVideoViewFactory.VIEW_TYPE, RemoteVideoViewFactory())
         flutterEngine.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
         FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_ID, flutterEngine)
+        // Tailscale tunnel back up after a restart (only if paired with it and consent holds).
+        de.haphone.app.test.tailscale.TailnetManager.resume(this)
     }
 
     /** Raw stored values only -- what the Settings screen should display. */
@@ -406,7 +408,11 @@ class HAPhoneTestApplication : Application() {
 
     fun getDeviceAuth(): Map<String, String> = SecurePrefs.read(this) { prefs ->
         mapOf(
-            "apiHost" to prefs.getString("api_host", "").orEmpty(),
+            "apiHost" to de.haphone.app.test.tailscale.TailnetRoute.apiHost(
+                prefs.getString("api_host", "").orEmpty(),
+                prefs.getString("ts_pbx_ip", null),
+                de.haphone.app.test.tailscale.TailnetManager.running,
+            ),
             "deviceId" to prefs.getString("device_id", "").orEmpty(),
             "deviceToken" to prefs.getString("device_token", "").orEmpty(),
         )
@@ -420,7 +426,13 @@ class HAPhoneTestApplication : Application() {
     /** Credentials come only from provisioning (QR pairing / Settings); empty until then. */
     private fun getSipCredentialsForRegistration(): List<String> {
         val c = getStoredCredentials()
-        return listOf(c["host"].orEmpty(), c["port"].orEmpty(), c["username"].orEmpty(), c["password"].orEmpty())
+        // Over the tailnet while our Tailscale tunnel runs, else the LAN address from pairing.
+        val host = de.haphone.app.test.tailscale.TailnetRoute.sipHost(
+            c["host"].orEmpty(),
+            de.haphone.app.test.tailscale.TailnetManager.pbxTailnetIp(this),
+            de.haphone.app.test.tailscale.TailnetManager.running,
+        )
+        return listOf(host, c["port"].orEmpty(), c["username"].orEmpty(), c["password"].orEmpty())
     }
 
     companion object {

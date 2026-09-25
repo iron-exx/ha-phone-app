@@ -176,6 +176,16 @@ class _QrScanScreenState extends State<QrScanScreen> {
         debugPrint('provision/complete returned no device token (PBX older than 0.7.102?)');
       }
 
+      // "Unterwegs erreichbar": the PBX hands out a tailnet block when its Tailscale
+      // add-on runs. Joining opens the VPN consent (and, without key, the login page).
+      final tailscale = body['tailscale'];
+      try {
+        await SipChannel.instance.tailscaleConfigure(tailscale is Map<String, dynamic> ? tailscale : null);
+        if (tailscale is Map<String, dynamic>) await SipChannel.instance.tailscaleStart();
+      } catch (e) {
+        debugPrint('tailscale setup failed: $e');
+      }
+
       provisioningRevision.value++;
       if (!mounted) return;
       // Straight to the reachability checklist (battery, notifications, test call).

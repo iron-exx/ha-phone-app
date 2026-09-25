@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import '../models/tailnet_status.dart';
+
 /// Thin wrapper around MethodChannel("de.haphone.app.test/sip_calls"), the
 /// platform-channel bridge to the native SIP/Telecom layer. See
 /// android/app/src/main/kotlin/de/haphone/app/test/SipChannelHandler.kt for
@@ -105,6 +107,24 @@ class SipChannel {
     final result = await _invokeResilient<Map<Object?, Object?>>('getDeviceAuth');
     return (result ?? const {}).map((k, v) => MapEntry(k as String, (v as String?) ?? ''));
   }
+
+  // ---- Tailscale ("Unterwegs erreichbar") ----
+
+  /// Stores the `tailscale` block of /provision/complete (null = the PBX has none).
+  Future<void> tailscaleConfigure(Map<String, dynamic>? block) =>
+      _channel.invokeMethod('tailscaleConfigure', block);
+
+  /// Joins the tailnet: VPN consent dialog first if needed, then silently (auth key)
+  /// or via Tailscale's login page. Returns "consent", "started" or "off".
+  Future<String> tailscaleStart() async => await _channel.invokeMethod<String>('tailscaleStart') ?? 'off';
+
+  Future<TailnetStatus> tailscaleStatus() async {
+    final raw = await _channel.invokeMethod<Map<Object?, Object?>>('tailscaleStatus');
+    return raw == null ? TailnetStatus.off : TailnetStatus.fromMap(raw);
+  }
+
+  /// Leaves the tailnet and forgets the Tailscale setup (unpairing).
+  Future<void> tailscaleReset() => _channel.invokeMethod('tailscaleReset');
 
   // ---- Door stations ----
 

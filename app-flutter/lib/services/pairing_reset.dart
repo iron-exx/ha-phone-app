@@ -48,4 +48,9 @@ Future<void> resetForPairing({
   } catch (e) {
     debugPrint('clearing native directory copies failed: $e');
   }
+  try {
+    await native.tailscaleReset();
+  } catch (e) {
+    debugPrint('tailscale reset failed: $e');
+  }
 }

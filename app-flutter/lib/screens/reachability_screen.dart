@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/reachability.dart';
+import '../models/tailnet_status.dart';
 import '../services/api_client.dart';
 import '../services/directory_repository.dart';
 import '../services/diagnostics_service.dart';
@@ -26,6 +27,8 @@ class ReachabilityScreen extends StatefulWidget {
     this.reconnect,
     this.testCall,
     this.testCallAvailable,
+    this.tailnetStatus,
+    this.tailnetStart,
   })  : _repository = repository,
         _service = service;
 
@@ -44,6 +47,12 @@ class ReachabilityScreen extends StatefulWidget {
   /// Whether the PBX offers it (default: directory `self.test_call`).
   final bool? testCallAvailable;
 
+  /// Tailscale tunnel state (default: [SipChannel.tailscaleStatus]).
+  final Future<TailnetStatus> Function()? tailnetStatus;
+
+  /// Join / reconnect the tailnet (default: [SipChannel.tailscaleStart]).
+  final Future<String> Function()? tailnetStart;
+
   @override
   State<ReachabilityScreen> createState() => _ReachabilityScreenState();
 }
@@ -54,6 +63,8 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
   int? _rtt;
   bool _testCallBusy = false;
   String? _testCallInfo;
+  TailnetStatus _tailnet = TailnetStatus.off;
+  Timer? _tailnetPoll;
 
   bool get _canTestCall =>
       widget.testCallAvailable ?? (DirectoryRepository.instance.directory?.testCallAvailable ?? false);
@@ -91,6 +102,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
 
   @override
   void dispose() {
+    _tailnetPoll?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -107,7 +119,36 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
       _repo.refresh(),
       if (!ring.hasLoaded) ring.load(),
       _loadRtt(),
+      _loadTailnet(),
     ]);
+  }
+
+  Future<void> _loadTailnet() async {
+    TailnetStatus st;
+    try {
+      st = await (widget.tailnetStatus ?? SipChannel.instance.tailscaleStatus)();
+    } catch (_) {
+      st = TailnetStatus.off;
+    }
+    if (!mounted) return;
+    setState(() => _tailnet = st);
+    // While it is connecting / waiting for the login, follow it.
+    _tailnetPoll?.cancel();
+    if (st.configured && !st.running) {
+      _tailnetPoll = Timer(const Duration(seconds: 3), () {
+        if (mounted) unawaited(_loadTailnet());
+      });
+    }
+  }
+
+  Future<void> _startTailnet() async {
+    try {
+      await (widget.tailnetStart ?? SipChannel.instance.tailscaleStart)();
+    } catch (e) {
+      debugPrint('tailscale start failed: $e');
+    }
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (mounted) await _loadTailnet();
   }
 
   Future<void> _loadRtt() async {
@@ -192,6 +233,8 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
           ],
         ),
       ),
+      if (_tailnet.configured)
+        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: _tailnetRow(context, describeTailnet(_tailnet))),
       if (advice != null) Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 0), child: _oemCard(context, advice)),
       if (_canTestCall) Padding(padding: const EdgeInsets.fromLTRB(16, 18, 16, 0), child: _testCallBlock(context)),
     ];
@@ -322,6 +365,68 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
               ),
               onPressed: () => _fix(check),
               child: const Text('Beheben'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tailnetRow(BuildContext context, TailnetRowText t) {
+    final c = context.nw;
+    final color = t.ok ? c.answer : c.door;
+    return Container(
+      key: const Key('reach-tailnet'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: t.ok ? c.stroke : c.door.withOpacity(0.45)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: c.raised, borderRadius: BorderRadius.circular(13)),
+            child: Icon(Icons.public_rounded, size: 20, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Unterwegs erreichbar',
+                    style: NwType.rowTitle.copyWith(color: c.text, fontWeight: FontWeight.w800, fontSize: 14.5)),
+                const SizedBox(height: 2),
+                Text(t.detail,
+                    key: const Key('reach-tailnet-detail'), style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (t.action == null)
+            Semantics(
+              label: 'in Ordnung',
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(color: c.answer, shape: BoxShape.circle),
+                child: Icon(Icons.check_rounded, size: 16, color: c.ground),
+              ),
+            )
+          else
+            FilledButton(
+              key: const Key('reach-tailnet-action'),
+              style: FilledButton.styleFrom(
+                backgroundColor: c.door,
+                foregroundColor: c.doorInk,
+                minimumSize: const Size(kMinTap, kMinTap),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                textStyle: NwType.chip.copyWith(fontWeight: FontWeight.w800, fontSize: 12.5),
+              ),
+              onPressed: _startTailnet,
+              child: Text(t.action!),
             ),
         ],
       ),

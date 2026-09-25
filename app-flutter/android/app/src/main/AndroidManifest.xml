@@ -108,6 +108,13 @@
             </intent-filter>
         </service>
 
+        <activity
+            android:name=".tailscale.TsConsentActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- Debug hook for adb (tailscale join/status/logout). DUMP = only shell/system can send;
              the receiver additionally ignores everything in release builds. -->
         <receiver

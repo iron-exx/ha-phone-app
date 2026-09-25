@@ -203,6 +203,13 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - App: `Tailscale.loginInteractive` (Browser-Login ohne Key, als Notlösung) + Debug-Aktion `-a login`.
 - **Nächster Schritt:** Nutzer verbindet sein Tailnet in der Admin-Seite. Danach Etappe 3/4: App liest den `tailscale`-Block bei der Kopplung, VPN-Zustimmung, meldet Node-ID, Registrar über 100.x.
 
+## 5a12. Tailscale in der App (2026-09-25, App 1.1.0, Anlage 0.7.121)
+
+- Nutzer-Entscheidung: **beides anbieten**. Standard: Das Handy meldet sich selbst an (Browser-Login, „Connect“). Optional die Vollautomatik mit OAuth-Client in HA-Phone (Einmal-Key beim QR-Scan). Die Anlage liefert `tailscale.login = "interactive" | "auth_key"`, der Block kommt nur, wenn `tailscale0` auf der Box existiert.
+- App: `tailscale/TailnetManager` (Konfiguration aus der Kopplung, VPN-Erlaubnis über `TsConsentActivity`, Beitritt per Key oder Browser, meldet die Node-ID an die Anlage, `resume()` beim Prozessstart), `TailnetRoute` (SIP-Registrar und API-Host auf 100.x, solange der Tunnel läuft; bei Wechsel `refreshSipCredentials` + register). Kanal: `tailscaleConfigure/Start/Status/Reset`. Dart: Kopplung ruft configure + start auf, `resetForPairing` ruft tailscaleReset auf, im Erreichbarkeits-Bildschirm neue Zeile „Unterwegs erreichbar“ (`models/tailnet_status.dart`).
+- Getestet: Unit-Tests (401 Dart, Kotlin grün), Emulator-Neukopplung ohne Tailscale auf der Box (keine Regression). **Noch nicht getestet:** der echte Beitritt, weil das Tailscale-Add-on auf der HA-Box noch fehlt. Der Nutzer installiert es gerade.
+- Nächster Test sobald das Add-on läuft: Emulator neu koppeln (`provision_link.py 18`), Erlaubnis bestätigen (bzw. `appops set … ACTIVATE_VPN allow`), Login-Seite im Emulator-Browser. Das muss der Nutzer machen, oder er richtet die Vollautomatik ein. Danach `TailnetManager`-Log: „PBX route -> tailnet“, Registrierung über 100.x.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

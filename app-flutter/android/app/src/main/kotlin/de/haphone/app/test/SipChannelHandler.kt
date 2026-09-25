@@ -269,6 +269,29 @@ class SipChannelHandler(
                     }
                 }
 
+                "tailscaleConfigure" -> {
+                    de.haphone.app.test.tailscale.TailnetManager.configure(app, call.arguments as? Map<*, *>)
+                    result.success(null)
+                }
+
+                "tailscaleStart" -> result.success(de.haphone.app.test.tailscale.TailnetManager.start(app))
+
+                "tailscaleStatus" -> {
+                    // Queries the Go backend (blocking LocalAPI): off the main thread.
+                    Thread {
+                        val st = runCatching { de.haphone.app.test.tailscale.TailnetManager.status(app) }
+                            .getOrElse { mapOf("configured" to false, "error" to it.message) }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post { result.success(st) }
+                    }.start()
+                }
+
+                "tailscaleReset" -> {
+                    Thread {
+                        runCatching { de.haphone.app.test.tailscale.TailnetManager.reset(app) }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post { result.success(null) }
+                    }.start()
+                }
+
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {
