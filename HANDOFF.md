@@ -265,6 +265,26 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Noch nicht gebaut: Startbildschirm-Widget mit Klingelbild (Glance). Das ist optional, Kachel und Kurzbefehle decken den Hauptnutzen ab.
 - Anlage 0.7.128: Die HA-Personen des Nutzers melden zu Hause **„Zuhause“** (Name von zone.home) statt `home`. `ha_presence` zählt jetzt `home` plus den friendly_name von `zone.home`. Personen: person.sandro, person.larissa, person.nils, person.smarthome, person.ipad, person.kiosk, person.nfc1.
 
+## 5a19. >>> NACH /clear HIER STARTEN (2026-09-25 abends) <<<
+
+**Stand:** App **1.3.0** (Release-Build signiert, arm64 74 MB), Anlage **0.7.129** auf der Box. Alle vier Etappen des Ausbauplans (`docs/superpowers/plans/2026-09-25-ausbau-release-klingelverlauf.md`) sind fertig und im Emulator getestet. Beide Repos gepusht.
+- Anwesenheit **live bestanden** mit 0.7.129: Beim Nutzer ist „Zuhause“ eine eigene Zone (`zone.zuhause`, überlappt `zone.home` „Home“). Als zu Hause zählen jetzt `home`, zone.home und jede mit ihr überlappende Zone (`ha_presence.home_zone_names`). Test-Klingelgruppe 98 und die Test-Personen an 12/18 sind wieder entfernt.
+- Emulator: läuft die **Release-App** (Upload-Signatur), gekoppelt auf 18, Tailscale aktiv (100.88.202.107). `snapshot_server.py` (Port 8098) und der Webhook-Empfänger (8099) laufen auf CCsrv. Nebenstelle 17 hat Klingelbild-Quelle `http://192.168.101.113:8098/snapshot.jpg`.
+- Arbeitsweise laut Nutzer: **immer weitermachen, nicht warten** (autonom, nur Ergebnisse melden).
+
+**Wartet auf den Nutzer:**
+1. Keystore sichern: `no-git/release/haphone-upload.jks` + `app-flutter/android/key.properties`.
+2. Akuvox (Nebenstelle 16): Klingelbild-Quelle eintragen (HA-Kamera oder Snapshot-URL), „Testbild holen“.
+3. „Gehört zu (HA-Person)“ bei den Handy-Nebenstellen setzen (person.sandro, person.larissa, person.nils).
+4. Handy-Test nach `docs/test/handy-test.md` (APK `app-flutter/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`, vorher mit `bash app-flutter/scripts/build_release.sh` neu bauen).
+
+**Nächste sinnvolle Schritte (eigene Vorschläge, noch nicht beauftragt):**
+- Start-Seite Rest aus Etappe 2: Heute-Leiste (verpasste Anrufe, neue Voicemails) und Favoriten-Vorschläge statt leerer Liste.
+- Startbildschirm-Widget (Glance) mit letztem Klingelbild + „Tür öffnen“.
+- Türnamen in Kachel/Kurzbefehl (heute „Tür 17“, Namen aus dem Car-Directory-Store holen).
+- Offene Sicherheitspunkte: SIP-TLS `verifyServer` + Zertifikat-Fingerprint im QR, HTTPS zur Anlage, Lizenzfrage PJSIP (GPL).
+- Rückfall auf die echte Mobilnummer, wenn die App nicht erreichbar ist.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
