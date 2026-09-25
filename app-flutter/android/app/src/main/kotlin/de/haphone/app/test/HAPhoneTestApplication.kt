@@ -432,7 +432,13 @@ class HAPhoneTestApplication : Application() {
             de.haphone.app.test.tailscale.TailnetManager.pbxTailnetIp(this),
             de.haphone.app.test.tailscale.TailnetManager.running,
         )
-        return listOf(host, c["port"].orEmpty(), c["username"].orEmpty(), c["password"].orEmpty())
+        val port = de.haphone.app.test.tailscale.TailnetRoute.sipPort(
+            c["port"].orEmpty(),
+            de.haphone.app.test.tailscale.TailnetManager.tailnetSipPort(this),
+            de.haphone.app.test.tailscale.TailnetManager.pbxTailnetIp(this),
+            de.haphone.app.test.tailscale.TailnetManager.running,
+        )
+        return listOf(host, port, c["username"].orEmpty(), c["password"].orEmpty())
     }
 
     companion object {

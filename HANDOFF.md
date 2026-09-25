@@ -224,6 +224,14 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
   7. Anlage: Der Verbindungstest nahm ein gecachtes Token (Tags stecken im Token). Die Key-Sperre gilt jetzt pro Kopplung. Neukopplung desselben Handys widerruft die alte Kopplung und löscht deren Tailnet-Gerät.
 - Offen: der echte Mobilfunk-Test am Handy, Deep-Doze mit Tunnel, Türvideo über den Tunnel (door_sim über 100.x), Fremd-VPN-Fall, Akku-Messung. Der Nutzer-Weg ohne OAuth (Browser-Login) wurde nur bis zur Login-URL getestet.
 
+## 5a14. Netzwechsel + Türvideo über Tailscale (2026-09-25, App 1.1.1, Anlage 0.7.125)
+
+- WLAN 20 s aus/an: Tunnel bleibt Running, **die SIP-TLS-Verbindung überlebt** (keine Neuregistrierung, 18 durchgehend online, Asterisk qualifiziert über 100.x).
+- Gefundener Fehler: Asterisk schrieb über `transport-tls` die **LAN-Adresse** in die SDP (c=192.168.7.10, weil 100.64/10 in local_net steht). Unterwegs wären Ton und Video tot gewesen. Fix (Anlage 0.7.125): `[transport-tls-tailnet]` auf **5063**, external_signaling/media_address = Tailnet-IP, local_net nur RFC1918. Er wird automatisch gerendert, sobald `tailscale0` da ist (`main._watch_tailnet_transport`, alle 60 s, `pjsip_local.refresh_for_tailnet`, merkt sich die öffentliche IP in `/data/asterisk/pjsip_local.ip`). Die Kopplung liefert `sip_port_tailnet: 5063`, die App (1.1.1) nimmt diesen Port im Tunnel (`TailnetRoute.sipPort`).
+- Verifiziert: REGISTER auf 100.117.178.114:5063 → 200, INVITE-SDP c=100.117.178.114, Antwort c=100.x der App, Türvideo vor dem Abheben live.
+- Policy-Schnipsel enthält jetzt tcp:5063. Beim Nutzer steht noch die alte Variante (nur relevant, falls die Standard-Regel „alles erlaubt“ entfernt wurde).
+- Offen: echtes Handy im Mobilfunk, Deep-Doze mit Tunnel, Fremd-VPN, Akku.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

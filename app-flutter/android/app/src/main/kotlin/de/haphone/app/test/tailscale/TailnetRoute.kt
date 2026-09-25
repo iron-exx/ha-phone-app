@@ -14,6 +14,10 @@ object TailnetRoute {
     fun sipHost(lanHost: String, pbxTailnetIp: String?, tunnelRunning: Boolean): String =
         if (useTailnet(pbxTailnetIp, tunnelRunning)) pbxTailnetIp.orEmpty() else lanHost
 
+    /** The PBX's tailnet transport has its own port (tailnet address in Contact/SDP). */
+    fun sipPort(lanPort: String, tailnetPort: String?, pbxTailnetIp: String?, tunnelRunning: Boolean): String =
+        if (useTailnet(pbxTailnetIp, tunnelRunning) && !tailnetPort.isNullOrBlank()) tailnetPort else lanPort
+
     /** The PBX web API listens on port 80 on every interface, so the tailnet host needs no port. */
     fun apiHost(lanApiHost: String, pbxTailnetIp: String?, tunnelRunning: Boolean): String =
         if (useTailnet(pbxTailnetIp, tunnelRunning)) pbxTailnetIp.orEmpty() else lanApiHost

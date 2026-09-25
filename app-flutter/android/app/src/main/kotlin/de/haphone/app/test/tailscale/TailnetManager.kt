@@ -31,6 +31,7 @@ object TailnetManager {
     private const val K_HOSTNAME = "ts_hostname"
     private const val K_PBX_IP = "ts_pbx_ip"
     private const val K_REPORTED = "ts_reported_node"
+    private const val K_SIP_PORT = "ts_sip_port"
     // ipn.State enum order (tailscale.com/ipn).
     private val STATE_NAMES = listOf(
         "NoState", "InUseOtherUser", "NeedsLogin", "NeedsMachineAuth", "Stopped", "Starting", "Running",
@@ -60,6 +61,10 @@ object TailnetManager {
     fun pbxTailnetIp(context: Context): String? =
         SecurePrefs.read(context) { it.getString(K_PBX_IP, null) }
 
+    /** Null for a PBX older than 0.7.125 (no own tailnet transport): keep the LAN port. */
+    fun tailnetSipPort(context: Context): String? =
+        SecurePrefs.read(context) { it.getString(K_SIP_PORT, null) }
+
     /** Stores the `tailscale` block of /provision/complete (null = PBX has no Tailscale). */
     fun configure(context: Context, block: Map<*, *>?) {
         val edit = SecurePrefs.get(context).edit()
@@ -71,6 +76,7 @@ object TailnetManager {
             .putString(K_LOGIN, block["login"] as? String ?: "interactive")
             .putString(K_HOSTNAME, block["hostname"] as? String ?: "haphone")
             .putString(K_PBX_IP, block["pbx_tailnet_ip"] as String)
+            .putString(K_SIP_PORT, (block["sip_port_tailnet"] as? Number)?.toInt()?.toString())
             .remove(K_REPORTED)
         val key = block["auth_key"] as? String
         if (!key.isNullOrBlank()) edit.putString(K_AUTH_KEY, key) else edit.remove(K_AUTH_KEY)
@@ -279,7 +285,7 @@ object TailnetManager {
         runCatching { if (isConfigured(app)) Tailscale.logout(app) }
         SecurePrefs.get(app).edit()
             .remove(K_CONFIGURED).remove(K_LOGIN).remove(K_AUTH_KEY)
-            .remove(K_HOSTNAME).remove(K_PBX_IP).remove(K_REPORTED).commit()
+            .remove(K_HOSTNAME).remove(K_PBX_IP).remove(K_REPORTED).remove(K_SIP_PORT).commit()
         backendState = -1
         lastLoginUrl = null
         updateRoute(app)
