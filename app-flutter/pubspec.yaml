@@ -5,7 +5,7 @@ description: >
   and, for iOS, a future platform-channel port of ios-app's Swift PJSIP/
   CallKit layer -- not yet built, see the Phase 1 plan).
 publish_to: 'none'
-version: 1.6.0+25
+version: 1.6.1+26
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -32,6 +32,8 @@ flutter:
   assets:
     - assets/fonts/BricolageGrotesque-OFL.txt
     - assets/fonts/Manrope-OFL.txt
+    # Licences of the native libraries linked into the app (shown on the licence page).
+    - assets/licenses/
   # "Nachtwache" design system fonts (SIL OFL, licences next to the files).
   # Static instances cut from the google/fonts variable TTFs (Bricolage at
   # opsz 32, wdth 100) so every weight renders without variation axes.

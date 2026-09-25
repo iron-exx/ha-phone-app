@@ -19,16 +19,27 @@ void main() {
   // Draw behind transparent status/navigation bars (Android 15 does this
   // anyway); NwSystemUi sets their icon colours per theme.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  LicenseRegistry.addLicense(_fontLicenses);
+  LicenseRegistry.addLicense(bundledLicenses);
   runApp(const HAPhoneApp());
 }
 
-/// SIL OFL of the bundled fonts, shown in the licence page.
-Stream<LicenseEntry> _fontLicenses() async* {
-  for (final (package, file) in [
-    ('Bricolage Grotesque', 'assets/fonts/BricolageGrotesque-OFL.txt'),
-    ('Manrope', 'assets/fonts/Manrope-OFL.txt'),
-  ]) {
+/// Licences shown on the licence page besides the Dart packages: the bundled fonts
+/// (SIL OFL) and the native libraries linked into the app (PJSIP is GPL-2.0-or-later).
+const kBundledLicenses = [
+  ('Bricolage Grotesque', 'assets/fonts/BricolageGrotesque-OFL.txt'),
+  ('Manrope', 'assets/fonts/Manrope-OFL.txt'),
+  ('PJSIP (pjproject)', 'assets/licenses/pjsip-GPL-2.0.txt'),
+  ('libsrtp', 'assets/licenses/libsrtp.txt'),
+  ('OpenSSL', 'assets/licenses/openssl.txt'),
+  ('Opus', 'assets/licenses/opus.txt'),
+  ('Tailscale', 'assets/licenses/tailscale.txt'),
+  ('tailscale-android (libtailscale)', 'assets/licenses/tailscale-android.txt'),
+  ('wireguard-go', 'assets/licenses/wireguard-go.txt'),
+  ('Go', 'assets/licenses/go.txt'),
+];
+
+Stream<LicenseEntry> bundledLicenses() async* {
+  for (final (package, file) in kBundledLicenses) {
     yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString(file));
   }
 }

@@ -315,6 +315,11 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Test-Setup: Webhook-Empfänger `hook.py` (Port 8099) loggt nach `/tmp/claude-1000/-home-roto/597bb650-…/scratchpad/hook.log`.
 - Nächste eigene Vorschläge: Rückfall auf die Mobilnummer (braucht Entscheidungen des Nutzers: Trunk, Kosten), Lizenzfrage PJSIP (GPL), iOS (Mac nötig).
 
+## 5a24. Rückfall auf die Handynummer (Anlage 0.7.131) + Lizenzen (App 1.6.1)
+
+- Nutzer: „Do it you best“, also habe ich selbst entschieden. Anlage: `Extension.mobile_fallback` (leer = aus, Feld „Rückfall auf Handynummer“ im Nebenstellen-Editor). Im Standard-Landing `ext-N`: keine registrierten Kontakte oder `DIALSTATUS=CHANUNAVAIL` → `Dial(Local/<E.164>@outbound-pstn/n,30)` mit Trunk-CLIP (`__OUTBOUND_CID`), danach die Mailbox. Klingelt ein Gerät, ohne dass jemand abnimmt, geht es wie bisher auf die Mailbox. Greift nicht bei Klingelgruppen, Anwesenheitsregeln (always_dest/ring_then_dest) und im Altgeräte-Modus. Tests: `backend/tests/test_mobile_fallback.py`. **Nicht live getestet** (echter Anruf ins Mobilnetz = Kosten und die Nummer des Nutzers).
+- Lizenzen: Die App-Lizenzseite zeigt jetzt auch PJSIP (GPL), libsrtp, OpenSSL, Opus, Tailscale, wireguard-go und Go (`assets/licenses/`, `kBundledLicenses` in main.dart). Entscheidungsgrundlage GPL-Konflikt: `docs/lizenz-pjsip.md`. Kurz: kein Problem, solange die App nicht weitergegeben wird. Vor einer Weitergabe entweder GPL (nur Android) oder eine kommerzielle PJSIP-Lizenz (für iOS).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
