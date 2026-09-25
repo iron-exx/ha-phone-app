@@ -285,6 +285,14 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - Offene Sicherheitspunkte: SIP-TLS `verifyServer` + Zertifikat-Fingerprint im QR, HTTPS zur Anlage, Lizenzfrage PJSIP (GPL).
 - Rückfall auf die echte Mobilnummer, wenn die App nicht erreichbar ist.
 
+## 5a20. App 1.4.0 (2026-09-25 abends): Start-Seite fertig + Türnamen
+
+- **Heute-Leiste** auf Start (`utils/today.dart` `todaySummary`): Anrufe heute, verpasst (→ Verlauf „Verpasst“), Türklingeln heute (→ Verlauf „Tür“). Erscheint nur, wenn heute etwas war. Als `Wrap` gebaut, nicht als horizontale Scrollzeile: Eine zweite `Scrollable` bricht `scrollUntilVisible` in den Tests.
+- **Favoriten-Vorschläge**, solange keine Favoriten existieren (`suggestFavorites`): Die meistgewählten Nummern aus dem Verlauf, ohne die eigene Nummer, ohne Türen und ohne `*`-Codes. Der Stern auf der Kachel macht daraus einen Favoriten.
+- Kachel/Kurzbefehl „Tür öffnen“ zeigen den **Türnamen** aus dem CarDirectoryStore (`CarDirectory.doorLabel`) statt „Tür 17“.
+- 414 Dart-Tests grün, Kotlin-Unit grün, Release gebaut und im Emulator installiert (Heute-Leiste sichtbar geprüft).
+- Offen aus den eigenen Vorschlägen: Glance-Widget, Sicherheitspunkte (TLS verifyServer + Fingerprint im QR, HTTPS), Rückfall auf die Mobilnummer.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

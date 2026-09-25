@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
+import '../models/directory.dart';
 import '../models/extension_status.dart';
 import '../models/presence.dart';
 import '../models/ring_settings.dart';
@@ -11,6 +12,7 @@ import '../services/app_navigation.dart';
 import '../services/call_history_store.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
+import '../services/doorbell_repository.dart';
 import '../services/door_opener.dart';
 import '../services/favorites_store.dart';
 import '../services/phone_contacts_repository.dart';
@@ -26,6 +28,7 @@ import '../utils/contact_filter.dart';
 import '../utils/formatters.dart';
 import '../utils/registration_ui.dart';
 import '../utils/timeline.dart';
+import '../utils/today.dart';
 import '../widgets/call_flip_card.dart';
 import '../widgets/contact_details_sheet.dart';
 import '../widgets/door_card.dart';
@@ -43,8 +46,9 @@ String startPillText(RegistrationUi registration, Presence presence, {String rin
     };
 
 /// Start: own status (pill opens the status sheet), search, door stations
-/// with "Tür öffnen" (webhook) or "Tür anrufen" and their Home Assistant actions, the call-flip offer,
-/// favourites with live presence and a "Neue Voicemail" card.
+/// with "Tür öffnen" (webhook) or "Tür anrufen" and their Home Assistant actions, the "Heute" strip,
+/// the call-flip offer, favourites with live presence (or suggestions from the Verlauf while there
+/// are none) and a "Neue Voicemail" card.
 class StartTab extends StatelessWidget {
   const StartTab({
     super.key,
@@ -56,6 +60,7 @@ class StartTab extends StatelessWidget {
     RegistrationWatcher? registration,
     AppNavigation? navigation,
     RingSettingsRepository? ring,
+    DoorbellRepository? doorbell,
     this.reachability,
     this.forwarding,
     this.doorActionRunner,
@@ -67,10 +72,12 @@ class StartTab extends StatelessWidget {
         _phone = phoneContacts,
         _registration = registration,
         _navigation = navigation,
-        _ringRepo = ring;
+        _ringRepo = ring,
+        _doorbell = doorbell;
 
   final DirectoryRepository? _directory;
   final RingSettingsRepository? _ringRepo;
+  final DoorbellRepository? _doorbell;
 
   /// Seams for the status sheet (default: the singletons).
   final ReachabilityRepository? reachability;
@@ -96,6 +103,7 @@ class StartTab extends StatelessWidget {
   RegistrationWatcher get _reg => _registration ?? RegistrationWatcher.instance;
   AppNavigation get _nav => _navigation ?? AppNavigation.instance;
   RingSettingsRepository get _ring => _ringRepo ?? RingSettingsRepository.instance;
+  DoorbellRepository get _bell => _doorbell ?? DoorbellRepository.instance;
 
   Future<void> _refresh() => Future.wait([_dir.refresh(), _pres.refresh(), _vm.refresh()]);
 
@@ -105,7 +113,7 @@ class StartTab extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
-          listenable: Listenable.merge([_dir, _pres, _vm, _calls, _reg, _phoneContacts, _ring, FavoritesStore.instance]),
+          listenable: Listenable.merge([_dir, _pres, _vm, _calls, _reg, _phoneContacts, _ring, _bell, FavoritesStore.instance]),
           builder: (context, _) => RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
@@ -113,6 +121,7 @@ class StartTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 24),
               children: [
                 _header(context),
+                _today(context),
                 CallFlipCard(presence: _pres),
                 ..._doorCards(context),
                 ..._favorites(context),
@@ -223,6 +232,46 @@ class StartTab extends StatelessWidget {
     );
   }
 
+  Widget _today(BuildContext context) {
+    final t = todaySummary(_calls.calls, _bell.events, DateTime.now());
+    if (t.isEmpty) return const SizedBox.shrink();
+    final c = context.nw;
+    return Padding(
+      key: const Key('start-today'),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('Heute', style: NwType.chip.copyWith(color: c.faint, fontWeight: FontWeight.w800)),
+          if (t.calls > 0)
+            NwChip(
+              key: const Key('today-calls'),
+              icon: Icons.call_outlined,
+              label: t.calls == 1 ? '1 Anruf' : '${t.calls} Anrufe',
+              onTap: () => _nav.openHistory(),
+            ),
+          if (t.missed > 0)
+            NwChip(
+              key: const Key('today-missed'),
+              icon: Icons.call_missed,
+              label: '${t.missed} verpasst',
+              foreground: c.end,
+              onTap: () => _nav.openHistory(TimelineFilter.missed),
+            ),
+          if (t.doorRings > 0)
+            NwChip(
+              key: const Key('today-door'),
+              icon: Icons.doorbell_outlined,
+              label: '${t.doorRings}× geklingelt',
+              foreground: c.door,
+              onTap: () => _nav.openHistory(TimelineFilter.door),
+            ),
+        ],
+      ),
+    );
+  }
+
   List<Widget> _doorCards(BuildContext context) {
     final doors = _dir.directory?.extensions.where((e) => e.isDoorStation).toList() ?? const <Contact>[];
     return [
@@ -261,6 +310,17 @@ class StartTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 8, 2),
     );
     if (favs.isEmpty) {
+      final suggestions = _suggestions(d);
+      if (suggestions.isNotEmpty) {
+        return [
+          header,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text('Vorschläge aus dem Verlauf', style: NwType.meta.copyWith(color: c.muted)),
+          ),
+          ..._tileRows(context, suggestions, suggestion: true),
+        ];
+      }
       return [
         header,
         Padding(
@@ -284,6 +344,27 @@ class StartTab extends StatelessWidget {
         ),
       ];
     }
+    return [header, ..._tileRows(context, favs)];
+  }
+
+  /// Most called numbers as contacts (directory name, else the name the call carried).
+  List<Contact> _suggestions(Directory? d) {
+    final all = <Contact>[...?d?.extensions, ...?d?.phonebook, ...?_phoneContacts.contacts];
+    final doors = {for (final e in all) if (e.isDoorStation) e.number};
+    final self = d?.self?.number;
+    final numbers = suggestFavorites(_calls.calls, exclude: {...doors, if (self != null) self});
+    return [
+      for (final n in numbers)
+        all.where((e) => e.number == n).firstOrNull ??
+            Contact(
+              number: n,
+              name: _calls.calls.firstWhere((c) => c.number == n).name,
+              isExtension: false,
+            ),
+    ];
+  }
+
+  List<Widget> _tileRows(BuildContext context, List<Contact> favs, {bool suggestion = false}) {
     final rows = <Widget>[];
     for (var i = 0; i < favs.length; i += 2) {
       rows.add(Padding(
@@ -292,18 +373,21 @@ class StartTab extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _favoriteTile(context, favs[i])),
+              Expanded(child: _favoriteTile(context, favs[i], suggestion: suggestion)),
               const SizedBox(width: 10),
-              Expanded(child: i + 1 < favs.length ? _favoriteTile(context, favs[i + 1]) : const SizedBox.shrink()),
+              Expanded(
+                  child: i + 1 < favs.length
+                      ? _favoriteTile(context, favs[i + 1], suggestion: suggestion)
+                      : const SizedBox.shrink()),
             ],
           ),
         ),
       ));
     }
-    return [header, ...rows];
+    return rows;
   }
 
-  Widget _favoriteTile(BuildContext context, Contact contact) {
+  Widget _favoriteTile(BuildContext context, Contact contact, {bool suggestion = false}) {
     final c = context.nw;
     final live = contact.isExtension ? (_pres.statusFor(contact.number) ?? ExtensionStatus(presence: contact.presence)) : null;
     final kind = avatarPresenceFor(live);
@@ -331,16 +415,29 @@ class StartTab extends StatelessWidget {
       onLongPressHint: 'Details',
       excludeSemantics: true,
       child: NwCard(
-        key: ValueKey('fav-${contact.number}'),
+        key: ValueKey('${suggestion ? 'suggest' : 'fav'}-${contact.number}'),
         radius: 20,
         onTap: call,
         onLongPress: details,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            contact.isDoorStation
-                ? const PresenceAvatar.door(size: 44)
-                : PresenceAvatar(name: contact.name, number: contact.number, presence: kind, size: 44),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                contact.isDoorStation
+                    ? const PresenceAvatar.door(size: 44)
+                    : PresenceAvatar(name: contact.name, number: contact.number, presence: kind, size: 44),
+                const Spacer(),
+                if (suggestion)
+                  NwIconButton(
+                    key: ValueKey('suggest-star-${contact.number}'),
+                    icon: Icons.star_outline_rounded,
+                    label: '${contact.displayName} als Favorit',
+                    onPressed: () => FavoritesStore.instance.toggle(contact.number),
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             Text(contact.displayName,
                 style: NwType.rowTitle.copyWith(color: c.text, fontWeight: FontWeight.w800),

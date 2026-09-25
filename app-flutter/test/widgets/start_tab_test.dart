@@ -296,6 +296,57 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Heute strip: calls and missed today; "verpasst" opens Verlauf with the Missed filter', (tester) async {
+    final s = await pump(tester, pbx());
+    expect(find.byKey(const Key('start-today')), findsOneWidget);
+    expect(find.text('1 Anruf'), findsOneWidget);
+    expect(find.text('1 verpasst'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('today-missed')));
+    expect(s.nav.tab, AppTab.history);
+    expect(s.nav.takeHistoryFilter(), TimelineFilter.missed);
+  });
+
+  testWidgets('no Heute strip on a quiet day', (tester) async {
+    sip.uninstall();
+    sip = FakeSip({'getRegistrationState': (_) => 'registered', 'getCallHistory': (_) => []})..install();
+    await pump(tester, pbx());
+    expect(find.byKey(const Key('start-today')), findsNothing);
+  });
+
+  testWidgets('no favourites: suggests the most called contacts (not doors), star adds one', (tester) async {
+    await tester.runAsync(() => FavoritesStore.instance.clear());
+    addTearDown(() async {
+      await tester.runAsync(() async {
+        await FavoritesStore.instance.clear();
+        await FavoritesStore.instance.toggle('11');
+        await FavoritesStore.instance.toggle('0171555');
+      });
+    });
+    sip.uninstall();
+    sip = FakeSip({
+      'getRegistrationState': (_) => 'registered',
+      'getCallHistory': (_) => [
+            historyEntry(id: 'a', number: '11', startedAt: now.subtract(const Duration(hours: 1))),
+            historyEntry(id: 'b', number: '16', startedAt: now.subtract(const Duration(hours: 2))),
+            historyEntry(id: 'c', number: '0171555', direction: 'outgoing', startedAt: now.subtract(const Duration(days: 1))),
+            historyEntry(id: 'd', number: '11', startedAt: now.subtract(const Duration(days: 2))),
+          ],
+    })
+      ..install();
+    await pump(tester, pbx());
+
+    expect(find.text('Vorschläge aus dem Verlauf'), findsOneWidget);
+    expect(find.byKey(const ValueKey('suggest-11')), findsOneWidget);
+    expect(find.byKey(const ValueKey('suggest-0171555')), findsOneWidget);
+    expect(find.byKey(const ValueKey('suggest-16')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('suggest-star-11')));
+    await tester.pumpAndSettle();
+    expect(FavoritesStore.instance.isFavorite('11'), isTrue);
+    expect(find.byKey(const ValueKey('fav-11')), findsOneWidget);
+  });
+
   group('TalkBack', () {
     testWidgets('status pill, favourite tile (tap + long-press) and voicemail card act via semantics', (tester) async {
       final handle = tester.ensureSemantics();

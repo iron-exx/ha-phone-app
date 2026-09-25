@@ -127,4 +127,11 @@ class CarListsTest {
     fun `older calls show the date`() {
         assertEquals("01.09. 08:00", CarLists.whenLabel(ms(2026, 9, 1, 8, 0), ms(2026, 9, 24, 18, 0), zone))
     }
+
+    @Test
+    fun `door label uses the directory name and falls back to the number`() {
+        assertEquals("Haustür", dir.doorLabel("16"))
+        assertEquals("Tür 18", dir.doorLabel("18"))
+        assertEquals("Tür 19", CarDirectory(entries = listOf(CarEntry("19", " "))).doorLabel("19"))
+    }
 }

@@ -32,6 +32,9 @@ data class CarDirectory(
     fun find(number: String): CarEntry? = entries.firstOrNull { it.number == number }
 
     fun nameFor(number: String): String = find(number)?.name.orEmpty()
+
+    /** Door name for the quick settings tile / shortcut dialog, e.g. "Haustür", else "Tür 16". */
+    fun doorLabel(number: String): String = nameFor(number).trim().ifBlank { "Tür $number" }
 }
 
 /** Kind of the row icon. */

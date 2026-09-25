@@ -101,6 +101,8 @@ void main() {
 
   testWidgets('Start "Neue Voicemail" opens Verlauf with the Voicemail filter', (tester) async {
     final h = await pumpShell(tester);
+    await tester.scrollUntilVisible(find.byKey(const Key('start-voicemail')), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Neue Sprachnachricht · Oma Erika'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('start-voicemail')));

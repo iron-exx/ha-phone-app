@@ -19,6 +19,7 @@ class DoorOpenConfirmActivity : Activity() {
         super.onCreate(savedInstanceState)
         val app = application as HAPhoneTestApplication
         val doors = app.doorCodes.openRemoteNumbers()
+        val dir = app.carDirectory.load()
         if (doors.isEmpty()) {
             Toast.makeText(this, "Keine Tür, die sich ohne Anruf öffnen lässt", Toast.LENGTH_LONG).show()
             finish()
@@ -29,10 +30,10 @@ class DoorOpenConfirmActivity : Activity() {
             .setNegativeButton("Abbrechen") { _, _ -> finish() }
             .setOnCancelListener { finish() }
         if (doors.size == 1) {
-            builder.setMessage("Tür ${doors[0]} wird geöffnet.")
+            builder.setMessage("${dir.doorLabel(doors[0])} wird geöffnet.")
                 .setPositiveButton("Öffnen") { _, _ -> open(app, doors[0]) }
         } else {
-            builder.setItems(doors.map { "Tür $it" }.toTypedArray()) { _, i -> open(app, doors[i]) }
+            builder.setItems(doors.map { dir.doorLabel(it) }.toTypedArray()) { _, i -> open(app, doors[i]) }
         }
         builder.show()
     }
@@ -44,7 +45,7 @@ class DoorOpenConfirmActivity : Activity() {
                 auth["apiHost"].orEmpty(), auth["deviceId"].orEmpty(), auth["deviceToken"].orEmpty(), door,
             )
             runOnUiThread {
-                val text = if (outcome == DoorOpenOutcome.OPENED) "Tür $door geöffnet" else outcome.message ?: "Fehler"
+                val text = if (outcome == DoorOpenOutcome.OPENED) "${app.carDirectory.load().doorLabel(door)} geöffnet" else outcome.message ?: "Fehler"
                 Toast.makeText(app, text, Toast.LENGTH_LONG).show()
                 finish()
             }
