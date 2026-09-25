@@ -34,3 +34,4 @@ ios/Flutter/Flutter.podspec
 
 *.iml
 .idea/
+android/key.properties

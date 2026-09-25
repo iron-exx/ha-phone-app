@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+}
+
+// Upload key for release builds, from key.properties (points into no-git/, never committed).
+val releaseKeyProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.isFile) f.inputStream().use { load(it) }
 }
 
 android {
@@ -35,12 +43,24 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        if (releaseKeyProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(releaseKeyProps.getProperty("storeFile"))
+                storePassword = releaseKeyProps.getProperty("storePassword")
+                keyAlias = releaseKeyProps.getProperty("keyAlias")
+                keyPassword = releaseKeyProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO before any real release build: a dedicated release
-            // signing config. Debug signing is fine for the Phase 1
-            // demo/dev-loop target this plan scopes to.
-            signingConfig = signingConfigs.getByName("debug")
+            // Upload key from key.properties; without it (other machines, CI) debug-signed.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
