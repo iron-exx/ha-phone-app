@@ -98,6 +98,23 @@
                 android:value="Keeps the SIP registration to the user's own PBX alive so incoming VoIP calls ring" />
         </service>
 
+        <!-- Embedded Tailscale: split-tunnel VPN, only the tailnet (100.64.0.0/10). -->
+        <service
+            android:name=".tailscale.TsVpnService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <!-- Debug hook for adb (tailscale join/status/logout). DUMP = only shell/system can send;
+             the receiver additionally ignores everything in release builds. -->
+        <receiver
+            android:name=".tailscale.TsDebugReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

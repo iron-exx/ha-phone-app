@@ -182,6 +182,18 @@ Auftrag: **Tailscale-Integration bauen** nach `docs/design/tailscale.md` (Etappe
 5. Etappe 5: E2E im Emulator im Tailnet.
 Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version + CHANGELOG erhöhen, HANDOFF nach jedem Schritt aktualisieren (Nutzungslimit!).
 
+## 5a10. Tailscale Etappe 0 (2026-09-25 vormittags, LAUFEND)
+
+- **Toolchain:** Kein eigenes Go nötig. `tool/go` von tailscale-android lädt seinen gepinnten Go-Toolchain nach `~/.cache/tailscale-go`. Checkout: `~/src/tailscale-android`, gepinnt auf `803d938`.
+- **Build:** `bash app-flutter/scripts/build_libtailscale.sh` (ca. 5 min kalt, 40 s warm). **NDK 27 funktioniert**, 16-KB-Seiten ok (LOAD-Align 0x4000). Das Skript entfernt die 32-Bit-ABIs und strippt auch x86_64. Das Ergebnis `app-flutter/android/tailscale-core/libs/libtailscale.aar` (19 MB) ist gitignored, genau wie die PJSIP-`.so`.
+- **Größe:** `libgojni.so` arm64 27,8 MB entpackt (~9 MB komprimiert), x86_64 29,7 MB. Die Debug-APK wächst von 262 auf 333 MB.
+- **Kotlin:** `tailscale/` im App-Paket: `TailnetRoutes` (Split-Tunnel-Filter, getestet), `TsAppContext` (Zustand in SecurePrefs mit dem Präfix `statestore-`, ohne MDM, Attestation und Log-Upload), `TsVpnService` (nur 100.64/10 + fd7a:115c:a1e0::/48, kein DNS), `Tailscale` (LocalAPI: start per AuthKey, connect, disconnect, logout, status), `TsDebugReceiver` (adb, nur Debug, Permission DUMP).
+- **Im Emulator verifiziert:** libtailscale startet im App-Prozess, `status` → `NeedsLogin`, kein Absturz. 157 Kotlin-Tests grün.
+- **Nächster Schritt:** Beitritt mit Auth-Key des Nutzers (liegt dann in `no-git/tailscale.json`):
+  `adb shell appops set de.haphone.app.test ACTIVATE_VPN allow`
+  `adb shell am broadcast -n de.haphone.app.test/.tailscale.TsDebugReceiver -a join --es key <tskey> --es host haphone-emu`
+  danach `-a status` (Logtag `TsDebug`) und `adb shell ping <100.x der HA-Box>`. Voraussetzung: Tailscale-Add-on auf der HA-Box, `userspace_networking` aus.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.

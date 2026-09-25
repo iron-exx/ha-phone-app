@@ -52,6 +52,9 @@ flutter {
 dependencies {
     // Reused native SIP/Telecom layer.
     implementation(project(":sip-core"))
+    // Embedded Tailscale (libtailscale from tailscale-android, gomobile AAR). Built by
+    // app-flutter/scripts/build_libtailscale.sh, gitignored like the PJSIP .so files.
+    implementation(files("../tailscale-core/libs/libtailscale.aar"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.core:core-telecom:1.0.0")
     // Android Auto templated UI (car/HaPhoneCarAppService, category CALLING).
