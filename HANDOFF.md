@@ -172,6 +172,16 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 
 Nutzer-Entscheidung: nur Vollversion. HA-Phone hinterlegt Tailscale-Zugang (OAuth-Client), QR-Kopplung liefert pro Gerät einen Auth-Key in der Provisioning-Antwort, App bettet Tailscale ein (libtailscale, VpnService nur für 100.x) und ist unterwegs erreichbar. Schritt 1: Machbarkeit + Plan in `docs/design/tailscale.md` (inkl. neuer Admin-Menüpunkt "Tailscale", Einrichtung so einfach wie möglich). Plan liegt vor (docs/design/tailscale.md, ca. 14–20 Arbeitstage, Etappen 0–5). Schritt 2: Etappe 0 (Go 1.27 + gomobile Toolchain-Spike, libtailscale-AAR bauen) — wartet auf Nutzer-Freigabe + Test-Tailnet/OAuth-Client.
 
+## 5a9. >>> NACH /clear HIER STARTEN (2026-09-25) <<<
+
+Auftrag: **Tailscale-Integration bauen** nach `docs/design/tailscale.md` (Etappen 0–5). Nutzer hat einen Tailscale-Account zum Testen (Zugangsdaten/OAuth-Client beim Nutzer erfragen, sobald Etappe 1/2 sie braucht; ablegen nur in `no-git/tailscale.json`, nie committen).
+1. Etappe 0: Go 1.27 + gomobile auf CCsrv installieren (nutzerlokal, z. B. ~/go-toolchain), tailscale-android klonen, libtailscale-AAR für arm64-v8a + x86_64 mit NDK 27 bauen, in app-flutter einbinden, Probe-Build. Nie gleichzeitig mit dem Emulator bauen.
+2. Etappe 1: Anlage — Admin-Menüpunkt "Tailscale" (Assistent, OAuth-Client, "Verbindung testen", Status, Geräteliste), TailnetProvider, Tailnet-IP von tailscale0.
+3. Etappe 2: Provisioning-Antwort mit `tailscale`-Block (Einmal-Key, preauthorized, tag:haphone-phone, nicht ephemeral), Entkoppeln löscht Gerät.
+4. Etappe 3/4: App-Modul (VpnService nur 100.64.0.0/10 + fd7a:115c:a1e0::/48, Einwilligungsdialog nach Kopplung, Status in Erreichbarkeit, Registrar tailnet/LAN umschalten).
+5. Etappe 5: E2E im Emulator im Tailnet.
+Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version + CHANGELOG erhöhen, HANDOFF nach jedem Schritt aktualisieren (Nutzungslimit!).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
