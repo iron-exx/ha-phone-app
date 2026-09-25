@@ -170,7 +170,7 @@ CCsrv-RAM: Proxmox-Host (62 GB) überbucht, OOM-Killer hat CCsrv am 2026-09-23 1
 
 ## 5a8. 2026-09-25: App 1.0.1 (Erscheinungsbild Dunkel/Hell/System, Standard Dunkel) gepusht. NÄCHSTES PROJEKT: eingebettetes Tailscale
 
-Nutzer-Entscheidung: nur Vollversion. HA-Phone hinterlegt Tailscale-Zugang (OAuth-Client), QR-Kopplung liefert pro Gerät einen Auth-Key in der Provisioning-Antwort, App bettet Tailscale ein (libtailscale, VpnService nur für 100.x) und ist unterwegs erreichbar. Schritt 1: Machbarkeit + Plan in `docs/design/tailscale.md`. Schritt 2: Umsetzung in Etappen.
+Nutzer-Entscheidung: nur Vollversion. HA-Phone hinterlegt Tailscale-Zugang (OAuth-Client), QR-Kopplung liefert pro Gerät einen Auth-Key in der Provisioning-Antwort, App bettet Tailscale ein (libtailscale, VpnService nur für 100.x) und ist unterwegs erreichbar. Schritt 1: Machbarkeit + Plan in `docs/design/tailscale.md` (inkl. neuer Admin-Menüpunkt "Tailscale", Einrichtung so einfach wie möglich). Plan liegt vor (docs/design/tailscale.md, ca. 14–20 Arbeitstage, Etappen 0–5). Schritt 2: Etappe 0 (Go 1.27 + gomobile Toolchain-Spike, libtailscale-AAR bauen) — wartet auf Nutzer-Freigabe + Test-Tailnet/OAuth-Client.
 
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
