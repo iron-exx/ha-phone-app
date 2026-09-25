@@ -16,6 +16,11 @@ object Tailscale {
     private const val TAG = "Tailscale"
     private const val TIMEOUT_MS = 30_000
 
+    // ipn.NotifyWatchOpt bits and ipn.State names (tailscale.com/ipn).
+    private const val NOTIFY_INITIAL_STATE = 2L
+    private const val NOTIFY_NO_NETMAP = 8192L
+    private const val STATE_RUNNING = 6 // ipn.Running; Notify.State is the numeric enum
+
     @Volatile private var app: libtailscale.Application? = null
 
     /** True while our VPN is established (set by [TsVpnService]). */
@@ -52,6 +57,36 @@ object Tailscale {
         if (!controlUrl.isNullOrBlank()) prefs.put("ControlURL", controlUrl)
         val body = JSONObject().put("AuthKey", authKey).put("UpdatePrefs", prefs)
         call(a, "POST", "start", body.toString())
+        connect(context)
+    }
+
+    /**
+     * Browser login (no auth key): [onUrl] receives the login URL the user opens and signs in
+     * with (e.g. GitHub). The tunnel comes up once the login is done; [onRunning] then fires.
+     */
+    fun loginInteractive(
+        context: Context,
+        hostname: String,
+        onUrl: (String) -> Unit,
+        onRunning: () -> Unit = {},
+    ) {
+        val a = ensureStarted(context)
+        val prefs = JSONObject()
+            .put("WantRunning", true)
+            .put("CorpDNS", false)
+            .put("RouteAll", false)
+            .put("Hostname", hostname)
+        call(a, "POST", "start", JSONObject().put("UpdatePrefs", prefs).toString())
+        var watcher: libtailscale.NotificationManager? = null
+        watcher = a.watchNotifications(NOTIFY_INITIAL_STATE or NOTIFY_NO_NETMAP) { bytes ->
+            val n = JSONObject(bytes.decodeToString())
+            n.optString("BrowseToURL").takeIf { it.isNotEmpty() }?.let(onUrl)
+            if (n.has("State") && n.optInt("State") == STATE_RUNNING) {
+                onRunning()
+                watcher?.stop()
+            }
+        }
+        call(a, "POST", "login-interactive", null)
         connect(context)
     }
 

@@ -12,6 +12,7 @@ import kotlin.concurrent.thread
  *
  *   adb shell am broadcast -n de.haphone.app.test/.tailscale.TsDebugReceiver \
  *       -a join --es key tskey-auth-... --es host haphone-emu
+ *   ... -a login --es host haphone-emu   (browser login, URL in logcat)
  *   ... -a status | -a connect | -a disconnect | -a logout
  *
  * VPN consent in the emulator without UI: adb shell appops set de.haphone.app.test ACTIVATE_VPN allow
@@ -34,6 +35,19 @@ class TsDebugReceiver : BroadcastReceiver() {
                         val host = intent.getStringExtra("host") ?: "haphone-debug"
                         Tailscale.loginWithAuthKey(app, key, host, intent.getStringExtra("control"))
                         Log.i(TAG, "join sent for $host")
+                    }
+                    "login" -> {
+                        if (Tailscale.consentIntent(app) != null) {
+                            Log.w(TAG, "no VPN consent yet (appops ACTIVATE_VPN allow)")
+                            return@thread
+                        }
+                        val host = intent.getStringExtra("host") ?: "haphone-debug"
+                        Tailscale.loginInteractive(
+                            app,
+                            host,
+                            onUrl = { Log.i(TAG, "LOGIN URL: $it") },
+                            onRunning = { Log.i(TAG, "tailnet running") },
+                        )
                     }
                     "connect" -> Tailscale.connect(app)
                     "disconnect" -> Tailscale.disconnect(app)

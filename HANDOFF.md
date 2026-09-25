@@ -194,6 +194,15 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
   `adb shell am broadcast -n de.haphone.app.test/.tailscale.TsDebugReceiver -a join --es key <tskey> --es host haphone-emu`
   danach `-a status` (Logtag `TsDebug`) und `adb shell ping <100.x der HA-Box>`. Voraussetzung: Tailscale-Add-on auf der HA-Box, `userspace_networking` aus.
 
+## 5a11. Tailscale in der Anlage (2026-09-25, Anlage 0.7.120, Commit 35b6c51)
+
+- Nutzer-Wunsch war „Anmelden-Knopf → Tailscale-Seite → zurück, verbunden“. Das geht **nicht**: Tailscales „OAuth apps“ (Authorization-Code) sind Alpha, nur per API im eigenen Tailnet anlegbar, nicht tailnet-übergreifend, und jede Zustimmung gilt nur für ein Gerät (kein Refresh). Umgesetzt ist deshalb: Assistent mit Link zur Konsole, OAuth-Client (Trust Credential) einmal anlegen, Client-ID + Secret einfügen, Live-Test. Das hat der Nutzer noch nicht ausdrücklich bestätigt.
+- Backend: `backend/tailnet.py` (API-Client, Token-Cache, `tailscale0`-Erkennung per ioctl + `/proc/net/if_inet6`), `backend/routers/tailscale.py` (`/api/tailscale/config` GET/PUT/PATCH/DELETE, `/test`, `/devices`, `DELETE /devices/{id}`), `TailnetConfig`-Tabelle, `MobileDevice.tailscale_node_id/ip`. Die Kopplung liefert den Block `tailscale` (Einmal-Key 1 h, preauthorized, tag:haphone-phone). Neue Endpunkte `POST /api/mobile/device/tailscale` (App meldet Node-ID + IP) und `/device/tailscale-key` (Nachrüsten, 1/min). Beim Widerruf oder Löschen der Nebenstelle wird das Gerät auch aus dem Tailnet gelöscht.
+- Fix nebenbei: Beim Löschen einer Nebenstelle blieben die MobileDevice-Zeilen stehen. SQLite vergibt die ID neu, dadurch hingen alte Handys an neuen Nebenstellen.
+- Frontend: `pages/Tailscale.tsx`, Menüpunkt „Tailscale“ unter Provisioning. 269 Backend-Tests grün.
+- App: `Tailscale.loginInteractive` (Browser-Login ohne Key, als Notlösung) + Debug-Aktion `-a login`.
+- **Nächster Schritt:** Nutzer verbindet sein Tailnet in der Admin-Seite. Danach Etappe 3/4: App liest den `tailscale`-Block bei der Kopplung, VPN-Zustimmung, meldet Node-ID, Registrar über 100.x.
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
