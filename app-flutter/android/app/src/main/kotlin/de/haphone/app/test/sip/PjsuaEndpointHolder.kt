@@ -120,6 +120,10 @@ private class HAPhoneEndpoint : Endpoint() {
     }
 }
 
+/** `;haphone-dev=<id>` for the Contact URI, null for a device paired without QR (digits only, never injectable). */
+internal fun contactParams(deviceId: String): String? =
+    deviceId.trim().takeIf { it.isNotEmpty() && it.all(Char::isDigit) }?.let { ";haphone-dev=$it" }
+
 class PjsuaEndpointHolder : IpChangeNotifier {
     private val endpoint: Endpoint = HAPhoneEndpoint()
     private var started = false
@@ -257,7 +261,11 @@ class PjsuaEndpointHolder : IpChangeNotifier {
         }
     }
 
-    fun asSipCallOperations(username: String, password: String, domain: String): SipCallOperations =
+    /**
+     * [deviceId] (from QR pairing) goes into our Contact as `;haphone-dev=<id>`, so the PBX
+     * can ring exactly this phone (test call) although the extension has several devices.
+     */
+    fun asSipCallOperations(username: String, password: String, domain: String, deviceId: String = ""): SipCallOperations =
         object : SipCallOperations {
             private var account: HAPhoneAccount? = null
 
@@ -276,6 +284,7 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 useStunServer(domain)
                 val cfg = org.pjsip.pjsua2.AccountConfig()
                 cfg.idUri = "sip:$username@$domain"
+                contactParams(deviceId)?.let { cfg.sipConfig.contactUriParams = it }
                 // STUN for media only: SIP runs over TLS, and the PBX fixes the Contact itself
                 // (rewrite_contact). The SDP needs the reachable address for early-media video.
                 cfg.natConfig.sipStunUse = org.pjsip.pjsua2.pjsua_stun_use.PJSUA_STUN_USE_DISABLED

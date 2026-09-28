@@ -293,6 +293,7 @@ class HAPhoneTestApplication : Application() {
                 username = username,
                 password = password,
                 domain = sipDomain,
+                deviceId = getDeviceAuth()["deviceId"].orEmpty(),
             ),
             sipDomain = sipDomain,
         )
