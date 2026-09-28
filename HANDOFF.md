@@ -335,6 +335,14 @@ Arbeitsweise: pro Etappe committen + pushen (Token-URL erlaubt), Anlage-Version 
 - **Fallstricke:** `PJSIP_AOR`/`PJSIP_CONTACT` per AMI `Getvar` hängen genauso wie `PJSIPShowContacts`. **`app_while` und `app_exec` (ExecIf) sind nicht gebaut**, nur app_dial, app_directed_pickup, app_echo, app_mixmonitor, app_playback, app_voicemail, func_callerid/channel/logic/strings/timeout. Schleifen also mit `GotoIf`. Ein `;` im Wählplan beginnt einen Kommentar. Beim Originate wartet panoramisk auf OriginateResponse (erst nach Annahme): Ein Timeout ist dort kein Fehler.
 - Add-on-Log lesen: `ha.token()` → `GET http://192.168.7.10:8123/api/hassio/addons/8b9b0991_ha-phone/logs`.
 
+## 5a27. 2026-09-28 Hotspot-Test auf dem 3T: App 1.6.5 + Anlage 0.7.137
+
+- Getestet: WLAN → iPhone-Hotspot → WLAN. Die App schaltet in ca. 1 s auf das Tailnet und bei Rückkehr ins WLAN sofort zurück auf LAN. SIP registriert sich jeweils sofort.
+- **Fehler gefunden und behoben:** Über ein Tailscale-Relay scheiterten API-Aufrufe regelmäßig mit `Connection closed before full header was received`. Ursache: Der Dart-HttpClient hält Verbindungen 15 s im Pool, uvicorn schließt nach 5 s, und über DERP kommt der FIN zu spät. Fix App: `kPbxIdleTimeout` 3 s, ein GET auf einer geschlossenen Verbindung wird einmal wiederholt (`isStaleConnection`). Fix Anlage: `timeout_keep_alive=30`. Dazu nennt `ApiException.detail` die Ursache (Diagnose: „nicht erreichbar (…)“, Log: `api GET … failed after … ms: …`).
+- Die ACL-Vermutung (8443 fehlt) war falsch, weil der Nutzer eine Allow-all-Regel hat. Die ACL-Vorlage ist trotzdem ergänzt, und die HA-Phone-Regel in der Konsole des Nutzers hat jetzt 5063 und 8443.
+- Offen, klein: Nach dem App-Start im Mobilfunk geht die erste Anfrage an die LAN-IP und wartet 8 s (lanDirect/tunnel beim Start noch unbekannt).
+- **Offen, Entscheidung des Nutzers:** Das Repo `iron-exx/ha-phone-app` ist **Public**. Es enthält keine Zugangsdaten (geprüft, auch die Historie; das SIP-Passwort der gelöschten Nst. 13 steht in der Historie, ist aber wertlos). Öffentlich lesbar sind aber HANDOFF.md, .planning/, private IPs, der Tailnet-Name und Familiennamen. Vorschlag: A) auf Private stellen, oder B) aufräumen (Historie nur mit ausdrücklicher Freigabe umschreiben).
+
 ## 5b. Nächste Schritte (nach /clear hier weitermachen)
 
 **Reihenfolge (Stand 2026-09-24 mittags):** 1. "Dauerhaft erreichbar" (Wecker im Doze, Keep-Alive, Wächter; Test: `dumpsys deviceidle force-idle`, lange warten, Türanruf) → 2. Redesign Etappe 2 (Gespräch, Mehr, zwei Leitungen, Statusleiste im hellen Modus) → 3. Etappe 3 (nativer Klingelbildschirm mit Schieberegler → `POST /api/mobile/door-open`, Webhook; Start-Türkarte auf "Tür öffnen" umstellen, wenn `door_open_remote`) → 4. Etappe 4 (Status-Blatt, "Klingeln auf diesem Handy", Erreichbarkeits-Check) → 5. Android Auto (DHU-Test, Car App Library "Calling") → README-Screenshots erneuern. Nutzer will kein Firebase/Push vorerst.
