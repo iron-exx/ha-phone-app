@@ -436,6 +436,7 @@ class HAPhoneTestApplication : Application() {
                 prefs.getString("api_host", "").orEmpty(),
                 prefs.getString("ts_pbx_ip", null),
                 de.haphone.app.test.tailscale.TailnetManager.running,
+                de.haphone.app.test.tailscale.TailnetManager.lanDirect,
             ),
             "deviceId" to prefs.getString("device_id", "").orEmpty(),
             "deviceToken" to prefs.getString("device_token", "").orEmpty(),
@@ -454,17 +455,19 @@ class HAPhoneTestApplication : Application() {
     /** Credentials come only from provisioning (QR pairing / Settings); empty until then. */
     private fun getSipCredentialsForRegistration(): List<String> {
         val c = getStoredCredentials()
-        // Over the tailnet while our Tailscale tunnel runs, else the LAN address from pairing.
+        // Direct LAN address when the box answers there, else the tailnet while our tunnel runs.
         val host = de.haphone.app.test.tailscale.TailnetRoute.sipHost(
             c["host"].orEmpty(),
             de.haphone.app.test.tailscale.TailnetManager.pbxTailnetIp(this),
             de.haphone.app.test.tailscale.TailnetManager.running,
+            de.haphone.app.test.tailscale.TailnetManager.lanDirect,
         )
         val port = de.haphone.app.test.tailscale.TailnetRoute.sipPort(
             c["port"].orEmpty(),
             de.haphone.app.test.tailscale.TailnetManager.tailnetSipPort(this),
             de.haphone.app.test.tailscale.TailnetManager.pbxTailnetIp(this),
             de.haphone.app.test.tailscale.TailnetManager.running,
+            de.haphone.app.test.tailscale.TailnetManager.lanDirect,
         )
         return listOf(host, port, c["username"].orEmpty(), c["password"].orEmpty())
     }

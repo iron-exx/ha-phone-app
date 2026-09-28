@@ -80,6 +80,33 @@ object PbxTls {
         return matches(der, pin.normalized)
     }
 
+    /**
+     * Is the box directly reachable under [apiHost] (its LAN address: at home or through a
+     * site-to-site VPN)? With a pin: a TLS handshake on the HTTPS port that only succeeds
+     * with exactly the paired cert, so another device with the same IP in a foreign
+     * Wi-Fi is never taken for the box. Without a pin (PBX before 0.7.130): TCP connect.
+     * Blocking; never call on the main thread.
+     */
+    fun probeDirect(apiHost: String, pin: Pin = current, timeoutMs: Int = 1_500): Boolean {
+        val host = hostOnly(apiHost)
+        if (host.isBlank()) return false
+        return try {
+            if (pin.isSet) {
+                val raw = java.net.Socket()
+                raw.connect(java.net.InetSocketAddress(host, pin.httpsPort), timeoutMs)
+                raw.soTimeout = timeoutMs
+                (socketFactory(pin).createSocket(raw, host, pin.httpsPort, true) as javax.net.ssl.SSLSocket)
+                    .use { it.startHandshake() }
+            } else {
+                val port = apiHost.substringAfterLast(':', "").toIntOrNull()?.takeIf { !apiHost.trim().startsWith("[") || apiHost.contains("]:") } ?: 80
+                java.net.Socket().use { it.connect(java.net.InetSocketAddress(host, port), timeoutMs) }
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /** Last time a SIP TLS connection was dropped for a wrong cert (0 = never), for Diagnose. */
     @Volatile var lastSipPinMismatchMs: Long = 0L
 

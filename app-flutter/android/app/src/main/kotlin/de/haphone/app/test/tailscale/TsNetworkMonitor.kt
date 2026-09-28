@@ -27,11 +27,13 @@ object TsNetworkMonitor {
     /** "dns1 dns2\nsearch.domain", the format Go parses in getPlatformDNSConfig. */
     @Volatile var platformDnsConfig: String = ""
         private set
+    @Volatile private var appContext: Context? = null
 
     @Synchronized
     fun start(context: Context) {
         if (started) return
         started = true
+        appContext = context.applicationContext
         val cm = context.applicationContext.getSystemService(ConnectivityManager::class.java)
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -73,5 +75,7 @@ object TsNetworkMonitor {
         Log.i(TAG, "default network: iface=${iface.ifEmpty { "none" }} gw=$gateway")
         Libtailscale.onGatewayChanged(gateway)
         Libtailscale.onDNSConfigChanged(iface)
+        // Home Wi-Fi / site-to-site VPN may reach the box directly again (or no longer).
+        appContext?.let(TailnetManager::onNetworkChanged)
     }
 }

@@ -59,4 +59,24 @@ class PbxTlsTest {
         assertTrue(PbxTls.acceptSipTls(PbxTls.Pin.NONE, isTls = true, remoteCertPem = null))
         assertTrue(PbxTls.acceptSipTls(good, isTls = false, remoteCertPem = null))
     }
+
+    @Test
+    fun `direct probe fails fast for an unreachable host`() {
+        val t0 = System.currentTimeMillis()
+        assertFalse(PbxTls.probeDirect("127.0.0.1:1", pin, timeoutMs = 500))
+        assertFalse(PbxTls.probeDirect("", pin))
+        assertTrue(System.currentTimeMillis() - t0 < 3_000)
+    }
+
+    @Test
+    fun `direct probe accepts only the pinned cert`() {
+        // Local TLS server with a throwaway self-signed cert is heavy for a JVM unit test;
+        // the pin check itself is covered by acceptSipTls/matches. Here: a plain TCP server
+        // (no TLS) on the https port is not "our box".
+        java.net.ServerSocket(0).use { server ->
+            val t = Thread { runCatching { server.accept().use { it.getOutputStream().write("HTTP/1.1 200 OK\r\n\r\n".toByteArray()) } } }
+            t.start()
+            assertFalse(PbxTls.probeDirect("127.0.0.1", PbxTls.Pin(pin.sha256, server.localPort), timeoutMs = 1_000))
+        }
+    }
 }

@@ -37,6 +37,7 @@ object TailnetManager {
     )
     private const val SETTLE_TRIES = 20
     private const val SETTLE_STEP_MS = 250L
+    private const val LAN_CHECK_S = 60L
 
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "tailnet") }
     private val main = Handler(Looper.getMainLooper())
@@ -49,6 +50,12 @@ object TailnetManager {
     @Volatile var lastError: String? = null
         private set
     @Volatile private var routedViaTailnet = false
+
+    /** The box answers on its LAN address (home / site-to-site VPN): prefer it over the tailnet. */
+    @Volatile var lanDirect: Boolean = false
+        private set
+    private val lanChecker = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "lan-probe") }
+    @Volatile private var lanCheckStarted = false
 
     /** Tunnel up and logged in: the PBX is reached over 100.x. */
     val running: Boolean
@@ -89,6 +96,7 @@ object TailnetManager {
     fun start(context: Context): String {
         val app = context.applicationContext
         if (!isConfigured(app)) return "off"
+        startLanChecks(app)
         if (Tailscale.consentIntent(app) != null) {
             app.startActivity(Intent(app, TsConsentActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return "consent"
@@ -100,6 +108,7 @@ object TailnetManager {
     /** Process start: reconnect silently if paired with Tailscale and the consent still holds. */
     fun resume(context: Context) {
         val app = context.applicationContext
+        startLanChecks(app)
         if (!isConfigured(app) || Tailscale.consentIntent(app) != null) return
         worker.execute { join(app) }
     }
@@ -188,10 +197,42 @@ object TailnetManager {
         }.onFailure { Log.w(TAG, "no browser for login URL", it) }
     }
 
-    /** Re-registers SIP when the route to the PBX changes (tunnel up/down). */
+    /**
+     * Starts checking once a minute (and on every network change, see TsNetworkMonitor)
+     * whether the box is directly reachable. Only needed with Tailscale set up.
+     */
+    fun startLanChecks(context: Context) {
+        val app = context.applicationContext
+        if (lanCheckStarted || !isConfigured(app)) return
+        lanCheckStarted = true
+        lanChecker.scheduleWithFixedDelay({ checkLan(app) }, 0, LAN_CHECK_S, java.util.concurrent.TimeUnit.SECONDS)
+    }
+
+    /** Network changed: check the direct route right away. */
+    fun onNetworkChanged(context: Context) {
+        val app = context.applicationContext
+        if (!lanCheckStarted) return
+        lanChecker.execute { checkLan(app) }
+    }
+
+    private fun checkLan(app: Context) {
+        try {
+            val lanHost = SecurePrefs.read(app) { it.getString("api_host", "").orEmpty() }
+            val direct = lanHost.isNotBlank() && de.haphone.app.test.net.PbxTls.probeDirect(lanHost)
+            if (direct != lanDirect) {
+                lanDirect = direct
+                Log.i(TAG, "PBX directly reachable: $direct")
+                updateRoute(app)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "LAN check failed", e)
+        }
+    }
+
+    /** Re-registers SIP when the route to the PBX changes (tunnel up/down, LAN reachable). */
     @Synchronized
     private fun updateRoute(app: Context) {
-        val now = TailnetRoute.useTailnet(pbxTailnetIp(app), running)
+        val now = TailnetRoute.useTailnet(pbxTailnetIp(app), running, lanDirect)
         if (now == routedViaTailnet) return
         routedViaTailnet = now
         Log.i(TAG, "PBX route -> ${if (now) "tailnet" else "LAN"} (state=$backendState vpn=${Tailscale.vpnActive})")
