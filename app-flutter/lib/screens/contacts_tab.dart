@@ -32,7 +32,7 @@ enum ContactSegment {
 
 /// Kontakte: search over all sources, source chips Alle · Nebenstellen ·
 /// Handy · Telefonbuch · Favoriten, sections Türstationen (open via webhook or call the door) ·
-/// Kolleg:innen (live presence) · Handy · Telefonbuch. Row tap opens the
+/// Nebenstellen (live presence) · Handy · Telefonbuch. Row tap opens the
 /// details sheet (Favorit), the green button calls.
 class ContactsTab extends StatefulWidget {
   const ContactsTab({
@@ -247,12 +247,12 @@ class _ContactsTabState extends State<ContactsTab> {
       case ContactSegment.all:
         return [
           ..._section('Türstationen', doors),
-          ..._section('Kolleg:innen', colleagues),
+          ..._section('Nebenstellen', colleagues),
           ..._section('Handy', phone),
           ..._section('Telefonbuch', phonebook),
         ];
       case ContactSegment.extensions:
-        return [..._section('Türstationen', doors), ..._section('Kolleg:innen', colleagues)];
+        return [..._section('Türstationen', doors), ..._section('Nebenstellen', colleagues)];
       case ContactSegment.phonebook:
         return _section('Telefonbuch', phonebook);
       case ContactSegment.favorites:

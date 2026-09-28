@@ -61,6 +61,15 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
+                "reconnect" -> {
+                    // Fresh REGISTER through ReachabilityMonitor (tracks the attempt, arms the
+                    // fallback alarm); first make sure the account and the service exist.
+                    app.sipCallController.register()
+                    app.startSipService()
+                    de.haphone.app.test.reach.ReachabilityMonitor.reRegister("user")
+                    result.success(null)
+                }
+
                 "unregister" -> {
                     app.sipCallController.unregister()
                     result.success(null)

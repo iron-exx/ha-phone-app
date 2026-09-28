@@ -79,7 +79,7 @@ void main() {
     await pumpTab(tester, r);
 
     expect(find.text('TÜRSTATIONEN'), findsOneWidget);
-    expect(find.text('KOLLEG:INNEN'), findsOneWidget);
+    expect(find.text('NEBENSTELLEN'), findsOneWidget);
     expect(find.text('TELEFONBUCH'), findsOneWidget);
     expect(find.text('Mittagspause · 11'), findsOneWidget);
     expect(find.text('Türstation · 16 · Video'), findsOneWidget);

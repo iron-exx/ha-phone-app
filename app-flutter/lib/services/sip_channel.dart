@@ -73,6 +73,9 @@ class SipChannel {
   Future<void> register() => _channel.invokeMethod('register');
   Future<void> unregister() => _channel.invokeMethod('unregister');
 
+  /// "Neu verbinden": fresh REGISTER even while registered (register() is a no-op then).
+  Future<void> reconnect() => _channel.invokeMethod('reconnect');
+
   Future<void> makeCall(String number) => _channel.invokeMethod('makeCall', number);
   Future<void> hangup() => _channel.invokeMethod('hangup');
   Future<void> hold(bool onHold) => _channel.invokeMethod('hold', onHold);

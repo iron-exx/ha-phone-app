@@ -125,14 +125,20 @@ class _MeTabState extends State<MeTab> {
     }
   }
 
+  /// Sends a fresh REGISTER (also when already registered: register() alone is a no-op then,
+  /// which left the tile on "Verbinde…" forever). The result arrives as a registration
+  /// event; reading the state again after a few seconds covers a lost event.
   Future<void> _reconnect() async {
     setState(() => _registration = RegistrationUi.connecting);
     try {
-      await SipChannel.instance.register();
+      await SipChannel.instance.reconnect();
     } catch (e) {
-      debugPrint('register failed: $e');
+      debugPrint('reconnect failed: $e');
       if (mounted) setState(() => _registration = RegistrationUi.offline);
+      return;
     }
+    await Future<void>.delayed(const Duration(seconds: 4));
+    if (mounted) await _loadRegistration();
   }
 
   Future<void> _open(String route) async {
