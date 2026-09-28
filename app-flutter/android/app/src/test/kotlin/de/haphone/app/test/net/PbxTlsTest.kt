@@ -10,14 +10,14 @@ class PbxTlsTest {
 
     @Test
     fun `base url is plain http without a pin`() {
-        assertEquals("http://192.168.7.10", PbxTls.baseUrl("192.168.7.10", PbxTls.Pin.NONE))
-        assertEquals("http://192.168.7.10:8080", PbxTls.baseUrl("192.168.7.10:8080", PbxTls.Pin.NONE))
+        assertEquals("http://192.168.1.10", PbxTls.baseUrl("192.168.1.10", PbxTls.Pin.NONE))
+        assertEquals("http://192.168.1.10:8080", PbxTls.baseUrl("192.168.1.10:8080", PbxTls.Pin.NONE))
     }
 
     @Test
     fun `base url switches to the https port with a pin, dropping any http port`() {
-        assertEquals("https://192.168.7.10:8443", PbxTls.baseUrl("192.168.7.10", pin))
-        assertEquals("https://100.117.178.114:8443", PbxTls.baseUrl("100.117.178.114:80", pin))
+        assertEquals("https://192.168.1.10:8443", PbxTls.baseUrl("192.168.1.10", pin))
+        assertEquals("https://100.101.102.103:8443", PbxTls.baseUrl("100.101.102.103:80", pin))
         assertEquals("https://[fd7a::1]:8443", PbxTls.baseUrl("[fd7a::1]:80", pin))
         assertEquals("https://[fd7a::1]:8443", PbxTls.baseUrl("fd7a::1", pin))
     }

@@ -4,7 +4,7 @@ Ziel: prüfen, was der Emulator nicht kann, also Mobilfunk, echter Ton, lange Sp
 
 ## Vorbereitung
 
-1. APK aufs Handy: `\\192.168.101.113\projects\ha-phone-app\app-flutter\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk` (per USB kopieren oder als Download). Beim Öffnen „Unbekannte Apps installieren“ für den Dateimanager oder Browser erlauben.
+1. APK aufs Handy: `<Projekt-Freigabe>\ha-phone-app\app-flutter\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk` (per USB kopieren oder als Download). Beim Öffnen „Unbekannte Apps installieren“ für den Dateimanager oder Browser erlauben.
 2. Eine vorhandene Debug-Version vorher deinstallieren (andere Signatur).
 3. In HA-Phone unter Provisioning eine **eigene Nebenstelle** fürs Handy wählen (nicht 18, die hat der Emulator), QR-Code anzeigen.
 4. App öffnen, QR scannen. Alle Nachfragen erlauben: Kamera, Mikrofon, Benachrichtigungen, **VPN-Verbindung**, Akku-Optimierung ausnehmen.

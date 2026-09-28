@@ -4,7 +4,7 @@ import 'package:ha_phone_test/utils/contact_filter.dart';
 
 const _contacts = [
   Contact(number: '11', name: 'sandro'),
-  Contact(number: '12', name: 'Larissa'),
+  Contact(number: '12', name: 'Anna'),
   Contact(number: '16', name: 'türklingel'),
   Contact(number: '0301234567', name: 'Pizzeria Roma', isExtension: false),
 ];
@@ -15,7 +15,7 @@ void main() {
       expect(filterContacts(_contacts, '  '), _contacts);
     });
     test('matches names case-insensitively', () {
-      expect(filterContacts(_contacts, 'LAR').single.number, '12');
+      expect(filterContacts(_contacts, 'ANN').single.number, '12');
       expect(filterContacts(_contacts, 'Tür').single.number, '16');
     });
     test('matches numbers ignoring spaces and dashes', () {

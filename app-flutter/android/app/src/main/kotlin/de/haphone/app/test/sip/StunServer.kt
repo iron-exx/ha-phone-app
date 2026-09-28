@@ -9,7 +9,7 @@ package de.haphone.app.test.sip
 object StunServer {
     const val PORT = 3478
 
-    /** "192.168.7.10:5061" -> "192.168.7.10:3478", "[fd00::1]:5061" -> "[fd00::1]:3478", null if empty. */
+    /** "192.168.1.10:5061" -> "192.168.1.10:3478", "[fd00::1]:5061" -> "[fd00::1]:3478", null if empty. */
     fun forDomain(domain: String): String? {
         val trimmed = domain.trim()
         if (trimmed.isEmpty()) return null

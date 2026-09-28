@@ -9,8 +9,8 @@ class TailnetRouteTest {
     @Test
     fun `running tunnel with a known PBX address uses the tailnet`() {
         assertTrue(TailnetRoute.useTailnet("100.101.102.103", tunnelRunning = true))
-        assertEquals("100.101.102.103", TailnetRoute.sipHost("192.168.7.10", "100.101.102.103", true))
-        assertEquals("100.101.102.103", TailnetRoute.apiHost("192.168.7.10:80", "100.101.102.103", true))
+        assertEquals("100.101.102.103", TailnetRoute.sipHost("192.168.1.10", "100.101.102.103", true))
+        assertEquals("100.101.102.103", TailnetRoute.apiHost("192.168.1.10:80", "100.101.102.103", true))
     }
 
     @Test
@@ -18,8 +18,8 @@ class TailnetRouteTest {
         assertFalse(TailnetRoute.useTailnet("100.101.102.103", tunnelRunning = false))
         assertFalse(TailnetRoute.useTailnet(null, tunnelRunning = true))
         assertFalse(TailnetRoute.useTailnet("", tunnelRunning = true))
-        assertEquals("192.168.7.10", TailnetRoute.sipHost("192.168.7.10", "100.101.102.103", false))
-        assertEquals("192.168.7.10:80", TailnetRoute.apiHost("192.168.7.10:80", null, true))
+        assertEquals("192.168.1.10", TailnetRoute.sipHost("192.168.1.10", "100.101.102.103", false))
+        assertEquals("192.168.1.10:80", TailnetRoute.apiHost("192.168.1.10:80", null, true))
     }
 
     @Test
@@ -32,8 +32,8 @@ class TailnetRouteTest {
     @Test
     fun `a directly reachable PBX (home, site-to-site VPN) beats the tailnet`() {
         assertFalse(TailnetRoute.useTailnet("100.101.102.103", tunnelRunning = true, lanDirect = true))
-        assertEquals("192.168.7.10", TailnetRoute.sipHost("192.168.7.10", "100.101.102.103", true, lanDirect = true))
+        assertEquals("192.168.1.10", TailnetRoute.sipHost("192.168.1.10", "100.101.102.103", true, lanDirect = true))
         assertEquals("5061", TailnetRoute.sipPort("5061", "5063", "100.101.102.103", true, lanDirect = true))
-        assertEquals("192.168.7.10", TailnetRoute.apiHost("192.168.7.10", "100.101.102.103", true, lanDirect = true))
+        assertEquals("192.168.1.10", TailnetRoute.apiHost("192.168.1.10", "100.101.102.103", true, lanDirect = true))
     }
 }

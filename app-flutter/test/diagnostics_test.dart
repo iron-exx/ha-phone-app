@@ -10,8 +10,8 @@ void main() {
     final info = DiagnosticsInfo.fromNative(
       appVersion: '0.3.0',
       registration: 'Online (TLS)',
-      credentials: {'host': '192.168.7.10', 'port': '5061', 'username': '13', 'password': 'geheim-sip-123'},
-      deviceAuth: {'apiHost': '192.168.7.10', 'deviceId': 'dev-7', 'deviceToken': 'token-xyz-987'},
+      credentials: {'host': '192.168.1.10', 'port': '5061', 'username': '13', 'password': 'geheim-sip-123'},
+      deviceAuth: {'apiHost': '192.168.1.10', 'deviceId': 'dev-7', 'deviceToken': 'token-xyz-987'},
       reachability: const Reachability.ok(23),
       features: const [
         FeatureCheck('Präsenz', FeatureSupport.supported),
@@ -22,9 +22,9 @@ void main() {
 
     expect(text, isNot(contains('geheim-sip-123')));
     expect(text, isNot(contains('token-xyz-987')));
-    expect(text, contains('SIP-Server: 192.168.7.10:5061 (TLS)'));
+    expect(text, contains('SIP-Server: 192.168.1.10:5061 (TLS)'));
     expect(text, contains('Nebenstelle: 13'));
-    expect(text, contains('API-Host: 192.168.7.10'));
+    expect(text, contains('API-Host: 192.168.1.10'));
     expect(text, contains('App-Version: 0.3.0'));
     expect(text, contains('Anlage: erreichbar · 23 ms'));
     expect(text, contains('Präsenz: ja'));

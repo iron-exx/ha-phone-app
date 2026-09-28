@@ -36,3 +36,8 @@ ios-app/Secrets.xcconfig
 graphify-out/
 *.hprof
 app-flutter/android/.kotlin/
+
+# Interne Arbeitsnotizen (Übergabe, GSD-Planung, Arbeitspläne): nur lokal, nicht im öffentlichen Repo.
+HANDOFF.md
+.planning/
+docs/superpowers/

@@ -172,7 +172,7 @@ def page(title, body, w=W, h=H):
 def start():
     fav = [("SA", "sandro", "Tischtelefon · 11", "avail", "verfügbar"),
            ("DE", "dect", "DECT · 15", "busy", "telefoniert 04:12"),
-           ("LA", "larissa", "Handy · 12", "off", "offline"),
+           ("LA", "anna", "Handy · 12", "off", "offline"),
            ("OE", "Oma Erika", "Handy-Kontakt", "avail", "Mobil")]
     tiles = ""
     for ini, name, sub, pres, state in fav:
@@ -297,7 +297,7 @@ def kontakte():
 {c("SA","sandro","Tischtelefon 11","avail",call)}
 {c("DE","dect","DECT 15","busy",call)}
 {c("TE","Test","13","dnd",call)}
-{c("LA","larissa","Handy 12","off",call)}
+{c("LA","anna","Handy 12","off",call)}
 <div class="sec">Handy</div>
 {c("OE","Oma Erika","Mobil +49 171 1234567","avail",call)}
 {nav("kontakte")}</div>''')

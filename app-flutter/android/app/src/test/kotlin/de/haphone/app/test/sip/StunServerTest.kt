@@ -7,7 +7,7 @@ import org.junit.Test
 class StunServerTest {
     @Test
     fun `replaces the SIP port with the STUN port`() {
-        assertEquals("192.168.7.10:3478", StunServer.forDomain("192.168.7.10:5061"))
+        assertEquals("192.168.1.10:3478", StunServer.forDomain("192.168.1.10:5061"))
         assertEquals("pbx.local:3478", StunServer.forDomain("pbx.local"))
     }
 

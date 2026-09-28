@@ -21,7 +21,7 @@ rather than an undefined "test it somehow" instruction.
 |-------|-------|
 | Extension number | `13` |
 | SIP password | see `android-app/local.properties` (`SIP_TEST_PASSWORD`) or `ios-app/Secrets.xcconfig` (`SIP_TEST_PASSWORD`) -- both gitignored, never committed |
-| Host | `192.168.7.10` |
+| Host | `192.168.1.10` |
 | Transport | TLS, port 5061 |
 | Media encryption | SDES |
 

@@ -8,7 +8,7 @@ Stand: 2026-09-25 · App 1.1.1/1.1.2 (Release, x86_64, Upload-Key) · Anlage 0.7
 | 2 | Kaltstart, kein Absturz (R8 aktiv) | ok |
 | 3 | Kopplung per Link | ok |
 | 4 | SIP-Registrierung, Anlage meldet 18 `Online` | ok |
-| 5 | Tailscale: Einmal-Key, Running, Node gemeldet, `REGISTER sip:100.117.178.114:5063` → 200 | ok |
+| 5 | Tailscale: Einmal-Key, Running, Node gemeldet, `REGISTER sip:100.101.102.103:5063` → 200 | ok |
 | 6 | Türanruf bei gesperrtem Bildschirm: Klingelbildschirm über der Sperre, Livebild, SDP über 100.x, Annehmen → ACTIVE, Ende → DISCONNECTED | ok (nach Freigabe von Benachrichtigungen) |
 | 7 | Ausgehend `*43` über das Wählfeld, Gespräch steht, Auflegen | ok ab 1.1.2 |
 

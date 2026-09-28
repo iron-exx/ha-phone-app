@@ -6,7 +6,7 @@ import 'package:ha_phone_test/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-const _auth = DeviceAuth(apiHost: '192.168.7.10', deviceId: '4', deviceToken: 'tok');
+const _auth = DeviceAuth(apiHost: '192.168.1.10', deviceId: '4', deviceToken: 'tok');
 
 void main() {
   test('sends device headers and parses the directory', () async {
@@ -27,7 +27,7 @@ void main() {
       }),
     );
     final d = await api.fetchDirectory(_auth);
-    expect(seen.url.toString(), 'http://192.168.7.10/api/mobile/directory');
+    expect(seen.url.toString(), 'http://192.168.1.10/api/mobile/directory');
     expect(seen.headers['X-Device-Id'], '4');
     expect(seen.headers['X-Device-Token'], 'tok');
     expect(d.extensions.single.name, 'türklingel');

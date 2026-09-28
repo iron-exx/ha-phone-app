@@ -15,21 +15,21 @@ final _pin = 'ab' * 32;
 void main() {
   group('DeviceAuth base URL', () {
     test('plain http without a pin (PBX before 0.7.130)', () {
-      final a = DeviceAuth.fromMap({'apiHost': '192.168.7.10', 'deviceId': '1', 'deviceToken': 't'});
+      final a = DeviceAuth.fromMap({'apiHost': '192.168.1.10', 'deviceId': '1', 'deviceToken': 't'});
       expect(a.isPinned, isFalse);
-      expect(a.baseUri.toString(), 'http://192.168.7.10');
+      expect(a.baseUri.toString(), 'http://192.168.1.10');
     });
 
     test('https on the pinned port, any http port dropped', () {
       final a = DeviceAuth.fromMap({
-        'apiHost': '100.117.178.114:80',
+        'apiHost': '100.101.102.103:80',
         'deviceId': '1',
         'deviceToken': 't',
         'tlsPin': _pin,
         'httpsPort': '8443',
       });
       expect(a.isPinned, isTrue);
-      expect(a.baseUri.toString(), 'https://100.117.178.114:8443');
+      expect(a.baseUri.toString(), 'https://100.101.102.103:8443');
     });
 
     test('a broken pin or missing port stays on http', () {
