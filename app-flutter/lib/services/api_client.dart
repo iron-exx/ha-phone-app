@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 import '../models/doorbell_event.dart';
@@ -54,10 +55,13 @@ const kMinPbxVersionTestCall = '0.7.118';
 
 /// Error with a German message that tells the user what to do.
 class ApiException implements Exception {
-  const ApiException(this.kind, [this.statusCode, this.minPbxVersion = kMinPbxVersionPhase3]);
+  const ApiException(this.kind, [this.statusCode, this.minPbxVersion = kMinPbxVersionPhase3, this.detail = '']);
 
   final ApiErrorKind kind;
   final int? statusCode;
+
+  /// Technical cause for Diagnose ("Zeitüberschreitung nach 8 s", "Connection refused"), '' if none.
+  final String detail;
 
   /// HA-Phone version the failed endpoint needs (for [ApiErrorKind.unsupported]).
   final String minPbxVersion;
@@ -78,7 +82,7 @@ class ApiException implements Exception {
       };
 
   @override
-  String toString() => 'ApiException($kind, $statusCode)';
+  String toString() => 'ApiException($kind, $statusCode${detail.isEmpty ? '' : ', $detail'})';
 }
 
 /// Credentials for the /api/mobile/* endpoints, from SipChannel.getDeviceAuth.
@@ -123,6 +127,11 @@ class DeviceAuth {
     return ':'.allMatches(t).length == 1 ? t.substring(0, t.indexOf(':')) : t;
   }
 }
+
+/// The server closed a reused keep-alive connection before answering (dart:io message).
+bool isStaleConnection(http.ClientException e) =>
+    e.message.contains('Connection closed before full header was received') ||
+    e.message.contains('Connection reset by peer');
 
 /// Client for the HA-Phone mobile API: pinned HTTPS (8443) when the pairing has a
 /// cert fingerprint, else plain HTTP on port 80 like before HA-Phone 0.7.130.
@@ -354,24 +363,36 @@ class ApiClient {
       ...authHeaders(auth),
       if (body != null) 'Content-Type': 'application/json',
     };
-    final http.Response response;
+    late final http.Response response;
     final client = _clientFor(auth);
+    final watch = Stopwatch()..start();
+    ApiException failed(ApiErrorKind kind, String detail) {
+      debugPrint('api $method ${uri.path} via ${uri.host}:${uri.port} failed after ${watch.elapsedMilliseconds} ms: $detail');
+      return ApiException(kind, null, kMinPbxVersionPhase3, detail);
+    }
+    Future<http.Response> send() => switch (method) {
+          'PUT' => client.put(uri, headers: headers, body: jsonEncode(body)),
+          'POST' => client.post(uri, headers: headers, body: jsonEncode(body)),
+          'DELETE' => client.delete(uri, headers: headers),
+          _ => client.get(uri, headers: headers),
+        };
     try {
-      final Future<http.Response> request = switch (method) {
-        'PUT' => client.put(uri, headers: headers, body: jsonEncode(body)),
-        'POST' => client.post(uri, headers: headers, body: jsonEncode(body)),
-        'DELETE' => client.delete(uri, headers: headers),
-        _ => client.get(uri, headers: headers),
-      };
-      response = await request.timeout(timeout);
-    } on HandshakeException {
-      throw const ApiException(ApiErrorKind.certificateMismatch);
-    } on SocketException {
-      throw const ApiException(ApiErrorKind.unreachable);
+      try {
+        response = await send().timeout(timeout);
+      } on http.ClientException catch (e) {
+        // A pooled keep-alive connection the PBX had just closed: GET is safe to repeat once.
+        if (method != 'GET' || !isStaleConnection(e)) rethrow;
+        debugPrint('api GET ${uri.path}: stale connection, retrying once');
+        response = await send().timeout(timeout);
+      }
+    } on HandshakeException catch (e) {
+      throw failed(ApiErrorKind.certificateMismatch, e.message);
+    } on SocketException catch (e) {
+      throw failed(ApiErrorKind.unreachable, e.osError?.message ?? e.message);
     } on TimeoutException {
-      throw const ApiException(ApiErrorKind.unreachable);
-    } on http.ClientException {
-      throw const ApiException(ApiErrorKind.unreachable);
+      throw failed(ApiErrorKind.unreachable, 'keine Antwort nach ${timeout.inSeconds} s');
+    } on http.ClientException catch (e) {
+      throw failed(ApiErrorKind.unreachable, e.message);
     }
     final status = response.statusCode;
     // Device auth fails with 401; a 403 there means "feature not enabled".

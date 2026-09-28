@@ -81,6 +81,31 @@ void main() {
     );
   });
 
+  test('network errors carry their cause for Diagnose', () async {
+    final refused = ApiClient(client: _Refused());
+    const auth = DeviceAuth(apiHost: 'box', deviceId: '1', deviceToken: 't');
+    try {
+      await refused.fetchPresence(auth);
+      fail('expected ApiException');
+    } on ApiException catch (e) {
+      expect(e.kind, ApiErrorKind.unreachable);
+      expect(e.detail, 'Connection refused');
+      expect(Reachability.failed(e).text, startsWith('nicht erreichbar (Connection refused) – '));
+    }
+  });
+
+  test('a GET on a keep-alive connection the PBX just closed is retried once', () async {
+    final stale = _StaleOnce();
+    final api = ApiClient(client: stale);
+    const auth = DeviceAuth(apiHost: 'box', deviceId: '1', deviceToken: 't');
+    await api.fetchPresence(auth);
+    expect(stale.calls, 2);
+  });
+
+  test('pooled PBX connections are dropped before the PBX closes them', () {
+    expect(kPbxIdleTimeout, lessThan(const Duration(seconds: 5)));
+  });
+
   test('a TLS handshake failure (wrong cert) is its own error kind', () async {
     final api = ApiClient(client: _Throwing());
     const auth = DeviceAuth(apiHost: 'box', deviceId: '1', deviceToken: 't');
@@ -95,4 +120,24 @@ class _Throwing extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async =>
       throw const HandshakeException('CERTIFICATE_VERIFY_FAILED');
+}
+
+class _Refused extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      throw const SocketException('connect failed', osError: OSError('Connection refused', 111));
+}
+
+class _StaleOnce extends http.BaseClient {
+  int calls = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    calls++;
+    if (calls == 1) {
+      throw http.ClientException('Connection closed before full header was received', request.url);
+    }
+    final body = utf8.encode(jsonEncode({'self': {'number': '18', 'presence': 'available'}, 'extensions': []}));
+    return http.StreamedResponse(Stream.value(body), 200, headers: {'content-type': 'application/json'});
+  }
 }

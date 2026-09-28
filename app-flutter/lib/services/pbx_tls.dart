@@ -11,6 +11,9 @@ import 'package:http/io_client.dart';
 /// paired before. Only exactly that cert is accepted; host names are not checked because
 /// the box is reached by LAN IP and tailnet IP alike.
 
+/// How long an unused PBX connection stays in the pool (PBX keep-alive: 30 s since 0.7.137, 5 s before).
+const kPbxIdleTimeout = Duration(seconds: 3);
+
 String normalizePin(String pin) => pin.replaceAll(':', '').trim().toLowerCase();
 
 bool isValidPin(String pin) => RegExp(r'^[0-9a-f]{64}$').hasMatch(normalizePin(pin));
@@ -32,6 +35,10 @@ class PinnedClients {
     return _clients.putIfAbsent(key, () {
       final io = HttpClient(context: SecurityContext(withTrustedRoots: false))
         ..connectionTimeout = const Duration(seconds: 8)
+        // Below the PBX's keep-alive (uvicorn): over a Tailscale relay its FIN arrives late,
+        // and a request on the already closed pooled connection failed with
+        // "Connection closed before full header was received".
+        ..idleTimeout = kPbxIdleTimeout
         ..badCertificateCallback = (cert, host, port) => certMatchesPin(cert.der, key);
       return IOClient(io);
     });

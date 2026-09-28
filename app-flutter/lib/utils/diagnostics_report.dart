@@ -42,7 +42,11 @@ class Reachability {
   final int? millis;
   final ApiException? error;
 
-  String get text => millis != null ? 'erreichbar · $millis ms' : 'nicht erreichbar – ${error!.message}';
+  String get text {
+    if (millis != null) return 'erreichbar · $millis ms';
+    final e = error!;
+    return e.detail.isEmpty ? 'nicht erreichbar – ${e.message}' : 'nicht erreichbar (${e.detail}) – ${e.message}';
+  }
 }
 
 /// Everything the Diagnose screen shows. Built only from non-secret fields:
