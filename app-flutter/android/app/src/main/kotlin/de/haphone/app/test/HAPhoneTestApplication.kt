@@ -302,6 +302,7 @@ class HAPhoneTestApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         loadTlsPin()
+        de.haphone.app.test.calls.VideoNumbers.load(this)
         ShortWakeLock.attach(this)
         de.haphone.app.test.reach.ReachabilityMonitor.attach(this)
         de.haphone.app.test.ring.RingPolicyStore.attach(this) { number ->

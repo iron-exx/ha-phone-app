@@ -40,7 +40,7 @@ class CallCoordinator(
     /** Outgoing call before pjsua has an id for it ([bindOutgoing] follows). */
     fun beginOutgoing(number: String): Boolean {
         if (session.hasTwoCalls) return false
-        val ok = session.addOutgoing(CallSession.PENDING_ID, newCall(number, "", "outgoing", false, "connecting"))
+        val ok = session.addOutgoing(CallSession.PENDING_ID, newCall(number, "", "outgoing", VideoNumbers.contains(number), "connecting"))
         changed("connecting")
         return ok
     }

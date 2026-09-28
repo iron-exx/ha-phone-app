@@ -61,6 +61,11 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
+                "setVideoNumbers" -> {
+                    de.haphone.app.test.calls.VideoNumbers.replace(app, (call.arguments as? List<*>).orEmpty().filterIsInstance<String>())
+                    result.success(null)
+                }
+
                 "reconnect" -> {
                     // Fresh REGISTER through ReachabilityMonitor (tracks the attempt, arms the
                     // fallback alarm); first make sure the account and the service exist.

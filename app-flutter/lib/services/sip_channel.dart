@@ -165,6 +165,9 @@ class SipChannel {
 
   /// Door stations with a PBX webhook (`door_open_remote`): the native ringing
   /// screen opens them without answering. Replaces the stored list.
+  /// Video-capable extensions: an outgoing call to one of them offers video (receive only).
+  Future<void> setVideoNumbers(List<String> numbers) => _channel.invokeMethod('setVideoNumbers', numbers);
+
   Future<void> setDoorOpenRemote(List<String> numbers) => _channel.invokeMethod('setDoorOpenRemote', numbers);
 
   // ---- Android Auto (native car screens, see android/.../car/) ----

@@ -370,7 +370,10 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                     // Consultation call: the running call waits on hold behind the new one.
                     held?.let { holdCall(it) }
                     val prm = org.pjsip.pjsua2.CallOpParam(true)
-                    prm.opt.videoCount = 0
+                    // Video-capable callee (door station, Indoorview): ask for its video; we only
+                    // receive (videoConfig.autoTransmitOutgoing = false).
+                    prm.opt.videoCount = if (de.haphone.app.test.calls.VideoNumbers.contains(
+                            de.haphone.app.test.calls.VideoNumbers.numberOf(uri))) 1 else 0
                     call.makeCall(uri, prm)
                 } catch (e: Exception) {
                     synchronized(acc.lock) {

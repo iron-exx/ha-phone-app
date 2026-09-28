@@ -69,6 +69,13 @@ class Directory {
           if (e.doorOpenRemote && e.number.isNotEmpty) e.number,
       ];
 
+  /// Video-capable extensions (door stations, Indoorview): outgoing calls to them ask
+  /// for video (SipChannel.setVideoNumbers).
+  List<String> get videoNumbers => [
+        for (final e in extensions)
+          if (e.video && e.number.isNotEmpty) e.number,
+      ];
+
   /// Number -> Home Assistant action labels for SipChannel.setDoorActions.
   Map<String, List<String>> get doorActions => {
         for (final e in extensions)
