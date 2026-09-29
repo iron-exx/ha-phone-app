@@ -112,6 +112,8 @@ void main() {
     expect(find.text('bis 17:00'), findsOneWidget);
     expect(find.text('bis morgen'), findsOneWidget);
 
+    await tester.ensureVisible(find.byKey(const Key('status-forwarding')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('status-forwarding')));
     expect(t.opened, [1]);
     await done(tester, t.ring);
@@ -170,7 +172,14 @@ void main() {
 
     await tester.tap(find.byKey(const Key('ring-switch')));
     await tester.pumpAndSettle();
-    expect(stored, {'enabled': true, 'mutedUntil': 0, 'allowDoor': false});
+    expect(stored, {'enabled': true, 'mutedUntil': 0, 'allowDoor': false, 'doorLoud': false});
+
+    await tester.ensureVisible(find.byKey(const Key('ring-door-loud-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('ring-door-loud-switch')));
+    await tester.pumpAndSettle();
+    expect(stored['doorLoud'], true);
+    expect(stored['allowDoor'], false);
     await done(tester, t.ring);
   });
 

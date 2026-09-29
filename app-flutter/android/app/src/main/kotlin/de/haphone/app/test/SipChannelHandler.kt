@@ -178,6 +178,12 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
+                "setDoorStations" -> {
+                    val numbers = (call.arguments as? List<*>)?.filterIsInstance<String>()
+                    app.doorCodes.replaceStations(numbers)
+                    result.success(null)
+                }
+
                 "setDoorActions" -> {
                     val actions = (call.arguments as? Map<*, *>).orEmpty().mapNotNull { (k, v) ->
                         val number = k as? String ?: return@mapNotNull null

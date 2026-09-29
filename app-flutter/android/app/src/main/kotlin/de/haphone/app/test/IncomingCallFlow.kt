@@ -56,7 +56,8 @@ class IncomingCallFlow(private val app: HAPhoneTestApplication) {
                     app, number, callType, isValid = true, isExpired = false,
                     callerName = call.displayName, sipCallId = call.callId,
                 )
-                RingtonePlayer.startRinging(app, CallNotificationBuilder.CHANNEL_ID)
+                val loudDoor = de.haphone.app.test.ring.RingPolicyStore.ringsLoud(call.number, call.hasVideo)
+                RingtonePlayer.startRinging(app, CallNotificationBuilder.CHANNEL_ID, loudDoor)
                 scheduleRingTimeout(call.callId)
                 // The full-screen intent only fires on a locked/off screen; with the phone in
                 // use it would just be a heads-up, so open the ringing screen directly.

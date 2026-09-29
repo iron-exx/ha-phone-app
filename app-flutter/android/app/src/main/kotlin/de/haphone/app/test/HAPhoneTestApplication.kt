@@ -305,10 +305,14 @@ class HAPhoneTestApplication : Application() {
         de.haphone.app.test.calls.VideoNumbers.load(this)
         ShortWakeLock.attach(this)
         de.haphone.app.test.reach.ReachabilityMonitor.attach(this)
-        de.haphone.app.test.ring.RingPolicyStore.attach(this) { number ->
-            doorCodes.forNumber(number).isNotBlank() || doorCodes.hasOpenRemote(number) ||
-                doorActions.labelsFor(number).isNotEmpty()
-        }
+        de.haphone.app.test.ring.RingPolicyStore.attach(
+            this,
+            doorLookup = { number ->
+                doorCodes.forNumber(number).isNotBlank() || doorCodes.hasOpenRemote(number) ||
+                    doorActions.labelsFor(number).isNotEmpty()
+            },
+            stations = { doorCodes.stations() },
+        )
         CallNotificationBuilder.ensureChannel(this)
 
         // Fix: CallRegistration.registerApp() previously had zero call

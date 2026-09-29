@@ -145,6 +145,10 @@ class SipChannel {
   /// Extension number -> DTMF door-open code, from /api/mobile/directory. Replaces the stored map.
   Future<void> setDoorCodes(Map<String, String> codes) => _channel.invokeMethod('setDoorCodes', codes);
 
+  /// Extensions with the PBX "Türstation" switch on; null = the PBX does not say
+  /// (older version). Decides which incoming calls ring as a door.
+  Future<void> setDoorStations(List<String>? numbers) => _channel.invokeMethod('setDoorStations', numbers);
+
   // ---- Second call (call waiting, consultation, conference) ----
 
   /// Answer the waiting call; the current one goes on hold.

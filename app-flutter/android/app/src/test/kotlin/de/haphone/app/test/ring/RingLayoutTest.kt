@@ -15,7 +15,16 @@ class RingLayoutTest {
         remote: Boolean = false,
         actions: List<String> = emptyList(),
         locked: Boolean = false,
-    ) = RingInput(callType, number, name, doorCode, remote, actions, locked)
+        station: Boolean = false,
+    ) = RingInput(callType, number, name, doorCode, remote, actions, locked, doorStation = station)
+
+    @Test
+    fun `door station switch alone gives the door title without a slider`() {
+        val l = RingLayouts.of(input(callType = "video", number = "16", station = true))
+        assertEquals(RingLayouts.DOOR_TITLE, l.title)
+        assertTrue(l.isDoorStation)
+        assertEquals(DoorOpenMethod.NONE, l.openMethod)
+    }
 
     @Test
     fun `plain audio call from a colleague is the normal variant without door controls`() {

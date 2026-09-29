@@ -277,36 +277,66 @@ class _StatusPanelState extends State<StatusPanel> {
             ],
           ),
           Divider(height: 16, color: c.stroke),
-          Row(
-            children: [
-              Icon(Icons.doorbell_outlined, size: 22, color: c.door),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Türklingel trotzdem', style: NwType.rowTitle.copyWith(color: c.text)),
-                    const SizedBox(height: 2),
-                    Text('Die Türstation klingelt auch, wenn das Handy stumm ist',
-                        style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Semantics(
-                label: 'Türklingel trotzdem',
-                child: Switch(
-                  key: const Key('ring-door-switch'),
-                  value: s.allowDoor,
-                  activeColor: Colors.white,
-                  activeTrackColor: c.door,
-                  onChanged: (on) => _setRing(s.withAllowDoor(on)),
-                ),
-              ),
-            ],
+          _doorSwitchRow(
+            context,
+            key: const Key('ring-door-switch'),
+            icon: Icons.doorbell_outlined,
+            title: 'Türklingel trotzdem',
+            detail: 'Die Türstation klingelt auch, wenn das Handy stumm ist',
+            value: s.allowDoor,
+            onChanged: (on) => _setRing(s.withAllowDoor(on)),
+          ),
+          const SizedBox(height: 12),
+          _doorSwitchRow(
+            context,
+            key: const Key('ring-door-loud-switch'),
+            icon: Icons.volume_up_outlined,
+            title: 'Türklingel auch bei lautlos',
+            detail: 'Klingelt wie ein Wecker, auch wenn das Handy auf lautlos oder Vibration steht',
+            value: s.doorLoud,
+            onChanged: (on) => _setRing(s.withDoorLoud(on)),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _doorSwitchRow(
+    BuildContext context, {
+    required Key key,
+    required IconData icon,
+    required String title,
+    required String detail,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final c = context.nw;
+    return Row(
+      children: [
+        Icon(icon, size: 22, color: c.door),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: NwType.rowTitle.copyWith(color: c.text)),
+              const SizedBox(height: 2),
+              Text(detail, style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Semantics(
+          label: title,
+          child: Switch(
+            key: key,
+            value: value,
+            activeColor: Colors.white,
+            activeTrackColor: c.door,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
     );
   }
 

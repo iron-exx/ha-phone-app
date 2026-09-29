@@ -15,7 +15,7 @@ const kMorningHour = 8;
 const kEveningHour = 17;
 
 class RingSettings {
-  const RingSettings({this.enabled = true, this.mutedUntil, this.allowDoor = true});
+  const RingSettings({this.enabled = true, this.mutedUntil, this.allowDoor = true, this.doorLoud = false});
 
   factory RingSettings.fromMap(Map<Object?, Object?> m) {
     final until = m['mutedUntil'];
@@ -23,6 +23,7 @@ class RingSettings {
       enabled: m['enabled'] as bool? ?? true,
       mutedUntil: until is int && until > 0 ? DateTime.fromMillisecondsSinceEpoch(until) : null,
       allowDoor: m['allowDoor'] as bool? ?? true,
+      doorLoud: m['doorLoud'] as bool? ?? false,
     );
   }
 
@@ -35,10 +36,15 @@ class RingSettings {
   /// "Türklingel trotzdem": door-station calls ring even while silent.
   final bool allowDoor;
 
+  /// "Türklingel auch bei lautlos": door-station calls ring like an alarm clock,
+  /// also when the phone itself is on silent or vibrate (native RingAlert).
+  final bool doorLoud;
+
   Map<String, Object?> toMap() => {
         'enabled': enabled,
         'mutedUntil': mutedUntil?.millisecondsSinceEpoch ?? 0,
         'allowDoor': allowDoor,
+        'doorLoud': doorLoud,
       };
 
   bool isMutedAt(DateTime now) => mutedUntil != null && mutedUntil!.isAfter(now);
@@ -47,21 +53,26 @@ class RingSettings {
   bool ringsAt(DateTime now) => enabled && !isMutedAt(now);
 
   /// Switch on: ring again (also ends a timed mute).
-  RingSettings ringing() => RingSettings(allowDoor: allowDoor);
+  RingSettings ringing() => RingSettings(allowDoor: allowDoor, doorLoud: doorLoud);
 
   /// Switch off: silent until switched on again.
-  RingSettings silent() => RingSettings(enabled: false, allowDoor: allowDoor);
+  RingSettings silent() => RingSettings(enabled: false, allowDoor: allowDoor, doorLoud: doorLoud);
 
-  RingSettings mutedTill(DateTime until) => RingSettings(mutedUntil: until, allowDoor: allowDoor);
+  RingSettings mutedTill(DateTime until) => RingSettings(mutedUntil: until, allowDoor: allowDoor, doorLoud: doorLoud);
 
-  RingSettings withAllowDoor(bool value) => RingSettings(enabled: enabled, mutedUntil: mutedUntil, allowDoor: value);
+  RingSettings withAllowDoor(bool value) =>
+      RingSettings(enabled: enabled, mutedUntil: mutedUntil, allowDoor: value, doorLoud: doorLoud);
+
+  RingSettings withDoorLoud(bool value) =>
+      RingSettings(enabled: enabled, mutedUntil: mutedUntil, allowDoor: allowDoor, doorLoud: value);
 
   @override
   bool operator ==(Object other) =>
-      other is RingSettings && other.enabled == enabled && other.mutedUntil == mutedUntil && other.allowDoor == allowDoor;
+      other is RingSettings && other.enabled == enabled && other.mutedUntil == mutedUntil && other.allowDoor == allowDoor &&
+      other.doorLoud == doorLoud;
 
   @override
-  int get hashCode => Object.hash(enabled, mutedUntil, allowDoor);
+  int get hashCode => Object.hash(enabled, mutedUntil, allowDoor, doorLoud);
 }
 
 /// "17:00", "morgen 8:00", "Mo 8:00" relative to [now].

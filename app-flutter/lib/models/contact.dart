@@ -11,6 +11,7 @@ class Contact {
     this.doorOpenCode = '',
     this.doorOpenRemote = false,
     this.doorActions = const [],
+    this.isDoor,
     this.isExtension = true,
     this.label = '',
   });
@@ -25,6 +26,7 @@ class Contact {
         doorOpenCode: (json['door_open_code'] as String?) ?? '',
         doorOpenRemote: json['door_open_remote'] == true,
         doorActions: _labels(json['door_actions']),
+        isDoor: json['is_door'] is bool ? json['is_door'] as bool : null,
         isExtension: isExtension,
       );
 
@@ -53,15 +55,18 @@ class Contact {
   /// Labels of the door's Home Assistant actions; index = action id on the PBX.
   final List<String> doorActions;
 
+  /// `is_door` (HA-Phone 0.7.138): the admin's "Türstation" switch. null = older PBX.
+  final bool? isDoor;
+
   /// false for phonebook entries (no presence, no avatar dot).
   final bool isExtension;
 
   /// Kind of number for phone address book entries ("Mobil", "Arbeit"), else ''.
   final String label;
 
-  /// Door stations are recognised by an open code or an open webhook.
+  /// The PBX's "Türstation" switch; older PBX versions: an open code or an open webhook.
   // Video alone is no door: desk phones and the app itself can be video-capable.
-  bool get isDoorStation => doorOpenCode.isNotEmpty || doorOpenRemote;
+  bool get isDoorStation => isDoor ?? (doorOpenCode.isNotEmpty || doorOpenRemote);
 
   String get displayName => name.isNotEmpty ? name : number;
 
@@ -73,5 +78,6 @@ class Contact {
         if (isExtension) 'door_open_code': doorOpenCode,
         if (isExtension && doorOpenRemote) 'door_open_remote': true,
         if (isExtension && doorActions.isNotEmpty) 'door_actions': doorActions,
+        if (isExtension && isDoor != null) 'is_door': isDoor,
       };
 }

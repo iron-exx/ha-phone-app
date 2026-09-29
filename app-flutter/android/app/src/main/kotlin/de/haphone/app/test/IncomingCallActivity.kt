@@ -88,6 +88,7 @@ class IncomingCallActivity : ComponentActivity() {
             doorOpenRemote = app.doorCodes.hasOpenRemote(callId),
             doorActions = doorActions,
             keyguardLocked = false,
+            doorStation = app.doorCodes.stations()?.contains(callId) == true,
         )
         val meta = RingLayouts.meta(callId, LocalTime.now())
         val baseLayout = RingLayouts.of(input)

@@ -108,8 +108,10 @@ void main() {
 
   group('RingSettings', () {
     test('map round trip and defaults', () {
-      final s = RingSettings(enabled: false, mutedUntil: DateTime.fromMillisecondsSinceEpoch(1790000000000), allowDoor: false);
+      final s = RingSettings(
+          enabled: false, mutedUntil: DateTime.fromMillisecondsSinceEpoch(1790000000000), allowDoor: false, doorLoud: true);
       expect(RingSettings.fromMap(s.toMap()), s);
+      expect(const RingSettings().doorLoud, isFalse);
       expect(RingSettings.fromMap(const {}), const RingSettings());
       expect(RingSettings.fromMap(const {'mutedUntil': 0}).mutedUntil, isNull);
     });
@@ -119,6 +121,12 @@ void main() {
       expect(muted.ringing(), const RingSettings(allowDoor: false));
       expect(muted.silent(), const RingSettings(enabled: false, allowDoor: false));
       expect(const RingSettings(enabled: false).mutedTill(DateTime(2026, 9, 24, 17)).enabled, isTrue);
+      const loud = RingSettings(doorLoud: true);
+      expect(loud.silent().doorLoud, isTrue);
+      expect(loud.mutedTill(DateTime(2026, 9, 24, 17)).doorLoud, isTrue);
+      expect(loud.silent().ringing().doorLoud, isTrue);
+      expect(loud.withAllowDoor(false).doorLoud, isTrue);
+      expect(const RingSettings().withDoorLoud(true), loud);
     });
   });
 
@@ -139,7 +147,8 @@ void main() {
       expect(repo.ringsNow, isTrue);
 
       await repo.update(repo.settings.silent());
-      expect(sip.callsTo('setRingPolicy').single.arguments, {'enabled': false, 'mutedUntil': 0, 'allowDoor': true});
+      expect(sip.callsTo('setRingPolicy').single.arguments,
+          {'enabled': false, 'mutedUntil': 0, 'allowDoor': true, 'doorLoud': false});
       expect(repo.ringsNow, isFalse);
       repo.dispose();
     });

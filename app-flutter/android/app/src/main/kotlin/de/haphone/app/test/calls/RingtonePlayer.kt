@@ -48,13 +48,19 @@ object RingtonePlayer {
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
 
-    /** An incoming call is shown (ringing screen / notification). */
-    fun startRinging(context: Context, channelId: String) {
+    private val alarmAttributes: AudioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ALARM)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+
+    /** An incoming call is shown (ringing screen / notification). [loudDoor]: "Türklingel auch bei lautlos". */
+    fun startRinging(context: Context, channelId: String, loudDoor: Boolean = false) {
         if (ringtone != null || vibrator != null) return
-        val alert = currentAlert(context, channelId, waiting = false)
+        val alert = currentAlert(context, channelId, waiting = false, loudDoor = loudDoor)
         Log.i(TAG, "ringing: $alert")
-        if (alert.sound) startRingtone(context)
-        if (alert.vibrate) startVibration(context)
+        val attributes = if (alert.alarmStream) alarmAttributes else ringAttributes
+        if (alert.sound) startRingtone(context, attributes)
+        if (alert.vibrate) startVibration(context, attributes)
     }
 
     /** A second call knocks during a call: short beep cadence in the earpiece. */
@@ -88,7 +94,7 @@ object RingtonePlayer {
 
     val isRinging: Boolean get() = ringtone != null || vibrator != null
 
-    private fun currentAlert(context: Context, channelId: String, waiting: Boolean): RingAlert {
+    private fun currentAlert(context: Context, channelId: String, waiting: Boolean, loudDoor: Boolean = false): RingAlert {
         val audio = context.getSystemService(AudioManager::class.java)
         val notifications = context.getSystemService(NotificationManager::class.java)
         val ringerMode = when (audio?.ringerMode) {
@@ -105,10 +111,12 @@ object RingtonePlayer {
         val vibrateWhenRinging = runCatching {
             Settings.System.getInt(context.contentResolver, "vibrate_when_ringing", 1) != 0
         }.getOrDefault(true)
-        return RingAlert.decide(ringerMode, dndActive, bypass, vibrateWhenRinging, waiting)
+        // Total silence mutes alarms too; priority and alarms-only let them through.
+        val alarmsAllowed = filter != NotificationManager.INTERRUPTION_FILTER_NONE
+        return RingAlert.decide(ringerMode, dndActive, bypass, vibrateWhenRinging, waiting, loudDoor, alarmsAllowed)
     }
 
-    private fun startRingtone(context: Context) {
+    private fun startRingtone(context: Context, attributes: AudioAttributes) {
         val uri = runCatching { RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_RINGTONE) }
             .getOrNull() ?: Settings.System.DEFAULT_RINGTONE_URI
         val r = runCatching { RingtoneManager.getRingtone(context, uri) }.getOrNull()
@@ -120,7 +128,7 @@ object RingtonePlayer {
             return
         }
         runCatching {
-            r.audioAttributes = ringAttributes
+            r.audioAttributes = attributes
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) r.isLooping = true
             r.play()
             ringtone = r
@@ -128,7 +136,7 @@ object RingtonePlayer {
         }.onFailure { Log.w(TAG, "ringtone failed to play", it) }
     }
 
-    private fun startVibration(context: Context) {
+    private fun startVibration(context: Context, attributes: AudioAttributes) {
         val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.getSystemService(VibratorManager::class.java)?.defaultVibrator
         } else {
@@ -138,7 +146,7 @@ object RingtonePlayer {
         if (v == null || !v.hasVibrator()) return
         runCatching {
             @Suppress("DEPRECATION") // vibrate(effect, attributes): the only API 26+ way to mark it as ringing.
-            v.vibrate(VibrationEffect.createWaveform(RingAlert.VIBRATION_PATTERN_MS, 0), ringAttributes)
+            v.vibrate(VibrationEffect.createWaveform(RingAlert.VIBRATION_PATTERN_MS, 0), attributes)
             vibrator = v
         }.onFailure { Log.w(TAG, "vibration failed", it) }
     }

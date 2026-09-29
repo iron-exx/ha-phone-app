@@ -11,7 +11,33 @@ class RingAlertTest {
         bypass: Boolean = false,
         vibrateWhenRinging: Boolean = true,
         waiting: Boolean = false,
-    ) = RingAlert.decide(mode, dnd, bypass, vibrateWhenRinging, waiting)
+        loudDoor: Boolean = false,
+        alarmsAllowed: Boolean = true,
+    ) = RingAlert.decide(mode, dnd, bypass, vibrateWhenRinging, waiting, loudDoor, alarmsAllowed)
+
+    private val alarm = RingAlert(sound = true, vibrate = true, waitingBeep = false, alarmStream = true)
+
+    @Test
+    fun `loud door rings on the alarm stream when the ringer is silent or vibrate`() {
+        assertEquals(alarm, decide(RingerMode.SILENT, loudDoor = true))
+        assertEquals(alarm, decide(RingerMode.VIBRATE, loudDoor = true))
+    }
+
+    @Test
+    fun `loud door rings through do not disturb while alarms are allowed`() {
+        assertEquals(alarm, decide(dnd = true, loudDoor = true))
+        assertTrue(decide(dnd = true, loudDoor = true, alarmsAllowed = false).isSilent)
+    }
+
+    @Test
+    fun `loud door with a normal ringer rings normally`() {
+        assertEquals(RingAlert(sound = true, vibrate = true, waitingBeep = false), decide(loudDoor = true))
+    }
+
+    @Test
+    fun `loud door does not change call waiting`() {
+        assertEquals(RingAlert(sound = false, vibrate = false, waitingBeep = true), decide(RingerMode.SILENT, waiting = true, loudDoor = true))
+    }
 
     @Test
     fun `normal ringer plays ringtone and vibrates`() {

@@ -33,6 +33,8 @@ data class RingInput(
     val doorOpenRemote: Boolean,
     val doorActions: List<String>,
     val keyguardLocked: Boolean,
+    /** The PBX's "Türstation" switch is on for this caller (DoorCodes.stations). */
+    val doorStation: Boolean = false,
 )
 
 /** Everything the UI needs to decide; pure so it is covered by JVM tests. */
@@ -74,7 +76,7 @@ object RingLayouts {
 
     fun of(input: RingInput): RingLayout {
         val hasVideo = input.callType == "video" || input.callType == "door"
-        val isDoorStation = input.doorCode.isNotBlank() || input.doorOpenRemote ||
+        val isDoorStation = input.doorStation || input.doorCode.isNotBlank() || input.doorOpenRemote ||
             input.doorActions.isNotEmpty() || input.callType == "door"
         val variant = if (hasVideo || isDoorStation) RingVariant.DOOR else RingVariant.NORMAL
         val name = input.callerName.ifBlank { input.number }.ifBlank { "Unbekannt" }

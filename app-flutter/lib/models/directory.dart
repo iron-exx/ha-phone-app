@@ -62,6 +62,17 @@ class Directory {
           if (e.doorOpenCode.isNotEmpty) e.number: e.doorOpenCode,
       };
 
+  /// Extensions with the PBX "Türstation" switch on, for SipChannel.setDoorStations.
+  /// null when the PBX is too old to send `is_door` (the native side then keeps
+  /// guessing from the door settings and video).
+  List<String>? get doorStationNumbers {
+    if (!extensions.any((e) => e.isDoor != null)) return null;
+    return [
+      for (final e in extensions)
+        if (e.isDoor == true && e.number.isNotEmpty) e.number,
+    ];
+  }
+
   /// Door stations the PBX opens by webhook (`door_open_remote`), for
   /// SipChannel.setDoorOpenRemote (the native ringing screen's slider).
   List<String> get doorOpenRemoteNumbers => [

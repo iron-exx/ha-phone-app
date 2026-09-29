@@ -40,6 +40,23 @@ void main() {
     expect(directory.extensions[1].isDoorStation, isFalse);
   });
 
+  test('is_door (PBX 0.7.138) decides alone and survives the cache', () {
+    final d = Directory.fromJson(jsonDecode('''{"extensions":[
+      {"number":"16","name":"Akuvox","video":true,"is_door":true},
+      {"number":"17","name":"Alt","door_open_code":"*1","is_door":false},
+      {"number":"11","name":"Fanvil","video":true,"is_door":false}
+    ]}''') as Map<String, dynamic>);
+    expect([for (final e in d.extensions) e.isDoorStation], [true, false, false]);
+    expect(d.doorStationNumbers, ['16']);
+    final cached = Directory.fromJson(jsonDecode(jsonEncode(d.toJson())) as Map<String, dynamic>);
+    expect(cached.doorStationNumbers, ['16']);
+  });
+
+  test('older PBX without is_door: no station list, door fields decide', () {
+    expect(directory.doorStationNumbers, isNull);
+    expect(directory.extensions[0].isDoorStation, isTrue);
+  });
+
   test('door actions keep the PBX index order and survive the cache', () {
     expect(directory.doorActions, {'16': ['Licht', 'Garage']});
     final cached = Directory.fromJson(jsonDecode(jsonEncode(directory.toJson())) as Map<String, dynamic>);

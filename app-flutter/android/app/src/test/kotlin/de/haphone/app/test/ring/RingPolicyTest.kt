@@ -88,6 +88,29 @@ class RingPolicyTest {
     }
 
     @Test
+    fun doorStationSwitchFromThePbxDecidesAlone() {
+        val stations = setOf("16")
+        // Video no longer makes a door once the PBX sends its "Türstation" list.
+        assertFalse(RingPolicy.isDoor("11", { false }, hasVideo = true, stations = stations))
+        // A door without any door settings (only the switch) is a door.
+        assertTrue(RingPolicy.isDoor("16", { false }, hasVideo = false, stations = stations))
+        // Door settings alone do not count either.
+        assertFalse(RingPolicy.isDoor("17", { true }, hasVideo = false, stations = stations))
+        assertFalse(RingPolicy.isDoor("16", { false }, hasVideo = false, stations = emptySet()))
+    }
+
+    @Test
+    fun doorLoudIsOffByDefaultAndRoundTrips() {
+        assertEquals(false, RingPolicy().doorLoud)
+        val p = RingPolicy(doorLoud = true)
+        assertEquals(p, RingPolicy.fromMap(p.toMap()))
+        assertEquals(true, RingPolicy.fromMap(mapOf("enabled" to true), p).doorLoud)
+        assertEquals(true, p.ringsLoud(isDoor = true))
+        assertEquals(false, p.ringsLoud(isDoor = false))
+        assertEquals(false, RingPolicy().ringsLoud(isDoor = true))
+    }
+
+    @Test
     fun rejectStatusIs480() {
         assertEquals(480, RingPolicy.REJECT_STATUS)
     }

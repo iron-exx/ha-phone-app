@@ -46,6 +46,7 @@ Future<void> resetForPairing({
     await native.setDoorCodes(const {});
     await native.setDoorActions(const {});
     await native.setDoorOpenRemote(const []);
+    await native.setDoorStations(null);
     await native.setCarDirectory(const [], '');
   } catch (e) {
     debugPrint('clearing native directory copies failed: $e');
