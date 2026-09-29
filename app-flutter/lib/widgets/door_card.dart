@@ -211,6 +211,19 @@ class _DoorCardState extends State<DoorCard> {
                 Text('zuletzt ${_clock(last)}', style: NwType.meta.copyWith(color: c.text, fontSize: 12)),
               ),
             ),
+          // The picture opens the doorbell history; say so, it is not obvious.
+          if (ring != null)
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: _overlayChip(
+                overlay,
+                Row(key: const Key('door-history-hint'), mainAxisSize: MainAxisSize.min, children: [
+                  Text('Verlauf', style: NwType.chip.copyWith(color: c.text, fontSize: 12)),
+                  Icon(Icons.chevron_right, size: 16, color: c.text),
+                ]),
+              ),
+            ),
         ],
       ),
     );

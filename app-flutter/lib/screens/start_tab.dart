@@ -13,6 +13,7 @@ import '../services/call_history_store.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
 import '../services/doorbell_repository.dart';
+import 'doorbell_history_screen.dart';
 import '../services/door_opener.dart';
 import '../services/favorites_store.dart';
 import '../services/phone_contacts_repository.dart';
@@ -265,7 +266,10 @@ class StartTab extends StatelessWidget {
               icon: Icons.doorbell_outlined,
               label: '${t.doorRings}× geklingelt',
               foreground: c.door,
-              onTap: () => _nav.openHistory(TimelineFilter.door),
+              // The doorbell history (pictures, who answered, door opened), not the call list.
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => DoorbellHistoryScreen(repository: _bell),
+                  )),
             ),
         ],
       ),

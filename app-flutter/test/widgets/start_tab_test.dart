@@ -1,3 +1,8 @@
+import 'package:ha_phone_test/services/api_client.dart';
+import 'package:ha_phone_test/screens/doorbell_history_screen.dart';
+import 'package:ha_phone_test/services/doorbell_repository.dart';
+import 'package:http/testing.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -101,6 +106,7 @@ void main() {
     FakePbx fake, {
     double textScale = 1,
     RingSettingsRepository? ring,
+    DoorbellRepository? doorbell,
     Size size = const Size(390, 844),
   }) async {
     tester.view.physicalSize = size;
@@ -120,6 +126,7 @@ void main() {
       await vm.refresh();
       await history.load();
       await reg.start();
+      await doorbell?.refresh();
     });
     await tester.pumpWidget(MaterialApp(
       theme: AppTheme.dark(),
@@ -134,6 +141,7 @@ void main() {
           registration: reg,
           navigation: nav,
           ring: ring,
+          doorbell: doorbell,
           phoneContacts: PhoneContactsRepository(source: FakePhoneContactsSource()),
           doorActionRunner: (n, i) async => actions.add((n, i)),
           doorOpener: DoorOpener(api: fake.api, authLoader: testAuthLoader),
@@ -305,6 +313,25 @@ void main() {
     await tester.tap(find.byKey(const Key('today-missed')));
     expect(s.nav.tab, AppTab.history);
     expect(s.nav.takeHistoryFilter(), TimelineFilter.missed);
+  });
+
+  testWidgets('"× geklingelt" opens the doorbell history with pictures', (tester) async {
+    final bell = DoorbellRepository(
+      api: ApiClient(client: MockClient((req) async => http.Response(
+          jsonEncode([
+            {'id': 5, 'door_number': 16, 'door_name': 'Haustür', 'started_at': DateTime.now().toUtc().toIso8601String(),
+             'answered_by': '', 'door_opened': false, 'has_image': false},
+          ]),
+          200,
+          headers: {'content-type': 'application/json'}))),
+      authLoader: testAuthLoader,
+    );
+    await pump(tester, pbx(), doorbell: bell);
+    expect(find.text('1× geklingelt'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('today-door')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DoorbellHistoryScreen), findsOneWidget);
   });
 
   testWidgets('no Heute strip on a quiet day', (tester) async {

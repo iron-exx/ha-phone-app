@@ -1,3 +1,5 @@
+import 'package:ha_phone_test/models/contact.dart';
+import 'package:ha_phone_test/widgets/door_card.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -51,6 +53,20 @@ void main() {
     final repo = _repo(status: 404);
     await repo.refresh();
     expect(repo.isUnsupported, isTrue);
+  });
+
+  testWidgets('door card shows "Verlauf" on the picture and opens the history', (tester) async {
+    final repo = _repo();
+    await repo.refresh();
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark(),
+      home: Scaffold(body: DoorCard(door: const Contact(number: '17', name: 'Haustür', isDoor: true), doorbell: repo)),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('door-history-hint')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('door-history-hint')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DoorbellHistoryScreen), findsOneWidget);
   });
 
   testWidgets('history shows answered, opened and missed rings', (tester) async {
