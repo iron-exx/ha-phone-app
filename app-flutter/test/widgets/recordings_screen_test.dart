@@ -30,7 +30,7 @@ final _directoryRoute = {
   'GET /api/mobile/directory': (_) => jsonResponse({
         'self': {'number': '12', 'name': 'App', 'recording_allowed': true},
         'extensions': [
-          {'number': '11', 'name': 'sandro'},
+          {'number': '11', 'name': 'sabine'},
         ],
         'phonebook': [
           {'number': '0301234567', 'name': 'Pizzeria'},
@@ -68,7 +68,7 @@ void main() {
     testWidgets('lists recordings with resolved names, duration and time', (tester) async {
       await pump(tester, FakePbx({..._directoryRoute, 'GET /api/mobile/recordings': (_) => jsonResponse(_filled())}));
       expect(find.text('Pizzeria'), findsOneWidget, reason: 'phonebook name');
-      expect(find.text('sandro'), findsOneWidget, reason: 'extension name');
+      expect(find.text('sabine'), findsOneWidget, reason: 'extension name');
       expect(find.text('Unbekannt'), findsOneWidget, reason: 'no peer');
       expect(find.text('3:12 · heute 00:05'), findsOneWidget);
       expect(find.text('0:07 · heute 00:01'), findsOneWidget);
@@ -77,7 +77,7 @@ void main() {
     testWidgets('tap expands the player and plays the recording', (tester) async {
       final audio =
           await pump(tester, FakePbx({..._directoryRoute, 'GET /api/mobile/recordings': (_) => jsonResponse(_filled())}));
-      await tester.tap(find.text('sandro'));
+      await tester.tap(find.text('sabine'));
       await tester.pumpAndSettle();
       expect(find.text('Zurückrufen'), findsOneWidget);
       expect(find.text('0:00 / 0:07'), findsOneWidget);
@@ -97,18 +97,18 @@ void main() {
         'DELETE /api/mobile/recordings/20260924-000100_11': (_) => jsonResponse({'success': true}),
       });
       await pump(tester, fake);
-      await tester.tap(find.text('sandro'));
+      await tester.tap(find.text('sabine'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Löschen'));
       await tester.pumpAndSettle();
       expect(find.text('Aufnahme löschen?'), findsOneWidget);
-      expect(find.text('Die Aufnahme des Gesprächs mit sandro wird auf der Anlage gelöscht.'), findsOneWidget);
+      expect(find.text('Die Aufnahme des Gesprächs mit sabine wird auf der Anlage gelöscht.'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(FilledButton, 'Löschen'));
       await tester.runAsync(() => pumpEventQueue());
       await tester.pumpAndSettle();
       expect(fake.to('DELETE', '/api/mobile/recordings/20260924-000100_11'), hasLength(1));
-      expect(find.text('sandro'), findsNothing);
+      expect(find.text('sabine'), findsNothing);
       expect(find.text('Pizzeria'), findsOneWidget);
     });
 

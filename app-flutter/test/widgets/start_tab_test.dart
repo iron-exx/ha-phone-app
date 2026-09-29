@@ -63,7 +63,7 @@ void main() {
               'self': {'number': '18', 'name': 'Emulator-Test', 'presence': 'available'},
               'extensions': [
                 {'number': '18', 'name': 'Emulator-Test'},
-                {'number': '11', 'name': 'sandro'},
+                {'number': '11', 'name': 'sabine'},
                 {
                   'number': '16',
                   'name': 'Haustür',

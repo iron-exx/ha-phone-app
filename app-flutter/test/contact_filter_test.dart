@@ -3,7 +3,7 @@ import 'package:ha_phone_test/models/contact.dart';
 import 'package:ha_phone_test/utils/contact_filter.dart';
 
 const _contacts = [
-  Contact(number: '11', name: 'sandro'),
+  Contact(number: '11', name: 'sabine'),
   Contact(number: '12', name: 'Anna'),
   Contact(number: '16', name: 'türklingel'),
   Contact(number: '0301234567', name: 'Pizzeria Roma', isExtension: false),
@@ -35,7 +35,7 @@ void main() {
   group('initialsFor', () {
     test('uses two words or the first two letters', () {
       expect(initialsFor('Pizzeria Roma', ''), 'PR');
-      expect(initialsFor('sandro', '11'), 'SA');
+      expect(initialsFor('sabine', '11'), 'SA');
       expect(initialsFor('türklingel', '16'), 'TÜ');
       expect(initialsFor('X', '1'), 'X');
     });

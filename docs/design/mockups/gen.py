@@ -170,7 +170,7 @@ def page(title, body, w=W, h=H):
 
 # ======================================================================
 def start():
-    fav = [("SA", "sandro", "Tischtelefon · 11", "avail", "verfügbar"),
+    fav = [("SA", "sabine", "Tischtelefon · 11", "avail", "verfügbar"),
            ("DE", "dect", "DECT · 15", "busy", "telefoniert 04:12"),
            ("LA", "anna", "Handy · 12", "off", "offline"),
            ("OE", "Oma Erika", "Handy-Kontakt", "avail", "Mobil")]
@@ -243,7 +243,7 @@ def verlauf():
         item("TÜ", "Tür-Simulator", "Voicemail · 0:12", "09:12", "vm", "avail", True, player),
         item("OE", "Oma Erika", "Eingehend · 4:31 · aufgezeichnet", "08:40", "in", "avail", False,
              f'<span style="display:flex;align-items:center;gap:6px;font-size:12px;color:{T["end"]};margin-top:2px">{ic("rec",13,T["end"],2)} Aufnahme 4:31</span>'),
-        item("SA", "sandro", "Verpasst", "08:02", "missed", "avail", True),
+        item("SA", "sabine", "Verpasst", "08:02", "missed", "avail", True),
         '<div class="sec">Gestern</div>',
         item("DE", "dect", "Ausgehend · 1:08", "17:21", "out", "busy"),
         item("43", "Echo-Test *43", "Ausgehend · 0:24", "16:05", "out", "off"),
@@ -294,7 +294,7 @@ def kontakte():
 <div class="row"><div class="av" style="width:46px;height:46px;border-radius:15px;background:{T["door_soft"]}">{ic("door",22,T["door"],2)}</div>
 <div style="flex:1;display:flex;flex-direction:column;gap:3px"><span style="font-size:15px;font-weight:700">Haustür</span><span class="faint" style="font-size:12.5px">türklingel · 16 · Video</span></div>{door_btn}</div>
 <div class="sec">Kolleg:innen</div>
-{c("SA","sandro","Tischtelefon 11","avail",call)}
+{c("SA","sabine","Tischtelefon 11","avail",call)}
 {c("DE","dect","DECT 15","busy",call)}
 {c("TE","Test","13","dnd",call)}
 {c("LA","anna","Handy 12","off",call)}
@@ -360,7 +360,7 @@ def door_call():
 def two_lines():
     return page("Zwei Leitungen", f'''<div class="scr">
 <div style="margin:16px 16px 0;padding:10px 12px;border-radius:18px;background:{T["surface"]};border:1px solid {T["stroke"]};display:flex;align-items:center;gap:12px">
-{avatar("SA","avail",38)}<div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:800">sandro</span><span class="num" style="font-size:12px;color:{T["away"]}">gehalten · 01:02</span></div>
+{avatar("SA","avail",38)}<div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:800">sabine</span><span class="num" style="font-size:12px;color:{T["away"]}">gehalten · 01:02</span></div>
 <button class="chip" style="height:36px">{ic("swap",15)} Tauschen</button></div>
 <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:44px 0 0">
 {avatar("OE","busy",112,T["blue_soft"])}

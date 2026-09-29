@@ -115,7 +115,7 @@ void main() {
         'GET /api/mobile/directory': (_) => jsonResponse({
               'self': {'number': '13', 'name': 'Ich'},
               'extensions': [
-                {'number': '11', 'name': 'sandro'},
+                {'number': '11', 'name': 'sabine'},
               ],
               'phonebook': [
                 {'number': '030 1234567', 'name': 'Pizzeria'},
@@ -128,7 +128,7 @@ void main() {
       await dir.init();
       await phone.ensureLoaded();
 
-      expect(dir.nameFor('11'), 'sandro');
+      expect(dir.nameFor('11'), 'sabine');
       expect(dir.nameFor('+49301234567'), 'Pizzeria');
       expect(dir.nameFor('0171555'), 'Mama');
       expect(dir.nameFor('0999'), '');

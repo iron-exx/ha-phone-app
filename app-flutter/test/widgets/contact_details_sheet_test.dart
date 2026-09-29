@@ -23,7 +23,7 @@ void main() {
     });
     final presence = PresenceRepository(api: fake.api, authLoader: testAuthLoader);
     await tester.runAsync(presence.refresh);
-    const contact = Contact(number: '11', name: 'sandro', presence: Presence.lunch);
+    const contact = Contact(number: '11', name: 'sabine', presence: Presence.lunch);
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ContactDetailsSheet(contact: contact, onCall: () {}, presence: presence)),
@@ -35,7 +35,7 @@ void main() {
 
   testWidgets('without live data the directory presence is shown', (tester) async {
     final presence = PresenceRepository(api: FakePbx({}).api, authLoader: testAuthLoader);
-    const contact = Contact(number: '11', name: 'sandro', presence: Presence.lunch);
+    const contact = Contact(number: '11', name: 'sabine', presence: Presence.lunch);
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: ContactDetailsSheet(contact: contact, onCall: () {}, presence: presence)),

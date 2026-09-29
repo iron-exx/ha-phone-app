@@ -37,7 +37,7 @@ void main() {
               'self': {'number': '18', 'name': 'Ich'},
               'extensions': [
                 {'number': '18', 'name': 'Ich'},
-                {'number': '11', 'name': 'sandro'},
+                {'number': '11', 'name': 'sabine'},
                 {'number': '113', 'name': 'Lager'},
               ],
               'phonebook': [
@@ -145,7 +145,7 @@ void main() {
     await tester.tap(key('1'));
     await tester.pump();
 
-    expect(find.text('sandro'), findsOneWidget);
+    expect(find.text('sabine'), findsOneWidget);
     expect(find.text('Lager'), findsOneWidget);
     expect(find.text('Ich'), findsNothing, reason: 'own extension is no match');
     final avatar = tester.widget<PresenceAvatar>(

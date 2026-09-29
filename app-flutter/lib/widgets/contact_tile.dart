@@ -12,7 +12,7 @@ import 'presence_avatar.dart';
 class RowCallButton extends StatelessWidget {
   const RowCallButton({super.key, required this.label, required this.onPressed});
 
-  /// TalkBack label, e.g. "sandro anrufen".
+  /// TalkBack label, e.g. "sabine anrufen".
   final String label;
   final VoidCallback onPressed;
 

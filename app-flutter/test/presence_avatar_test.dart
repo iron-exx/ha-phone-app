@@ -93,11 +93,11 @@ void main() {
 
   group('resolveFavorites', () {
     test('one tile per number from all sources, own extension excluded, sorted', () {
-      const ext = [Contact(number: '11', name: 'sandro'), Contact(number: '12', name: 'Anna')];
-      const book = [Contact(number: '11', name: 'Sandro Büro', isExtension: false)];
+      const ext = [Contact(number: '11', name: 'sabine'), Contact(number: '12', name: 'Anna')];
+      const book = [Contact(number: '11', name: 'Sabine Büro', isExtension: false)];
       const phone = [Contact(number: '0171', name: 'Oma Erika', isExtension: false)];
       final favs = resolveFavorites({'11', '12', '0171'}, extensions: ext, phonebook: book, phone: phone, self: '12');
-      expect(favs.map((c) => c.name), ['Oma Erika', 'sandro']);
+      expect(favs.map((c) => c.name), ['Oma Erika', 'sabine']);
       expect(resolveFavorites({}, extensions: ext), isEmpty);
     });
   });

@@ -25,7 +25,7 @@ const _body = {
   'self': {'number': '13', 'name': 'Test', 'presence': 'available'},
   'extensions': [
     {'number': '13', 'name': 'Test', 'presence': 'available'},
-    {'number': '11', 'name': 'sandro', 'presence': 'lunch'},
+    {'number': '11', 'name': 'sabine', 'presence': 'lunch'},
     {'number': '16', 'name': 'türklingel', 'video': true, 'door_open_code': '*1', 'presence': 'available'},
   ],
   'phonebook': [
@@ -93,13 +93,13 @@ void main() {
     final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
     await pumpTab(tester, r);
 
-    await tester.tap(find.byTooltip('sandro anrufen'));
+    await tester.tap(find.byTooltip('sabine anrufen'));
     await tester.pumpAndSettle();
     expect(sip.callsTo('makeCall').single.arguments, '11');
     Navigator.of(tester.element(find.text('ACTIVE'))).pop();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('sandro'));
+    await tester.tap(find.text('sabine'));
     await tester.pumpAndSettle();
     expect(find.text('Nebenstelle 11 · Mittagspause'), findsOneWidget);
     expect(find.text('Favorit'), findsOneWidget);
@@ -162,7 +162,7 @@ void main() {
     final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
     await pumpTab(tester, r, textScale: 2);
     expect(tester.takeException(), isNull);
-    expect(find.text('sandro'), findsOneWidget);
+    expect(find.text('sabine'), findsOneWidget);
   });
 
   testWidgets('no overflow at 200 % text size on a 320 dp phone', (tester) async {
@@ -181,16 +181,16 @@ void main() {
     final r = repo(http.Response.bytes(utf8.encode(jsonEncode(_body)), 200));
     await pumpTab(tester, r);
 
-    await tester.enterText(find.byType(TextField), 'sand');
+    await tester.enterText(find.byType(TextField), 'sabi');
     await tester.pump();
-    expect(find.text('sandro'), findsOneWidget);
+    expect(find.text('sabine'), findsOneWidget);
     expect(find.text('türklingel'), findsNothing);
 
     await tester.enterText(find.byType(TextField), '');
     await tester.tap(find.byKey(const ValueKey('segment-phonebook')));
     await tester.pumpAndSettle();
     expect(find.text('Pizzeria'), findsOneWidget);
-    expect(find.text('sandro'), findsNothing);
+    expect(find.text('sabine'), findsNothing);
   });
 
   testWidgets('401 shows a re-pair banner', (tester) async {
@@ -252,7 +252,7 @@ void main() {
           matching: find.byType(PresenceAvatar),
         ))
         .presence;
-    expect(presenceOf('sandro'), AvatarPresence.busy);
+    expect(presenceOf('sabine'), AvatarPresence.busy);
     expect(presenceOf('Büro'), AvatarPresence.offline);
     expect(presenceOf('Lager'), AvatarPresence.busy);
     expect(presenceOf('Küche'), AvatarPresence.away);

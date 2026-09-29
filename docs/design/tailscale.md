@@ -175,7 +175,7 @@ Erst wenn alles grün ist, wird gespeichert (Secret verschlüsselt).
 >
 > **Handys im Tailnet**
 > | Gerät | Nebenstelle | Tailnet-IP | Zuletzt online | |
-> | Pixel 6 (Sandro) | 13 | 100.80.1.2 | vor 2 min | [Entfernen] |
+> | Pixel 6 (Sabine) | 13 | 100.80.1.2 | vor 2 min | [Entfernen] |
 >
 > [Verbindung erneut testen] · [Zugang ändern] · [Tailscale trennen] (Rückfrage: "Alle Handys verlieren den Unterwegs-Zugang. Handys aus dem Tailnet entfernen?" [Ja, entfernen] [Nur Zugang löschen])
 

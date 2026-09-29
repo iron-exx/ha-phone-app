@@ -107,7 +107,7 @@ void main() {
   });
 
   group('presenceHint', () {
-    String name(String n) => n == '11' ? 'sandro' : '';
+    String name(String n) => n == '11' ? 'sabine' : '';
 
     test('generic text while the rules are unknown', () {
       expect(presenceHint(Presence.available, null, name), 'Anrufe klingeln wie eingestellt');
@@ -129,7 +129,7 @@ void main() {
             status: 'off_work', direction: ForwardDirection.external, mode: ForwardMode.alwaysDest,
             destType: ForwardDestType.extension, destTarget: '11'),
       ];
-      expect(presenceHint(Presence.offWork, rules, name), 'Intern: Normal klingeln · Extern: Sofort zu 11 · sandro');
+      expect(presenceHint(Presence.offWork, rules, name), 'Intern: Normal klingeln · Extern: Sofort zu 11 · sabine');
     });
 
     test('Mittagspause only listed while it is the current status', () {

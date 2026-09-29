@@ -15,7 +15,7 @@ class CarListsTest {
 
     private val dir = CarDirectory(
         entries = listOf(
-            CarEntry("11", "sandro"),
+            CarEntry("11", "sabine"),
             CarEntry("12", "Büro"),
             CarEntry("13", "Test"),
             CarEntry("14", "anna"),

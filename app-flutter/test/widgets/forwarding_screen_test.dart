@@ -44,7 +44,7 @@ void main() {
               'self': {'number': '13', 'name': 'Test', 'presence': 'lunch'},
               'extensions': [
                 {'number': '13', 'name': 'Test'},
-                {'number': '11', 'name': 'sandro'},
+                {'number': '11', 'name': 'sabine'},
               ],
             }),
         'GET /api/mobile/presence': (_) => jsonResponse({
@@ -86,7 +86,7 @@ void main() {
   testWidgets('shows plain-German behaviour per status and marks the own status', (tester) async {
     await pump(tester, pbx());
 
-    expect(find.descendant(of: row('lunch', 'internal'), matching: find.text('Nach 20 s zu 11 · sandro')),
+    expect(find.descendant(of: row('lunch', 'internal'), matching: find.text('Nach 20 s zu 11 · sabine')),
         findsOneWidget);
     expect(find.descendant(of: row('lunch', 'external'), matching: find.text('Normal klingeln')), findsOneWidget);
     expect(find.descendant(of: row('away', 'internal'), matching: find.text('Nach 25 s zur Klingelgruppe')),

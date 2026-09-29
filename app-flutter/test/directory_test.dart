@@ -9,7 +9,7 @@ const _json = '''
  "extensions": [
    {"number":"16","name":"türklingel","video":true,"door_open_code":"*1","presence":"available",
     "door_actions":[{"index":1,"label":"Garage"},{"index":0,"label":"Licht"}]},
-   {"number":"11","name":"sandro","video":true,"door_open_code":null,"presence":"lunch"},
+   {"number":"11","name":"sabine","video":true,"door_open_code":null,"presence":"lunch"},
    {"number":15,"name":"dect","video":null,"door_open_code":"","presence":null}
  ],
  "phonebook": [{"number":"0301234567","name":"Pizzeria"}]}
@@ -67,7 +67,7 @@ void main() {
     final d = Directory.fromJson(jsonDecode('''{"extensions":[
       {"number":"16","name":"Haustür","door_open_code":"*1","door_open_remote":true},
       {"number":"17","name":"Tor","door_open_code":"","door_open_remote":true},
-      {"number":"11","name":"sandro","door_open_remote":null}
+      {"number":"11","name":"sabine","door_open_remote":null}
     ]}''') as Map<String, dynamic>);
     expect([for (final e in d.extensions) e.doorOpenRemote], [true, true, false]);
     // Webhook only, no DTMF code: still a door, but no entry for setDoorCodes.
@@ -89,14 +89,14 @@ void main() {
   test('builds the compact car directory for Android Auto', () {
     expect(directory.carEntries, [
       {'number': '16', 'name': 'türklingel', 'ext': true, 'door': true, 'openRemote': false},
-      {'number': '11', 'name': 'sandro', 'ext': true, 'door': false, 'openRemote': false},
+      {'number': '11', 'name': 'sabine', 'ext': true, 'door': false, 'openRemote': false},
       {'number': '15', 'name': 'dect', 'ext': true, 'door': false, 'openRemote': false},
       {'number': '0301234567', 'name': 'Pizzeria', 'ext': false, 'door': false, 'openRemote': false},
     ]);
   });
 
   test('resolves names by number', () {
-    expect(directory.nameFor('11'), 'sandro');
+    expect(directory.nameFor('11'), 'sabine');
     expect(directory.nameFor('0301234567'), 'Pizzeria');
     expect(directory.nameFor('999'), '');
   });

@@ -154,7 +154,7 @@ List<ForwardingRule> replaceRule(
 }
 
 /// Plain German behaviour: "Normal klingeln", "Sofort zur Mailbox",
-/// "Nach 20 s zu 11 · sandro", "Ablehnen". [nameFor] resolves extension names.
+/// "Nach 20 s zu 11 · sabine", "Ablehnen". [nameFor] resolves extension names.
 String describeRule(ForwardingRule? rule, String Function(String number) nameFor) {
   if (rule == null) return 'Normal klingeln';
   final dest = switch (rule.destType) {

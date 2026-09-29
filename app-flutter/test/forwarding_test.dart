@@ -39,7 +39,7 @@ const _body = {
   ],
 };
 
-String _names(String n) => n == '11' ? 'sandro' : '';
+String _names(String n) => n == '11' ? 'sabine' : '';
 
 void main() {
   test('JSON round-trip keeps every field and int targets', () {
@@ -68,7 +68,7 @@ void main() {
     expect(describeRule(null, _names), 'Normal klingeln');
     expect(describeRule(rules[0], _names), 'Sofort zur Mailbox');
     expect(describeRule(rules[1], _names), 'Nach 90 s zur Klingelgruppe');
-    expect(describeRule(rules[2], _names), 'Nach 20 s zu 11 · sandro');
+    expect(describeRule(rules[2], _names), 'Nach 20 s zu 11 · sabine');
     const reject = ForwardingRule(
       status: 'away',
       direction: ForwardDirection.external,
