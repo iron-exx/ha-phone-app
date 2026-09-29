@@ -138,4 +138,17 @@ void main() {
     expect(find.byKey(const Key('cameras-hint')), findsOneWidget);
     expect(find.textContaining('Kameras für die App'), findsOneWidget);
   });
+
+  testWidgets('large view starts with the last picture instead of an empty frame', (tester) async {
+    final repo = _Fake().repo();
+    const cam = PreviewCamera(entityId: 'camera.garten', name: 'Garten');
+    await tester.runAsync(() => repo.snapshot(cam));
+    expect(repo.lastPicture('camera.garten'), isNotNull);
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.dark(), home: CameraViewerScreen(camera: cam, repository: repo)));
+    expect(
+      find.descendant(of: find.byKey(const Key('camera-viewer-picture')), matching: find.byType(Image)),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
 }

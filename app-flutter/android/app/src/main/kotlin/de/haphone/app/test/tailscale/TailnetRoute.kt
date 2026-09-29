@@ -29,3 +29,18 @@ object TailnetRoute {
     fun apiHost(lanApiHost: String, pbxTailnetIp: String?, tunnelRunning: Boolean, lanDirect: Boolean = false): String =
         if (useTailnet(pbxTailnetIp, tunnelRunning, lanDirect)) pbxTailnetIp.orEmpty() else lanApiHost
 }
+
+/**
+ * Whether a periodic direct-route probe may flip [TailnetManager.lanDirect]: a single
+ * slow TLS handshake over a site-to-site VPN must not move the SIP registration (the
+ * re-register leaves a few seconds in which calls get lost). A differing probe only
+ * counts when [confirmations] follow-up probes agree; after a real network change the
+ * first probe decides (the old route is gone anyway).
+ */
+object LanProbeDecision {
+    fun decide(current: Boolean, first: Boolean, confirm: () -> Boolean, confirmations: Int, networkChanged: Boolean): Boolean {
+        if (first == current || networkChanged) return first
+        repeat(confirmations) { if (confirm() != first) return current }
+        return first
+    }
+}

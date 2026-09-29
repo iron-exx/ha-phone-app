@@ -38,6 +38,9 @@ object TailnetManager {
     private const val SETTLE_TRIES = 20
     private const val SETTLE_STEP_MS = 250L
     private const val LAN_CHECK_S = 60L
+    private const val LAN_PROBE_TIMEOUT_MS = 3_000
+    private const val LAN_CONFIRMATIONS = 2
+    private const val LAN_CONFIRM_GAP_MS = 2_000L
 
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "tailnet") }
     private val main = Handler(Looper.getMainLooper())
@@ -205,20 +208,32 @@ object TailnetManager {
         val app = context.applicationContext
         if (lanCheckStarted || !isConfigured(app)) return
         lanCheckStarted = true
-        lanChecker.scheduleWithFixedDelay({ checkLan(app) }, 0, LAN_CHECK_S, java.util.concurrent.TimeUnit.SECONDS)
+        // The first check has nothing to confirm against.
+        lanChecker.execute { checkLan(app, networkChanged = true) }
+        lanChecker.scheduleWithFixedDelay({ checkLan(app, networkChanged = false) }, LAN_CHECK_S, LAN_CHECK_S, java.util.concurrent.TimeUnit.SECONDS)
     }
 
     /** Network changed: check the direct route right away. */
     fun onNetworkChanged(context: Context) {
         val app = context.applicationContext
         if (!lanCheckStarted) return
-        lanChecker.execute { checkLan(app) }
+        lanChecker.execute { checkLan(app, networkChanged = true) }
     }
 
-    private fun checkLan(app: Context) {
+    private fun checkLan(app: Context, networkChanged: Boolean) {
         try {
             val lanHost = SecurePrefs.read(app) { it.getString("api_host", "").orEmpty() }
-            val direct = lanHost.isNotBlank() && de.haphone.app.test.net.PbxTls.probeDirect(lanHost)
+            fun probe(): Boolean {
+                if (lanHost.isBlank()) return false
+                val start = android.os.SystemClock.elapsedRealtime()
+                val ok = de.haphone.app.test.net.PbxTls.probeDirect(lanHost, timeoutMs = LAN_PROBE_TIMEOUT_MS)
+                Log.d(TAG, "direct probe ${if (ok) "ok" else "failed"} after ${android.os.SystemClock.elapsedRealtime() - start} ms")
+                return ok
+            }
+            val direct = LanProbeDecision.decide(lanDirect, probe(), {
+                Thread.sleep(LAN_CONFIRM_GAP_MS)
+                probe()
+            }, LAN_CONFIRMATIONS, networkChanged)
             if (direct != lanDirect) {
                 lanDirect = direct
                 Log.i(TAG, "PBX directly reachable: $direct")

@@ -123,6 +123,7 @@ class _LiveCameraPictureState extends State<LiveCameraPicture> with WidgetsBindi
   Uint8List? _bytes;
   bool _failed = false;
   bool _busy = false;
+  bool _covered = false;
   Timer? _timer;
 
   PreviewCamerasRepository get _repo => widget.repository ?? PreviewCamerasRepository.instance;
@@ -131,6 +132,7 @@ class _LiveCameraPictureState extends State<LiveCameraPicture> with WidgetsBindi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _bytes = _repo.lastPicture(widget.camera.entityId);
     _start();
   }
 
@@ -138,7 +140,7 @@ class _LiveCameraPictureState extends State<LiveCameraPicture> with WidgetsBindi
   void didUpdateWidget(LiveCameraPicture old) {
     super.didUpdateWidget(old);
     if (old.camera.entityId != widget.camera.entityId) {
-      _bytes = null;
+      _bytes = _repo.lastPicture(widget.camera.entityId);
       _start();
     }
   }
@@ -160,7 +162,8 @@ class _LiveCameraPictureState extends State<LiveCameraPicture> with WidgetsBindi
   }
 
   Future<void> _fetch() async {
-    if (_busy) return;
+    // Covered by another page (e.g. the large view): that page fetches, not this one.
+    if (_busy || !mounted || _covered) return;
     _busy = true;
     try {
       final bytes = await _repo.snapshot(widget.camera);
@@ -183,6 +186,8 @@ class _LiveCameraPictureState extends State<LiveCameraPicture> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
+    // Also makes this rebuild when a page is pushed over it or popped again.
+    _covered = !(ModalRoute.of(context)?.isCurrent ?? true);
     final c = context.nw;
     final bytes = _bytes;
     if (bytes != null) {

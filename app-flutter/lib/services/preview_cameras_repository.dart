@@ -28,6 +28,7 @@ class PreviewCamerasRepository extends ChangeNotifier {
   final Future<DeviceAuth> Function() _authLoader;
   final Future<void> Function(List<Map<String, String>>) _pushToNative;
   final _flight = SingleFlight();
+  final Map<String, Uint8List> _last = {};
 
   List<PreviewCamera> _available = const [];
   Set<String> _selected = {};
@@ -46,6 +47,9 @@ class PreviewCamerasRepository extends ChangeNotifier {
       ];
 
   bool isSelected(String entityId) => _selected.contains(entityId);
+
+  /// Newest picture fetched so far (a new view shows it at once; cameras can take 25 s).
+  Uint8List? lastPicture(String entityId) => _last[entityId];
   bool get hasLoaded => _loaded;
 
   /// PBX older than 0.7.141.
@@ -96,7 +100,9 @@ class PreviewCamerasRepository extends ChangeNotifier {
   /// Current picture of [camera]; null when the PBX or the camera gives none.
   Future<Uint8List?> snapshot(PreviewCamera camera) async {
     try {
-      return Uint8List.fromList(await _api.downloadCameraSnapshot(await _authLoader(), camera.entityId));
+      final bytes = Uint8List.fromList(await _api.downloadCameraSnapshot(await _authLoader(), camera.entityId));
+      _last[camera.entityId] = bytes;
+      return bytes;
     } catch (e) {
       debugPrint('camera snapshot ${camera.entityId} failed: $e');
       return null;
@@ -117,6 +123,7 @@ class PreviewCamerasRepository extends ChangeNotifier {
   Future<void> clear() async {
     _epoch++;
     _available = const [];
+    _last.clear();
     _selected = {};
     _selectionLoaded = true;
     _loaded = false;

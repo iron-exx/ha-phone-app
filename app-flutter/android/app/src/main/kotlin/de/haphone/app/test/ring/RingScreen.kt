@@ -299,7 +299,7 @@ private fun CameraThumb(cam: CameraTile, c: NwColors, selected: Boolean, onClick
         if (picture != null) {
             Image(picture, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Icon(NwIcons.Video, contentDescription = null, tint = c.faint, modifier = Modifier.size(22.dp).align(Alignment.Center))
+            Icon(NwIcons.Video, contentDescription = null, tint = c.faint, modifier = Modifier.padding(top = 10.dp).size(20.dp).align(Alignment.TopCenter))
         }
         Text(
             cam.name, color = NwColors.OnVideo, fontFamily = NwFonts.Ui, fontWeight = FontWeight.Bold, fontSize = 11.sp,
