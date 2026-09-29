@@ -57,6 +57,9 @@ const kMinPbxVersionTestCall = '0.7.118';
 /// First HA-Phone version with the shared preview cameras (GET /api/mobile/cameras).
 const kMinPbxVersionCameras = '0.7.141';
 
+/// First HA-Phone version that accepts the app's diagnostic log (POST /api/mobile/diagnostics).
+const kMinPbxVersionDiagnostics = '0.7.148';
+
 /// Error with a German message that tells the user what to do.
 class ApiException implements Exception {
   const ApiException(this.kind, [this.statusCode, this.minPbxVersion = kMinPbxVersionPhase3, this.detail = '']);
@@ -261,6 +264,14 @@ class ApiClient {
     final response = await _send(auth, 'GET', '/api/mobile/doorbell/$eventId/image',
         notFoundIsUnsupported: false, timeout: _downloadTimeout);
     return response.bodyBytes;
+  }
+
+  /// Sends the app log to the PBX for the admin; returns the stored file name.
+  Future<String> uploadDiagnostics(DeviceAuth auth, String log, {String appVersion = '', String note = ''}) async {
+    final response = await _send(auth, 'POST', '/api/mobile/diagnostics',
+        body: {'log': log, 'app_version': appVersion, 'note': note},
+        minVersion: kMinPbxVersionDiagnostics, timeout: _downloadTimeout);
+    return (_decodeOptionalObject(response)['name'] as String?) ?? '';
   }
 
   /// Cameras the admin shared with the app, in the admin's order.

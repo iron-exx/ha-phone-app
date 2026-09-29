@@ -325,6 +325,9 @@ class HAPhoneTestApplication : Application() {
         CallsManager(this).registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
 
         de.haphone.app.test.sip.SipCallEvents.onCallDisconnected = { callId, reason ->
+            // Already dropped as stale (IncomingCallFlow.dropStaleLines): a late DISCONNECTED
+            // must not touch the call that is on screen now.
+            val known = calls.session.find(callId) != null
             incoming.onCallEnded(callId)
             val nothingLeft = calls.ended(callId)
             de.haphone.app.test.car.CarScreens.refreshAll() // Verlauf in Android Auto
@@ -332,7 +335,8 @@ class HAPhoneTestApplication : Application() {
             if (nothingLeft) {
                 CallEventBus.emitCallState("", "", "disconnected", reason)
                 endTelecomSession(android.telecom.DisconnectCause.REMOTE)
-            } else {
+                de.haphone.app.test.tailscale.TailnetManager.onCallsEnded(this)
+            } else if (known) {
                 // One of two calls ended: the other stays (on hold) on the call screen, and the
                 // Telecom call now stands for it.
                 calls.session.focused?.let { telecom.moveSipCall(callId, it.callId) }
@@ -357,6 +361,13 @@ class HAPhoneTestApplication : Application() {
             override fun onAvailable(network: android.net.Network) {
                 // Doze: keep the CPU up until PJSIP has restarted its transport (auto-released).
                 ShortWakeLock.acquire(ShortWakeLock.NETWORK_CHANGE)
+                val caps = runCatching { connectivityManager?.getNetworkCapabilities(network) }.getOrNull()
+                android.util.Log.i(
+                    de.haphone.app.test.reach.ReachabilityMonitor.TAG,
+                    "default network now $network (wifi=${caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)} " +
+                        "cell=${caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)} " +
+                        "vpn=${caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN)}, calls=${!calls.session.isEmpty})",
+                )
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     de.haphone.app.test.reach.ReachabilityMonitor.onIpChange()
                     networkChangeHandler.onNetworkAvailable()

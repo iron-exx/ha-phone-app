@@ -87,6 +87,9 @@ class SipChannel {
   /// device to the HA-Phone backend during QR provisioning.
   Future<String?> getDeviceId() => _channel.invokeMethod<String>('getDeviceId');
 
+  /// The app's own log (logcat of this process), credentials removed natively.
+  Future<String> getAppLog() async => await _channel.invokeMethod<String>('getAppLog') ?? '';
+
   /// Current FCM push token, registered with the backend during QR
   /// provisioning so the box can wake this device for incoming calls.
   Future<String?> getFcmToken() => _channel.invokeMethod<String>('getFcmToken');

@@ -252,14 +252,23 @@ class PjsuaEndpointHolder : IpChangeNotifier {
      */
     private fun useStunServer(domain: String) {
         val server = StunServer.forDomain(domain) ?: return
+        // natUpdateStunServers restarts pjsua's STUN resolution (status PENDING). An INVITE in
+        // that window waits for it before even sending 100 Trying (up to ~13 s if the server is
+        // slow), so only touch it when the server really changed (route LAN <-> tailnet).
+        if (server == stunServerInUse) return
         try {
             val servers = org.pjsip.pjsua2.StringVector()
             servers.add(server)
             endpoint.natUpdateStunServers(servers, false)
+            stunServerInUse = server
+            android.util.Log.i("PJSIP", "STUN server set to $server")
         } catch (e: Exception) {
             android.util.Log.w("PJSIP", "STUN server $server not set: ${e.message}")
         }
     }
+
+    /** STUN server pjsua currently uses (null: none set on this endpoint yet). */
+    @Volatile private var stunServerInUse: String? = null
 
     /**
      * [deviceId] (from QR pairing) goes into our Contact as `;haphone-dev=<id>`, so the PBX
@@ -274,10 +283,13 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 if (existing != null) {
                     if (existing.isValid) return
                     android.util.Log.w("PJSIP", "account became invalid, recreating")
-                    synchronized(existing.lock) {
-                        existing.activeCall = null
-                        existing.otherCall = null
+                    val dropped = synchronized(existing.lock) {
+                        listOfNotNull(existing.activeCall, existing.otherCall).also {
+                            existing.activeCall = null
+                            existing.otherCall = null
+                        }
                     }
+                    reportDropped(dropped, "account recreated")
                     account = null
                     existing.delete()
                 }
@@ -548,17 +560,29 @@ class PjsuaEndpointHolder : IpChangeNotifier {
                 try {
                     call.hangup(org.pjsip.pjsua2.CallOpParam())
                 } catch (e: Exception) {
-                    account?.let { acc ->
+                    val freed = account?.let { acc ->
                         synchronized(acc.lock) {
-                            if (acc.activeCall === call) {
-                                acc.activeCall = acc.otherCall
-                                acc.otherCall = null
-                            } else if (acc.otherCall === call) {
-                                acc.otherCall = null
+                            when {
+                                acc.activeCall === call -> { acc.activeCall = acc.otherCall; acc.otherCall = null; true }
+                                acc.otherCall === call -> { acc.otherCall = null; true }
+                                else -> false
                             }
                         }
-                    }
+                    } ?: false
+                    // Its DISCONNECTED will not find the slot any more: tell the session now, or
+                    // the next INVITE would be taken for call waiting.
+                    if (freed) reportDropped(listOf(call), "hangup failed")
                     throw e
+                }
+            }
+
+            /** Calls taken out of the slots without a DISCONNECTED: end them for Telecom/UI/history. */
+            private fun reportDropped(calls: List<HAPhoneCall>, why: String) {
+                val ids = calls.mapNotNull { runCatching { it.id }.getOrNull() }
+                if (ids.isEmpty()) return
+                android.util.Log.w("PJSIP", "calls $ids dropped without DISCONNECTED ($why)")
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    ids.forEach { SipCallEvents.onCallDisconnected?.invoke(it, why) }
                 }
             }
         }

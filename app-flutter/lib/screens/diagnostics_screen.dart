@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app_info.dart';
+import '../services/api_client.dart';
 import '../services/call_events.dart';
+import '../services/directory_repository.dart';
 import '../services/diagnostics_service.dart';
 import '../services/sip_channel.dart';
 import '../theme/app_colors.dart';
@@ -15,9 +17,12 @@ import '../utils/registration_ui.dart';
 /// PBX reachability and which features the PBX version offers. "Diagnose
 /// kopieren" puts a plain-text summary without secrets on the clipboard.
 class DiagnosticsScreen extends StatefulWidget {
-  const DiagnosticsScreen({super.key, DiagnosticsService? service}) : _service = service;
+  const DiagnosticsScreen({super.key, DiagnosticsService? service, ApiClient? api})
+      : _service = service,
+        _api = api;
 
   final DiagnosticsService? _service;
+  final ApiClient? _api;
 
   @override
   State<DiagnosticsScreen> createState() => _DiagnosticsScreenState();
@@ -90,6 +95,29 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     });
   }
 
+  bool _sending = false;
+
+  /// "Protokoll an die Anlage senden": the admin can then see why a call did not ring.
+  Future<void> _sendLog() async {
+    final note = await showDialog<String>(context: context, builder: (_) => const _LogNoteDialog());
+    if (note == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _sending = true);
+    try {
+      final log = await SipChannel.instance.getAppLog();
+      final auth = await DirectoryRepository.loadAuthFromNative();
+      await (widget._api ?? ApiClient()).uploadDiagnostics(auth, log, appVersion: kAppVersion, note: note);
+      messenger.showSnackBar(const SnackBar(content: Text('Protokoll an die Anlage gesendet.')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      debugPrint('sending log failed: $e');
+      messenger.showSnackBar(const SnackBar(content: Text('Protokoll konnte nicht gesendet werden.')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   Future<void> _copy() async {
     final info = _info;
     if (info == null) return;
@@ -135,6 +163,17 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 for (final f in info.features) _featureTile(f),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                  child: FilledButton.tonalIcon(
+                    key: const Key('diag-send-log'),
+                    icon: _sending
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.upload_file),
+                    label: const Text('Protokoll an die Anlage senden'),
+                    onPressed: _sending ? null : _sendLog,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: FilledButton.tonalIcon(
                     icon: const Icon(Icons.copy),
                     label: const Text('Diagnose kopieren'),
@@ -186,5 +225,47 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
         child: Text(text, style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: Theme.of(context).colorScheme.primary,
             )),
+      );
+}
+
+/// Asks what happened (optional), so the admin can match the log to the event.
+class _LogNoteDialog extends StatefulWidget {
+  const _LogNoteDialog();
+
+  @override
+  State<_LogNoteDialog> createState() => _LogNoteDialogState();
+}
+
+class _LogNoteDialogState extends State<_LogNoteDialog> {
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Protokoll senden'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Das Protokoll der App geht an deine Anlage (ohne Passwörter). '
+                'Der Admin sieht darin zum Beispiel, warum ein Anruf nicht geklingelt hat.'),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('diag-log-note'),
+              controller: _note,
+              maxLength: 200,
+              decoration: const InputDecoration(labelText: 'Was ist passiert? (optional)', hintText: 'z. B. Türklingel um 20:50 kam nicht'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          FilledButton(onPressed: () => Navigator.pop(context, _note.text.trim()), child: const Text('Senden')),
+        ],
       );
 }

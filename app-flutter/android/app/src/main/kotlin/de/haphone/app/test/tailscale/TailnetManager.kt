@@ -251,12 +251,35 @@ object TailnetManager {
         if (now == routedViaTailnet) return
         routedViaTailnet = now
         Log.i(TAG, "PBX route -> ${if (now) "tailnet" else "LAN"} (state=$backendState vpn=${Tailscale.vpnActive})")
-        main.post {
-            val a = app as? HAPhoneTestApplication ?: return@post
-            if (!a.hasValidCredentials()) return@post
-            a.refreshSipCredentials()
-            runCatching { a.sipCallController.register() }
-                .onFailure { Log.w(TAG, "re-register after route change failed", it) }
+        main.post { reRegister(app) }
+    }
+
+    /** Main thread. A route change that arrived during a call, applied once the call is over. */
+    private var reRegisterPending = false
+
+    private fun reRegister(app: Context) {
+        val a = app as? HAPhoneTestApplication ?: return
+        if (!a.hasValidCredentials()) return
+        // Rebuilding the account drops the TLS connection a ringing or running call lives on,
+        // and an INVITE arriving meanwhile finds no account (only "100 Trying", no ringing).
+        if (!a.calls.session.isEmpty) {
+            reRegisterPending = true
+            Log.i(TAG, "route change deferred until the call ends")
+            return
+        }
+        reRegisterPending = false
+        a.refreshSipCredentials()
+        runCatching { a.sipCallController.register() }
+            .onFailure { Log.w(TAG, "re-register after route change failed", it) }
+    }
+
+    /** Main thread, last call ended: catch up on a deferred route change. */
+    fun onCallsEnded(app: Context) {
+        if (reRegisterPending) {
+            Log.i(TAG, "applying the route change deferred during the call")
+            // Next loop turn: the ended call's DISCONNECTED handling (delete()) finishes first.
+            val ctx = app.applicationContext
+            main.post { reRegister(ctx) }
         }
     }
 

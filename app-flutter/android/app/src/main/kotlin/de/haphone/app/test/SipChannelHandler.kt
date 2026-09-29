@@ -159,6 +159,15 @@ class SipChannelHandler(
 
                 "getDeviceAuth" -> result.success(app.getDeviceAuth())
 
+                "getAppLog" -> {
+                    // logcat takes a moment: read off the main thread, answer on it.
+                    Thread {
+                        val text = runCatching { de.haphone.app.test.diag.AppLog.read() }
+                            .getOrElse { "logcat failed: ${it.message}" }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post { result.success(text) }
+                    }.start()
+                }
+
                 "refreshDoorWidget" -> {
                     de.haphone.app.test.quick.DoorWidgetProvider.refresh(app)
                     result.success(null)

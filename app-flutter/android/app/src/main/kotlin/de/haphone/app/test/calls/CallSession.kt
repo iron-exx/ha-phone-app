@@ -28,6 +28,16 @@ class CallSession {
         else -> IncomingRole.REJECT
     }
 
+    /**
+     * Lines to drop before placing a new incoming call. PJSIP classifies the INVITE against its
+     * own call slots; when it says "not waiting" (no other SIP call is up) but this session still
+     * holds a line, that line is a leftover whose DISCONNECTED never arrived, and keeping it would
+     * turn the new call into an invisible call-waiting beep. A pending outgoing call (no pjsua id
+     * yet) is kept: PJSIP may not have its slot filled yet.
+     */
+    fun staleLines(pjsipWaiting: Boolean): List<Line> =
+        if (pjsipWaiting) emptyList() else listOfNotNull(focused, other).filter { it.callId != PENDING_ID }
+
     /** New outgoing call; an existing call is put on hold behind it (consultation). */
     fun addOutgoing(callId: Int, call: CurrentCall): Boolean {
         val current = focused

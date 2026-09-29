@@ -30,11 +30,26 @@ class IncomingCallFlow(private val app: HAPhoneTestApplication) {
     private var ringingSipCallId: Int? = null
     private var waitingSipCallId: Int? = null
 
+    /**
+     * PJSIP says no other call is up, but the session still holds lines: their DISCONNECTED
+     * got lost (account rebuilt, failed hangup). End them the normal way first, or the new call
+     * would become an invisible call-waiting beep (no ringing screen, no ringtone).
+     */
+    private fun dropStaleLines(call: IncomingSipCall) {
+        val stale = app.calls.session.staleLines(pjsipWaiting = call.waiting)
+        if (stale.isEmpty()) return
+        Log.w(TAG, "dropping stale lines ${stale.map { it.callId }} before call ${call.callId}")
+        stale.forEach { de.haphone.app.test.sip.SipCallEvents.onCallDisconnected?.invoke(it.callId, "stale") }
+    }
+
     /** A SIP INVITE rang through (PjsuaEndpointHolder posted it to main). */
     fun onIncoming(call: IncomingSipCall) {
         val number = call.number.ifBlank { "unknown" }
         val callType = if (call.hasVideo) "video" else "audio"
-        when (app.calls.beginIncoming(call.callId, call.number, call.displayName, call.hasVideo)) {
+        dropStaleLines(call)
+        val role = app.calls.beginIncoming(call.callId, call.number, call.displayName, call.hasVideo)
+        Log.i(TAG, "incoming ${call.callId} from $number: $role (pjsip waiting=${call.waiting}, video=${call.hasVideo})")
+        when (role) {
             CallSession.IncomingRole.REJECT -> {
                 Log.w(TAG, "third call ${call.callId} rejected")
                 runCatching { app.sipCallController.hangup(call.callId) }

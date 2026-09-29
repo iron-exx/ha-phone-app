@@ -107,4 +107,21 @@ class CallSessionTest {
         assertEquals("13", (map["other"] as Map<*, *>)["number"])
         assertEquals(false, map["conference"])
     }
+
+    @Test
+    fun `lines PJSIP no longer knows are stale when it says the new call is not waiting`() {
+        val s = CallSession()
+        s.addIncoming(3, call("16"))
+        // PJSIP: no other SIP call is active, so line 3 is a leftover (its DISCONNECTED was lost).
+        assertEquals(listOf(3), s.staleLines(pjsipWaiting = false).map { it.callId })
+        // PJSIP agrees there is a running call: real call waiting, nothing stale.
+        assertEquals(emptyList<Int>(), s.staleLines(pjsipWaiting = true).map { it.callId })
+    }
+
+    @Test
+    fun `a pending outgoing call is never treated as stale`() {
+        val s = CallSession()
+        s.addOutgoing(CallSession.PENDING_ID, call("11", "connecting"))
+        assertEquals(emptyList<Int>(), s.staleLines(pjsipWaiting = false).map { it.callId })
+    }
 }

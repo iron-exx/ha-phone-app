@@ -67,8 +67,13 @@ object CallNotificationBuilder {
             .addPerson(caller)
 
         val notificationManager = NotificationManagerCompat.from(context)
-        if (notificationManager.canUseFullScreenIntent()) {
-            builder.setFullScreenIntent(fullScreenIntent, true)
+        // Always request the full-screen intent. Without the permission (Android 14+) the system
+        // shows the notification as a heads-up instead; a CallStyle notification that neither
+        // belongs to a foreground service nor requests an FSI is REJECTED outright
+        // (IllegalArgumentException, swallowed below), so the call would not show at all.
+        builder.setFullScreenIntent(fullScreenIntent, true)
+        if (!notificationManager.canUseFullScreenIntent()) {
+            android.util.Log.w("HAPhoneTest", "full-screen intent not allowed: incoming call shows as heads-up only")
         }
         // Log validity/expiry to logcat for the manual test procedure (D-09). This
         // notify() call always runs, unconditionally, regardless of what isValid or
@@ -99,8 +104,17 @@ object CallNotificationBuilder {
         val caller = Person.Builder().setName(name).setImportant(true).build()
         val answer = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_ANSWER_WAITING)
         val decline = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_REJECT_WAITING)
+        // CallStyle needs a full-screen intent (see show()); during a call the screen is on, so
+        // the system only uses it as a heads-up. It opens the call screen.
+        val callScreen = PendingIntent.getActivity(
+            context, 3,
+            Intent(context, MainActivity::class.java).putExtra("route", "active_call")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
+            .setFullScreenIntent(callScreen, true)
             .setSmallIcon(R.drawable.ic_stat_haphone)
             .setContentText("Anklopfen: $name")
             .setCategory(NotificationCompat.CATEGORY_CALL)
