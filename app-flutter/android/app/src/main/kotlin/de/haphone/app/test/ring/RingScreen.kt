@@ -4,6 +4,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -75,6 +79,9 @@ class RingActions(
     val ownsVideoSurface: () -> Boolean,
 )
 
+/** One extra preview camera (Ich → Weitere Kameras); [picture] is null until the first snapshot. */
+class CameraTile(val entityId: String, val name: String, val picture: ImageBitmap?)
+
 private val SheetShape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
 private val SheetOverlap = 30.dp
 private val CallButtonSize = 76.dp
@@ -85,16 +92,23 @@ private val ThumbInset = 6.dp
 private val Tabular = TextStyle(fontFeatureSettings = "tnum")
 
 @Composable
-fun RingScreen(layout: RingLayout, meta: String, slideState: DoorSlideState, actions: RingActions, c: NwColors) {
+fun RingScreen(
+    layout: RingLayout, meta: String, slideState: DoorSlideState, actions: RingActions, c: NwColors,
+    cameras: List<CameraTile> = emptyList(),
+) {
     when (layout.variant) {
-        RingVariant.DOOR -> DoorRing(layout, meta, slideState, actions, c)
+        RingVariant.DOOR -> DoorRing(layout, meta, slideState, actions, c, cameras)
         RingVariant.NORMAL -> NormalRing(layout, actions, c)
     }
 }
 
 @Composable
-private fun DoorRing(layout: RingLayout, meta: String, slideState: DoorSlideState, actions: RingActions, c: NwColors) {
+private fun DoorRing(
+    layout: RingLayout, meta: String, slideState: DoorSlideState, actions: RingActions, c: NwColors,
+    cameras: List<CameraTile>,
+) {
     var sheetHeight by remember { mutableIntStateOf(0) }
+    var enlarged by remember { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     val sheetDp = with(density) { sheetHeight.toDp() }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -155,6 +169,9 @@ private fun DoorRing(layout: RingLayout, meta: String, slideState: DoorSlideStat
                 )
                 Text(meta, color = NwColors.OnVideoMuted, fontFamily = NwFonts.Ui, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, style = Tabular)
             }
+            cameras.firstOrNull { it.entityId == enlarged }?.let { cam ->
+                EnlargedCamera(cam) { enlarged = null }
+            }
         }
         Column(
             Modifier
@@ -167,6 +184,15 @@ private fun DoorRing(layout: RingLayout, meta: String, slideState: DoorSlideStat
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (cameras.isNotEmpty()) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    cameras.forEach { cam ->
+                        CameraThumb(cam, c, selected = cam.entityId == enlarged) {
+                            enlarged = if (enlarged == cam.entityId) null else cam.entityId
+                        }
+                    }
+                }
+            }
             if (layout.doorActions.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     layout.doorActions.forEachIndexed { index, label ->
@@ -256,6 +282,56 @@ private fun OverlayChip(bg: Color, fg: Color, label: String, icon: ImageVector) 
     ) {
         Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(13.dp))
         Text(label, color = fg, fontFamily = NwFonts.Ui, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp))
+    }
+}
+
+/** Small live picture of an extra camera in the sheet; a tap shows it over the door video. */
+@Composable
+private fun CameraThumb(cam: CameraTile, c: NwColors, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        Modifier.size(width = 112.dp, height = 63.dp).clip(shape).background(c.raised)
+            .then(if (selected) Modifier.border(2.dp, c.door, shape) else Modifier)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "Kamera ${cam.name}, groß anzeigen" },
+    ) {
+        val picture = cam.picture
+        if (picture != null) {
+            Image(picture, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Icon(NwIcons.Video, contentDescription = null, tint = c.faint, modifier = Modifier.size(22.dp).align(Alignment.Center))
+        }
+        Text(
+            cam.name, color = NwColors.OnVideo, fontFamily = NwFonts.Ui, fontWeight = FontWeight.Bold, fontSize = 11.sp,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.BottomStart).padding(5.dp)
+                .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(8.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
+        )
+    }
+}
+
+/** The chosen extra camera over the door video; a tap goes back to the door. */
+@Composable
+private fun EnlargedCamera(cam: CameraTile, onClose: () -> Unit) {
+    Box(
+        Modifier.fillMaxSize().background(NwColors.VideoGround)
+            .clickable(role = Role.Button, onClickLabel = "Zurück zur Tür", onClick = onClose),
+    ) {
+        val picture = cam.picture
+        if (picture != null) {
+            Image(
+                picture, contentDescription = "Kamera ${cam.name}", contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().align(Alignment.Center),
+            )
+        } else {
+            Text(
+                "Bild wird geladen…", color = NwColors.OnVideoMuted, fontFamily = NwFonts.Ui,
+                fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        Row(Modifier.statusBarsPadding().padding(horizontal = 20.dp, vertical = 14.dp)) {
+            OverlayChip(Color.Black.copy(alpha = 0.55f), NwColors.OnVideo, cam.name, NwIcons.Video)
+        }
     }
 }
 

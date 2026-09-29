@@ -19,6 +19,7 @@ import '../utils/recording_ui.dart';
 import '../widgets/audio_route_sheet.dart';
 import '../widgets/call_controls.dart';
 import '../widgets/call_video_card.dart';
+import '../widgets/camera_strip.dart';
 import '../widgets/door_card.dart' show doorActionIcon;
 import '../widgets/in_call_keypad_sheet.dart';
 import '../widgets/in_call_more_sheet.dart';
@@ -475,6 +476,8 @@ class _ActiveCallScreenState extends State<ActiveCallScreen> {
           else
             ..._caller(call, rec: rec, short: short || other != null),
           ..._lineChips(call),
+          // Extra cameras (Ich → Weitere Kameras) next to the door's own video.
+          if (isDoor && !short) const CameraStrip(height: 64, padding: EdgeInsets.only(top: 12)),
           const Spacer(),
           const SizedBox(height: 16),
           CallControlGrid(

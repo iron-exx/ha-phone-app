@@ -8,6 +8,7 @@ import '../services/call_events.dart';
 import '../services/call_history_store.dart';
 import '../services/directory_repository.dart';
 import '../services/presence_repository.dart';
+import '../services/preview_cameras_repository.dart';
 import '../services/reachability_repository.dart';
 import '../services/recordings_repository.dart';
 import '../services/registration_watcher.dart';
@@ -89,6 +90,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     // Start page door picture + Klingel-Verlauf (also refreshed after every call below).
     DoorbellRepository.instance.setPolling(true);
     unawaited(DoorbellRepository.instance.refresh());
+    unawaited(PreviewCamerasRepository.instance.refresh());
     _presence.setVisible(true);
     // Start pill ("Stumm bis …") and the amber dot on Ich.
     WidgetsBinding.instance.addObserver(this);

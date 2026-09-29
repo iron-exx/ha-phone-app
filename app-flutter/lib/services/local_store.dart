@@ -10,6 +10,7 @@ abstract final class StoreKeys {
   static const voicemailHeard = 'voicemail_heard_v1';
   static const callsHiddenPbx = 'calls_hidden_pbx_v1';
   static const appearance = 'appearance_v1';
+  static const previewCameras = 'preview_cameras_v1';
 }
 
 /// Lazily resolved SharedPreferences. If the plugin fails (shouldn't happen

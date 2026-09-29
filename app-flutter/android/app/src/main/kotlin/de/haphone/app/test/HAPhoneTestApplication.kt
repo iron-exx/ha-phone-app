@@ -56,6 +56,7 @@ class HAPhoneTestApplication : Application() {
     val callHistory by lazy { de.haphone.app.test.calls.CallHistoryStore(this) }
     val doorCodes by lazy { de.haphone.app.test.calls.DoorCodes(this) }
     val doorActions by lazy { de.haphone.app.test.calls.DoorActionClient(this) }
+    val previewCameras by lazy { de.haphone.app.test.calls.PreviewCameras(this) }
 
     /** Directory + favourites for the Android Auto screens (pushed from Dart). */
     val carDirectory by lazy { de.haphone.app.test.car.CarDirectoryStore(this) }

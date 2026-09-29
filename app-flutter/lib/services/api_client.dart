@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 import '../models/doorbell_event.dart';
+import '../models/preview_camera.dart';
 import '../models/directory.dart';
 import '../models/extension_status.dart';
 import '../models/forwarding.dart';
@@ -52,6 +53,9 @@ const kMinPbxVersionDoorOpen = '0.7.117';
 
 /// First HA-Phone version with POST /api/mobile/test-call.
 const kMinPbxVersionTestCall = '0.7.118';
+
+/// First HA-Phone version with the shared preview cameras (GET /api/mobile/cameras).
+const kMinPbxVersionCameras = '0.7.141';
 
 /// Error with a German message that tells the user what to do.
 class ApiException implements Exception {
@@ -255,6 +259,23 @@ class ApiClient {
 
   Future<List<int>> downloadDoorbellImage(DeviceAuth auth, int eventId) async {
     final response = await _send(auth, 'GET', '/api/mobile/doorbell/$eventId/image',
+        notFoundIsUnsupported: false, timeout: _downloadTimeout);
+    return response.bodyBytes;
+  }
+
+  /// Cameras the admin shared with the app, in the admin's order.
+  Future<List<PreviewCamera>> fetchCameras(DeviceAuth auth) async {
+    final response = await _send(auth, 'GET', '/api/mobile/cameras', minVersion: kMinPbxVersionCameras);
+    try {
+      return parsePreviewCameras(jsonDecode(utf8.decode(response.bodyBytes)));
+    } on FormatException {
+      throw const ApiException(ApiErrorKind.server);
+    }
+  }
+
+  /// Current picture of a shared camera (404 = no longer shared).
+  Future<List<int>> downloadCameraSnapshot(DeviceAuth auth, String entityId) async {
+    final response = await _send(auth, 'GET', '/api/mobile/cameras/${Uri.encodeComponent(entityId)}/snapshot',
         notFoundIsUnsupported: false, timeout: _downloadTimeout);
     return response.bodyBytes;
   }

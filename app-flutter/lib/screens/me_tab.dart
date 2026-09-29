@@ -9,6 +9,7 @@ import '../services/directory_repository.dart';
 import '../services/forwarding_repository.dart';
 import '../services/pairing_reset.dart';
 import '../services/presence_repository.dart';
+import '../services/preview_cameras_repository.dart';
 import '../services/reachability_repository.dart';
 import '../services/recordings_repository.dart';
 import '../services/ring_settings_repository.dart';
@@ -22,6 +23,7 @@ import '../widgets/nw_widgets.dart';
 import '../widgets/status_panel.dart';
 import 'diagnostics_screen.dart';
 import 'forwarding_screen.dart';
+import 'preview_cameras_screen.dart';
 import 'reachability_screen.dart';
 import 'recordings_screen.dart';
 
@@ -42,7 +44,9 @@ class MeTab extends StatefulWidget {
     RingSettingsRepository? ring,
     ReachabilityRepository? reachability,
     AppearanceController? appearance,
+    PreviewCamerasRepository? cameras,
   })  : _appearance = appearance,
+        _cameras = cameras,
         _recordings = recordings,
         _directory = directory,
         _presence = presence,
@@ -65,6 +69,7 @@ class MeTab extends StatefulWidget {
   final RingSettingsRepository? _ring;
   final ReachabilityRepository? _reachability;
   final AppearanceController? _appearance;
+  final PreviewCamerasRepository? _cameras;
 
   @override
   State<MeTab> createState() => _MeTabState();
@@ -228,6 +233,7 @@ class _MeTabState extends State<MeTab> {
                 onTap: () => _push(const ForwardingScreen()),
               ),
               _appearanceTile(),
+              _camerasTile(),
               _tile(
                 icon: Icons.monitor_heart_outlined,
                 title: 'Diagnose',
@@ -325,6 +331,25 @@ class _MeTabState extends State<MeTab> {
         subtitle: current.label,
         onTap: () => AppearanceSheet.show(context, _appearance),
       ),
+    );
+  }
+
+  /// "Weitere Kameras": hidden on a PBX without the feature.
+  Widget _camerasTile() {
+    final repo = widget._cameras ?? PreviewCamerasRepository.instance;
+    return ListenableBuilder(
+      listenable: repo,
+      builder: (context, _) {
+        if (repo.isUnsupported) return const SizedBox.shrink();
+        final shown = repo.shown.length;
+        return _tile(
+          key: const Key('me-cameras'),
+          icon: Icons.videocam_outlined,
+          title: 'Weitere Kameras',
+          subtitle: shown == 0 ? 'Zusätzliche Bilder beim Klingeln' : (shown == 1 ? '1 Kamera gewählt' : '$shown Kameras gewählt'),
+          onTap: () => _push(PreviewCamerasScreen(repository: widget._cameras)),
+        );
+      },
     );
   }
 

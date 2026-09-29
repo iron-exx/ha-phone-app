@@ -13,6 +13,8 @@ import '../services/call_history_store.dart';
 import '../services/call_launcher.dart';
 import '../services/directory_repository.dart';
 import '../services/doorbell_repository.dart';
+import '../services/preview_cameras_repository.dart';
+import '../widgets/camera_strip.dart';
 import 'doorbell_history_screen.dart';
 import '../services/door_opener.dart';
 import '../services/favorites_store.dart';
@@ -106,7 +108,8 @@ class StartTab extends StatelessWidget {
   RingSettingsRepository get _ring => _ringRepo ?? RingSettingsRepository.instance;
   DoorbellRepository get _bell => _doorbell ?? DoorbellRepository.instance;
 
-  Future<void> _refresh() => Future.wait([_dir.refresh(), _pres.refresh(), _vm.refresh()]);
+  Future<void> _refresh() =>
+      Future.wait([_dir.refresh(), _pres.refresh(), _vm.refresh(), PreviewCamerasRepository.instance.refresh()]);
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +128,7 @@ class StartTab extends StatelessWidget {
                 _today(context),
                 CallFlipCard(presence: _pres),
                 ..._doorCards(context),
+                const CameraStrip(padding: EdgeInsets.fromLTRB(16, 12, 16, 0)),
                 ..._favorites(context),
                 _voicemailCard(context),
               ],

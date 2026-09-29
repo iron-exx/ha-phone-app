@@ -15,9 +15,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import de.haphone.app.test.calls.PreviewCamera
+import de.haphone.app.test.ring.CameraTile
 import de.haphone.app.test.ring.AppearanceStore
 import de.haphone.app.test.ring.DoorOpenClient
 import de.haphone.app.test.ring.DoorOpenMethod
@@ -56,6 +61,11 @@ class IncomingCallActivity : ComponentActivity() {
     /** Answered/declined from here: later taps and late webhook results are ignored. */
     private var handled = false
 
+    /** Extra cameras (Ich → Weitere Kameras), door calls only; pictures refresh while resumed. */
+    private var cameras: List<PreviewCamera> = emptyList()
+    private val cameraPictures = mutableStateMapOf<String, ImageBitmap>()
+    private var cameraPoller: java.util.concurrent.ScheduledExecutorService? = null
+
     /** The SIP call this screen rings for; null for a push-announced call without INVITE yet. */
     private var sipCallId: Int? = null
 
@@ -92,6 +102,7 @@ class IncomingCallActivity : ComponentActivity() {
         )
         val meta = RingLayouts.meta(callId, LocalTime.now())
         val baseLayout = RingLayouts.of(input)
+        if (baseLayout.variant == RingVariant.DOOR) cameras = app.previewCameras.load()
         // In-app "Erscheinungsbild" (default Dunkel), not the system's night mode.
         val dark = AppearanceStore.isDark(this)
         val colors = if (dark) NwColors.Dark else NwColors.Light
@@ -123,7 +134,10 @@ class IncomingCallActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                RingScreen(baseLayout.copy(showLockedChip = keyguardLocked), meta, slideState, actions, colors)
+                RingScreen(
+                    baseLayout.copy(showLockedChip = keyguardLocked), meta, slideState, actions, colors,
+                    cameras.map { CameraTile(it.entityId, it.name, cameraPictures[it.entityId]) },
+                )
             }
         }
     }
@@ -132,6 +146,33 @@ class IncomingCallActivity : ComponentActivity() {
         super.onResume()
         if (!handled && finishIfNotRinging()) return
         keyguardLocked = isKeyguardLocked()
+        startCameraPolling()
+    }
+
+    override fun onPause() {
+        stopCameraPolling()
+        super.onPause()
+    }
+
+    private fun startCameraPolling() {
+        if (cameras.isEmpty() || cameraPoller != null) return
+        val auth = app.getDeviceAuth()
+        val poller = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+        cameraPoller = poller
+        poller.scheduleWithFixedDelay({
+            for (cam in cameras) {
+                if (poller.isShutdown) return@scheduleWithFixedDelay
+                val bitmap = app.previewCameras.snapshot(
+                    auth["apiHost"].orEmpty(), auth["deviceId"].orEmpty(), auth["deviceToken"].orEmpty(), cam.entityId,
+                ) ?: continue
+                main.post { if (!isDestroyed) cameraPictures[cam.entityId] = bitmap.asImageBitmap() }
+            }
+        }, 0, CAMERA_REFRESH_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
+    private fun stopCameraPolling() {
+        cameraPoller?.shutdownNow()
+        cameraPoller = null
     }
 
     /** Finishes when the call no longer rings (or [force]); true if it did. */
@@ -228,6 +269,7 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        stopCameraPolling()
         main.removeCallbacksAndMessages(null)
         if (current?.get() === this) current = null
         super.onDestroy()
@@ -282,6 +324,7 @@ class IncomingCallActivity : ComponentActivity() {
         private var current: WeakReference<IncomingCallActivity>? = null
         private val RESET_TOKEN = Any()
         private const val DTMF_FEEDBACK_MS = 350L
+        private const val CAMERA_REFRESH_MS = 3_000L
 
         /** Main thread only. False once the call was answered/declined from this screen. */
         var ownsVideoSurface = false

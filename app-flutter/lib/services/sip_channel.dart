@@ -183,6 +183,10 @@ class SipChannel {
   /// Favourite numbers for the car's Favoriten tab. Replaces the stored list.
   Future<void> setFavorites(List<String> numbers) => _channel.invokeMethod('setFavorites', numbers);
 
+  /// Cameras the native ringing screen shows next to the door video ([{entity_id, name}]).
+  Future<void> setPreviewCameras(List<Map<String, String>> cameras) =>
+      _channel.invokeMethod('setPreviewCameras', cameras);
+
   /// Runs door action [index] of [number] on the PBX; throws PlatformException with a German message on failure.
   Future<void> runDoorAction(String number, int index) =>
       _channel.invokeMethod('runDoorAction', {'number': number, 'index': index});

@@ -7,6 +7,7 @@ import 'doorbell_repository.dart';
 import 'favorites_store.dart';
 import 'forwarding_repository.dart';
 import 'presence_repository.dart';
+import 'preview_cameras_repository.dart';
 import 'recordings_repository.dart';
 import 'ring_settings_repository.dart';
 import 'sip_channel.dart';
@@ -35,6 +36,7 @@ Future<void> resetForPairing({
   await (voicemail ?? VoicemailRepository.instance).clear();
   (recordings ?? RecordingsRepository.instance).clear();
   DoorbellRepository.instance.clear();
+  await PreviewCamerasRepository.instance.clear();
   await (favorites ?? FavoritesStore.instance).clear();
   try {
     await (ring ?? RingSettingsRepository.instance).update(const RingSettings());

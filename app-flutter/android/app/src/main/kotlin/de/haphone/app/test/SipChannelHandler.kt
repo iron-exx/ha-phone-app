@@ -210,6 +210,11 @@ class SipChannelHandler(
                     result.success(null)
                 }
 
+                "setPreviewCameras" -> {
+                    app.previewCameras.replaceAll((call.arguments as? List<*>).orEmpty().filterIsInstance<Map<*, *>>())
+                    result.success(null)
+                }
+
                 "runDoorAction" -> {
                     val args = call.arguments as Map<*, *>
                     app.runDoorAction(args["number"] as? String ?: "", (args["index"] as? Int) ?: -1) { error ->
