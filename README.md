@@ -29,6 +29,7 @@ Dein Handy wird zur Nebenstelle: Es klingelt wie ein normales Telefon, zeigt an 
 - Bei jedem Klingeln macht die Anlage ein Foto. Der **Klingel-Verlauf** zeigt, wann es geklingelt hat, **wer angenommen hat** und ob **die Tür geöffnet** wurde. Du öffnest ihn über „× geklingelt“ auf der Startseite oder über „Verlauf ›“ auf der Türkarte.
 - Hat niemand abgenommen, meldet sich die App mit **„Es hat geklingelt“** samt Foto.
 - Auf der **Startseite** sitzt jede Tür als eigene Karte mit dem letzten Klingelbild, „Tür öffnen“ und den Home-Assistant-Tasten.
+- **Weitere Kameras**: Unter *Ich → Weitere Kameras* wählst du Kameras aus Home Assistant, etwa Garten oder Einfahrt. Sie erscheinen als Live-Bilder auf der Startseite, im Klingelbildschirm und im Gespräch mit der Tür. Ein Tipp zeigt das Bild groß. Zur Auswahl stehen nur Kameras, die der Admin in der Anlage freigegeben hat (HA-Phone 0.7.141 oder neuer).
 - **Schnell öffnen ohne App zu starten**: Startbildschirm-Widget „Tür öffnen“ mit dem letzten Klingelbild, Kachel in den Schnelleinstellungen und App-Kurzbefehle. Zur Sicherheit wird immer noch einmal nachgefragt.
 
 <p>
