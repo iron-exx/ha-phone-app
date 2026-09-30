@@ -98,14 +98,18 @@ object CallNotificationBuilder {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
     }
 
-    /** Call waiting: heads-up with Annehmen (holds the current call) / Ablehnen, no full screen. */
+    /**
+     * Call waiting: heads-up with Annehmen (holds the current call) / Ablehnen, no full screen.
+     * Deliberately NOT CallStyle: since Android 12 a CallStyle notification without a
+     * foreground service or full-screen intent is rejected (so waiting calls were invisible),
+     * and a full-screen intent here could switch the screen on at the ear (proximity-off
+     * screen counts as non-interactive) during the running call.
+     */
     fun showWaiting(context: Context, callId: String, callerName: String?) {
         val name = callerName?.takeIf { it.isNotBlank() } ?: callId
         val caller = Person.Builder().setName(name).setImportant(true).build()
         val answer = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_ANSWER_WAITING)
         val decline = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_REJECT_WAITING)
-        // CallStyle needs a full-screen intent (see show()); during a call the screen is on, so
-        // the system only uses it as a heads-up. It opens the call screen.
         val callScreen = PendingIntent.getActivity(
             context, 3,
             Intent(context, MainActivity::class.java).putExtra("route", "active_call")
@@ -113,13 +117,16 @@ object CallNotificationBuilder {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
-            .setFullScreenIntent(callScreen, true)
             .setSmallIcon(R.drawable.ic_stat_haphone)
-            .setContentText("Anklopfen: $name")
+            .setContentTitle("Anklopfen")
+            .setContentText(name)
+            .setContentIntent(callScreen)
+            .addAction(0, "Ablehnen", decline)
+            .addAction(0, "Annehmen", answer)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
             .addPerson(caller)
             .build()
         runCatching { NotificationManagerCompat.from(context).notify(WAITING_NOTIFICATION_ID, notification) }

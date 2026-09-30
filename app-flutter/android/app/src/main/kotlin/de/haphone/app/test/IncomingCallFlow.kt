@@ -39,7 +39,21 @@ class IncomingCallFlow(private val app: HAPhoneTestApplication) {
         val stale = app.calls.session.staleLines(pjsipWaiting = call.waiting)
         if (stale.isEmpty()) return
         Log.w(TAG, "dropping stale lines ${stale.map { it.callId }} before call ${call.callId}")
-        stale.forEach { de.haphone.app.test.sip.SipCallEvents.onCallDisconnected?.invoke(it.callId, "stale") }
+        // Only the stale lines, NOT endTelecomSession(): the new call's video window was
+        // already set (its media came up before this post reached main) and a push-announced
+        // Telecom call for this INVITE must survive; both would be wiped by the full teardown.
+        stale.forEach { line ->
+            onCallEnded(line.callId)
+            app.calls.ended(line.callId)
+            app.telecom.releaseForSipCall(line.callId, DisconnectCause.REMOTE)
+        }
+        CallNotificationBuilder.cancelWaiting(app)
+        if (app.calls.session.isEmpty) {
+            // Close a call screen that still shows the stale line; the new call rings natively.
+            de.haphone.app.test.CallEventBus.emitCallState("", "", "disconnected", "stale")
+            de.haphone.app.test.calls.AudioRouting.detach()
+            SipService.setInCall(false)
+        }
     }
 
     /** A SIP INVITE rang through (PjsuaEndpointHolder posted it to main). */

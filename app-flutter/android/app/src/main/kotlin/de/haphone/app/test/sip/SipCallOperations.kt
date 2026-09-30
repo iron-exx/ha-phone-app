@@ -34,4 +34,6 @@ interface SipCallOperations {
     fun hangup()
     /** Hang up exactly this SIP call (on screen or held/waiting); no-op if it is gone. */
     fun hangup(callId: Int) = hangup()
+    /** PJSIP still holds a call (ringing, running or held) in its slots. */
+    fun hasCalls(): Boolean = false
 }

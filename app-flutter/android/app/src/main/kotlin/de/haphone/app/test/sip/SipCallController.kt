@@ -45,6 +45,7 @@ class SipCallController(
     }
 
     fun answerWaiting(): Boolean = sipOps.answerWaiting()
+    fun hasCalls(): Boolean = sipOps.hasCalls()
     fun rejectWaiting() = sipOps.rejectWaiting()
     fun swap(): Boolean = sipOps.swap()
     fun merge(): Boolean = sipOps.merge()

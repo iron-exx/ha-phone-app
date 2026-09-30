@@ -41,6 +41,8 @@ object TailnetManager {
     private const val LAN_PROBE_TIMEOUT_MS = 3_000
     private const val LAN_CONFIRMATIONS = 2
     private const val LAN_CONFIRM_GAP_MS = 2_000L
+    private const val DEFERRED_RECHECK_MS = 30_000L
+    private val DEFERRED_TOKEN = Any()
 
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "tailnet") }
     private val main = Handler(Looper.getMainLooper())
@@ -262,11 +264,17 @@ object TailnetManager {
         if (!a.hasValidCredentials()) return
         // Rebuilding the account drops the TLS connection a ringing or running call lives on,
         // and an INVITE arriving meanwhile finds no account (only "100 Trying", no ringing).
-        if (!a.calls.session.isEmpty) {
+        // PJSIP's own slots decide, not the UI session: a stale UI line must not hold the phone
+        // on a dead route forever. Re-checked periodically, since not every way a call can end
+        // (failed outgoing call, lost DISCONNECTED) reaches onCallsEnded.
+        if (runCatching { a.sipCallController.hasCalls() }.getOrDefault(false)) {
+            if (!reRegisterPending) Log.i(TAG, "route change deferred until the call ends")
             reRegisterPending = true
-            Log.i(TAG, "route change deferred until the call ends")
+            main.removeCallbacksAndMessages(DEFERRED_TOKEN)
+            androidx.core.os.HandlerCompat.postDelayed(main, { reRegister(app) }, DEFERRED_TOKEN, DEFERRED_RECHECK_MS)
             return
         }
+        main.removeCallbacksAndMessages(DEFERRED_TOKEN)
         reRegisterPending = false
         a.refreshSipCredentials()
         runCatching { a.sipCallController.register() }

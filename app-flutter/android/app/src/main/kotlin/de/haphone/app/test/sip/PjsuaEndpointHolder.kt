@@ -84,7 +84,8 @@ object VideoSurfaceBinder {
 
 private class LogcatWriter : org.pjsip.pjsua2.LogWriter() {
     override fun write(entry: org.pjsip.pjsua2.LogEntry) {
-        android.util.Log.d("PJSIP", entry.msg.trimEnd())
+        // Digits typed during a call (door code, PIN) never reach logcat.
+        android.util.Log.d("PJSIP", de.haphone.app.test.diag.DtmfMask.mask(entry.msg.trimEnd()))
     }
 }
 
@@ -546,6 +547,11 @@ class PjsuaEndpointHolder : IpChangeNotifier {
             override fun hangup() {
                 val call = account?.activeCall ?: return
                 hangupCall(call)
+            }
+
+            override fun hasCalls(): Boolean {
+                val acc = account ?: return false
+                return synchronized(acc.lock) { acc.activeCall != null || acc.otherCall != null }
             }
 
             override fun hangup(callId: Int) {
