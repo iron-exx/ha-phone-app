@@ -33,6 +33,7 @@ import '../utils/registration_ui.dart';
 import '../utils/timeline.dart';
 import '../utils/today.dart';
 import '../widgets/call_flip_card.dart';
+import '../widgets/call_visibility_banner.dart';
 import '../widgets/contact_details_sheet.dart';
 import '../widgets/door_card.dart';
 import '../widgets/nw_widgets.dart';
@@ -125,6 +126,7 @@ class StartTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 24),
               children: [
                 _header(context),
+                CallVisibilityBanner(reachability: reachability ?? ReachabilityRepository.instance),
                 _today(context),
                 CallFlipCard(presence: _pres),
                 ..._doorCards(context),
