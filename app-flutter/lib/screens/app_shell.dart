@@ -10,6 +10,7 @@ import '../services/directory_repository.dart';
 import '../services/presence_repository.dart';
 import '../services/preview_cameras_repository.dart';
 import '../services/reachability_repository.dart';
+import '../widgets/call_visibility_banner.dart';
 import '../services/recordings_repository.dart';
 import '../services/registration_watcher.dart';
 import '../services/ring_settings_repository.dart';
@@ -95,12 +96,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     // Start pill ("Stumm bis …") and the amber dot on Ich.
     WidgetsBinding.instance.addObserver(this);
     unawaited(_ring.load());
-    unawaited(_reach.refresh());
+    unawaited(_refreshReachAndAsk());
+  }
+
+  /// Fresh install / update: Android may have (re)set the full-screen permission.
+  Future<void> _refreshReachAndAsk() async {
+    await _reach.refresh();
+    if (mounted) await CallVisibilityPrompt.maybeAsk(context, _reach);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_reach.refresh());
+    if (state == AppLifecycleState.resumed) unawaited(_refreshReachAndAsk());
   }
 
   @override

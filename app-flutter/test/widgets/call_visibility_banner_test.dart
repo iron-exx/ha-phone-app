@@ -73,4 +73,55 @@ void main() {
     await tester.runAsync(() => pumpEventQueue());
     expect(opened, ['notifications']);
   });
+
+  group('prompt on app start', () {
+    setUp(CallVisibilityPrompt.resetForTest);
+
+    Future<ReachabilityRepository> pumpPrompt(WidgetTester tester) async {
+      final repo = ReachabilityRepository(
+          service: ReachabilityService(), ring: RingSettingsRepository(clock: () => DateTime(2026, 10, 4, 10)));
+      await tester.runAsync(repo.refresh);
+      await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(builder: (context) => Scaffold(
+              body: TextButton(onPressed: () => CallVisibilityPrompt.maybeAsk(context, repo), child: const Text('start')),
+            )),
+      ));
+      return repo;
+    }
+
+    testWidgets('full-screen permission reset by an update: dialog, Erlauben opens the settings page',
+        (tester) async {
+      snapshot = _snapshot(fullScreen: false);
+      await pumpPrompt(tester);
+      await tester.tap(find.text('start'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('call-visibility-dialog')), findsOneWidget);
+      expect(find.textContaining('App-Update'), findsOneWidget);
+      await tester.tap(find.text('Erlauben'));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => pumpEventQueue());
+      expect(opened, ['fullScreenIntent']);
+    });
+
+    testWidgets('asks only once per app start', (tester) async {
+      snapshot = _snapshot(fullScreen: false);
+      await pumpPrompt(tester);
+      await tester.tap(find.text('start'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Später'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('start'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('call-visibility-dialog')), findsNothing);
+      expect(opened, isEmpty);
+    });
+
+    testWidgets('no dialog when calls can appear', (tester) async {
+      await pumpPrompt(tester);
+      await tester.tap(find.text('start'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('call-visibility-dialog')), findsNothing);
+    });
+  });
 }

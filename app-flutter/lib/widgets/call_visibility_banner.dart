@@ -17,7 +17,7 @@ class CallVisibilityBanner extends StatelessWidget {
   final ReachabilityRepository reachability;
   final ReachabilityService? service;
 
-  static const _texts = {
+  static const texts = {
     ReachabilityIssue.notificationsDisabled: (
       'Benachrichtigungen sind aus',
       'Anrufe und die Türklingel erscheinen auf diesem Handy nicht.',
@@ -33,10 +33,9 @@ class CallVisibilityBanner extends StatelessWidget {
     return ListenableBuilder(
       listenable: reachability,
       builder: (context, _) {
-        final issues = reachability.snapshot?.issues ?? const [];
-        final issue = issues.where(_texts.containsKey).firstOrNull;
+        final issue = callVisibilityIssue(reachability);
         if (issue == null) return const SizedBox.shrink();
-        final (title, detail) = _texts[issue]!;
+        final (title, detail) = texts[issue]!;
         final c = context.nw;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -72,5 +71,44 @@ class CallVisibilityBanner extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// The first issue that keeps calls from showing (null: calls can appear).
+ReachabilityIssue? callVisibilityIssue(ReachabilityRepository reachability) =>
+    (reachability.snapshot?.issues ?? const <ReachabilityIssue>[])
+        .where(CallVisibilityBanner.texts.containsKey)
+        .firstOrNull;
+
+/// Asks once per app start (a fresh install or an update always starts the app anew):
+/// Android resets the full-screen permission of a sideloaded app on update, and the
+/// start-page card alone was easy to miss. "Erlauben" opens the matching settings page.
+class CallVisibilityPrompt {
+  CallVisibilityPrompt._();
+
+  static bool _asked = false;
+
+  @visibleForTesting
+  static void resetForTest() => _asked = false;
+
+  static Future<void> maybeAsk(BuildContext context, ReachabilityRepository reachability,
+      {ReachabilityService? service}) async {
+    final issue = callVisibilityIssue(reachability);
+    if (_asked || issue == null || !context.mounted) return;
+    _asked = true;
+    final (title, detail) = CallVisibilityBanner.texts[issue]!;
+    final allow = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('call-visibility-dialog'),
+        title: Text(title),
+        content: Text('$detail\n\nNach einem App-Update setzt Android diese Erlaubnis manchmal zurück.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Später')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Erlauben')),
+        ],
+      ),
+    );
+    if (allow == true) await (service ?? ReachabilityService.instance).openSettings(issue.settingsPage!);
   }
 }
