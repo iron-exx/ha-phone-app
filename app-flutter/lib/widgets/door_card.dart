@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -152,18 +153,27 @@ class _DoorCardState extends State<DoorCard> {
     final lastCall = widget.lastRing;
     final last = ring != null && (lastCall == null || ring.startedAt.isAfter(lastCall)) ? ring.startedAt : lastCall;
     final overlay = c.ground.withOpacity(0.72);
-    final placeholder = Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.videocam_outlined, size: 32, color: c.faint),
-          const SizedBox(height: 6),
-          Text('Live-Bild beim Klingeln', style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
-        ],
+    // Chips grow with the text size; keep the placeholder clear of them.
+    final scale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 2.0);
+    final inset = 12 + 24 * scale;
+    final placeholder = Padding(
+      padding: EdgeInsets.symmetric(vertical: inset),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.videocam_outlined, size: 32, color: c.faint),
+              const SizedBox(height: 6),
+              Text('Live-Bild beim Klingeln', style: NwType.meta.copyWith(color: c.faint, fontSize: 12)),
+            ],
+          ),
+        ),
       ),
     );
     return Container(
-      height: 132,
+      height: math.max(132.0, 2 * inset + 38 + 16 * scale),
       color: Color.alphaBlend(c.door.withOpacity(0.07), c.raised),
       child: Stack(
         children: [

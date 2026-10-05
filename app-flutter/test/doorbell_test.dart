@@ -69,6 +69,30 @@ void main() {
     expect(find.byType(DoorbellHistoryScreen), findsOneWidget);
   });
 
+  testWidgets('door card placeholder stays clear of the chips at 200 % text', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark(),
+      builder: (context, child) =>
+          MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(2.0)), child: child!),
+      home: Scaffold(
+        body: DoorCard(
+          door: const Contact(number: '17', name: 'Haustür', isDoor: true),
+          lastRing: DateTime(2026, 9, 29, 12, 38),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    final icon = tester.getRect(find.byIcon(Icons.videocam_outlined));
+    final last = tester.getRect(find.textContaining('zuletzt'));
+    final name = tester.getRect(find.text('Haustür'));
+    expect(icon.overlaps(last), isFalse);
+    expect(icon.overlaps(name), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('history shows answered, opened and missed rings', (tester) async {
     final repo = _repo();
     await tester.pumpWidget(MaterialApp(theme: AppTheme.dark(), home: DoorbellHistoryScreen(repository: repo)));
