@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ha_phone_test/theme/app_theme.dart';
 import 'package:ha_phone_test/widgets/nw_widgets.dart';
 
-Future<void> pumpHeader(WidgetTester tester, {double textScale = 1, ThemeData? theme}) async {
+Future<void> pumpHeader(WidgetTester tester, {double textScale = 1, ThemeData? theme, String title = 'Erreichbarkeit'}) async {
   tester.view.physicalSize = const Size(1080, 2340); // 360 × 780 dp
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -14,7 +14,7 @@ Future<void> pumpHeader(WidgetTester tester, {double textScale = 1, ThemeData? t
       child: child!,
     ),
     home: Scaffold(
-      body: PageHeader('Erreichbarkeit', actions: [
+      body: PageHeader(title, actions: [
         NwIconButton(icon: Icons.tune, label: 'Filter', onPressed: () {}),
       ]),
     ),
@@ -30,6 +30,15 @@ void main() {
     // srcIn needs an opaque glyph colour; the gradient supplies the hue.
     expect(tester.widget<Text>(find.text('Erreichbarkeit')).style!.color, Colors.white);
     expect(tester.widget<Text>(find.text('Erreichbarkeit')).style!.fontSize, NwType.pageTitle.fontSize);
+  });
+
+  testWidgets('gradient mask hugs a short title instead of spanning the row', (tester) async {
+    await pumpHeader(tester, title: 'Ich');
+    final mask = find.ancestor(of: find.text('Ich'), matching: find.byType(ShaderMask));
+    final maskWidth = tester.getSize(mask).width;
+    final rowWidth = tester.getSize(find.byType(PageHeader)).width;
+    expect(maskWidth, tester.getSize(find.text('Ich')).width);
+    expect(maskWidth, lessThan(rowWidth / 2));
   });
 
   testWidgets('TalkBack still reads the title as a header', (tester) async {

@@ -39,9 +39,9 @@ verfügbar grün ✓ · abwesend bernstein ☾ · nicht stören rot ⊖ · telef
 
 ## Formen
 
-Karten Radius 26 (große 30), Knöpfe 20, Wähltasten 26 (kompakt 22), Chips voll rund (Höhe 32), Anruf-Tasten rund 76 dp
-(Auflegen im Gespräch 80), Steuertasten 72 dp hoch, Radius 26. Untere Leiste als schwebende Pille. Alle Radien in
-`lib/theme/nw_shapes.dart` (`NwRadius`). Touch-Ziele ≥ 48 dp. Keine Schatten außer der Wählen-Taste (leichter grüner Schein).
+Karten Radius 26 (große 30, mittlere 24, kleine 22), Knöpfe 20, Wähltasten 26 (kompakt 22), Chips voll rund (Höhe 32), Anruf-Tasten rund 76 dp
+(Auflegen im Gespräch 80), Steuertasten 72 dp hoch, Radius 26. Untere Leiste als schwebende Pille. Benannte Radien in
+`lib/theme/nw_shapes.dart` (`NwRadius`); einzelne Radien für Chips, Overlays und Tür-Kacheln bleiben bewusst lokal. Touch-Ziele ≥ 48 dp. Keine Schatten außer der Wählen-Taste (leichter grüner Schein).
 
 Verlauf (Markenakzent, nie Statusfarbe): hell `#008BCF → #5FA92E`, dunkel `#0EA5E9 → #89C940`, 135°
 (`NwColors.brandGradient`). Nur an Wählen-Taste, aktivem Reiter (Balken), Hauptknöpfen (`FilledButton`-Theme,

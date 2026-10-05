@@ -88,7 +88,7 @@ class NwColors extends ThemeExtension<NwColors> {
   /// Offline presence (grey, no ring).
   final Color offline;
 
-  /// Brand accent (nouma.biz blue → green, 135°): dial button, primary
+  /// Brand accent (blue → green, 135°): dial button, primary
   /// buttons, active-tab bar. Never a status colour.
   final LinearGradient brandGradient;
 

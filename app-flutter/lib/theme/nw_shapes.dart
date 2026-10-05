@@ -1,9 +1,16 @@
 /// Corner radii of the Nachtwache shapes, "runder" step of the
-/// 2026-10-05 spec (§3). Every rounded corner of the app reads one of
-/// these, so the next change happens here only.
+/// 2026-10-05 spec (§3). Theme, cards, buttons, dialpad and call controls
+/// read these constants. A few one-off radii (chips, overlays, door action
+/// tiles, sheet rows) are intentionally local.
 abstract final class NwRadius {
   /// Cards: NwCard default and CardTheme. Was 22.
   static const double card = 26;
+
+  /// Compact cards (status, voicemail, dialer match, banners). Was 18.
+  static const double cardSmall = 22;
+
+  /// Medium cards (favourites, groups, checks). Was 20.
+  static const double cardMedium = 24;
 
   /// Large cards: door card, video card, dialogs. Was 26.
   static const double cardLarge = 30;

@@ -56,6 +56,29 @@ void main() {
     expect(tile, findsOneWidget);
   });
 
+  test('small and medium cards take the same +4 step', () {
+    expect(NwRadius.cardSmall, 22);
+    expect(NwRadius.cardMedium, 24);
+    expect(NwRadius.cardSmall, lessThan(NwRadius.cardMedium));
+    expect(NwRadius.cardMedium, lessThan(NwRadius.card));
+  });
+
+  test('no card call site keeps a literal 18/20 radius', () {
+    final literal = RegExp(r'(radius: (18|20)\b|circular\((18|20)\))');
+    final cardFiles = [
+      'lib/widgets/status_sheet.dart', 'lib/widgets/call_visibility_banner.dart',
+      'lib/widgets/second_call_card.dart', 'lib/widgets/call_flip_card.dart', 'lib/screens/start_tab.dart',
+      'lib/screens/me_tab.dart', 'lib/screens/forwarding_screen.dart', 'lib/screens/preview_cameras_screen.dart',
+      'lib/screens/doorbell_history_screen.dart',
+    ];
+    for (final p in cardFiles) {
+      final src = File(p).readAsStringSync();
+      expect(literal.hasMatch(src), isFalse, reason: '$p still has a literal card radius');
+      expect(src, contains('NwRadius.card'), reason: p);
+    }
+    expect(File('lib/screens/start_tab.dart').readAsStringSync(), allOf(contains('NwRadius.cardSmall'), contains('NwRadius.cardMedium')));
+  });
+
   test('large cards and row ink read NwRadius instead of literals', () {
     String src(String p) => File(p).readAsStringSync();
     expect(src('lib/widgets/door_card.dart'), contains('radius: NwRadius.cardLarge'));

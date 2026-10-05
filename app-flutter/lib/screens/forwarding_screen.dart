@@ -140,7 +140,7 @@ class _ForwardingScreenState extends State<ForwardingScreen> {
       margin: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(NwRadius.cardMedium),
         border: Border.all(color: isActive ? c.blue : c.stroke, width: isActive ? 2 : 1),
       ),
       child: Material(

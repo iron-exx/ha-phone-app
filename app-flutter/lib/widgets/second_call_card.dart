@@ -117,7 +117,7 @@ class SecondCallCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
       decoration: BoxDecoration(
         color: waiting ? c.blueSoft : c.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(NwRadius.cardSmall),
         border: Border.all(color: waiting ? c.blue : c.stroke),
       ),
       child: stacked

@@ -224,7 +224,7 @@ class _StatusPanelState extends State<StatusPanel> {
     final rings = s.ringsAt(now);
     return NwCard(
       key: const Key('ring-card'),
-      radius: 20,
+      radius: NwRadius.cardMedium,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -353,7 +353,7 @@ class _StatusPanelState extends State<StatusPanel> {
       excludeSemantics: true,
       child: NwCard(
         key: const Key('status-forwarding'),
-        radius: 18,
+        radius: NwRadius.cardSmall,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         onTap: widget.onOpenForwarding,
         child: Row(

@@ -41,7 +41,7 @@ class CallVisibilityBanner extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: NwCard(
             key: const Key('call-visibility-banner'),
-            radius: 18,
+            radius: NwRadius.cardSmall,
             color: c.doorSoft,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(

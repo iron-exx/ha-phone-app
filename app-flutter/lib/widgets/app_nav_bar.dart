@@ -45,12 +45,12 @@ class AppNavBar extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-            child: DecoratedBox(
+            // Material (not DecoratedBox): the tabs' ripple and focus
+            // highlight paint on this surface instead of under it.
+            child: Material(
               key: const ValueKey('nav-pill'),
-              decoration: ShapeDecoration(
-                color: c.surface,
-                shape: StadiumBorder(side: BorderSide(color: c.stroke)),
-              ),
+              color: c.surface,
+              shape: StadiumBorder(side: BorderSide(color: c.stroke)),
               child: Padding(
                 padding: const EdgeInsets.all(6),
                 child: Row(

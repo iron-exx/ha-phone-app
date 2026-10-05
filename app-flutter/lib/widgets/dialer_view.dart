@@ -228,7 +228,7 @@ class _DialerViewState extends State<DialerView> {
       excludeSemantics: true,
       child: NwCard(
         key: ValueKey('dialer-match-${m.number}'),
-        radius: 18,
+        radius: NwRadius.cardSmall,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         onTap: () => _dial(m.number),
         child: Row(

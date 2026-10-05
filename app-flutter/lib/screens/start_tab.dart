@@ -336,7 +336,7 @@ class StartTab extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: NwCard(
-            radius: 18,
+            radius: NwRadius.cardSmall,
             onTap: _nav.openFavorites,
             child: Row(
               children: [
@@ -426,7 +426,7 @@ class StartTab extends StatelessWidget {
       excludeSemantics: true,
       child: NwCard(
         key: ValueKey('${suggestion ? 'suggest' : 'fav'}-${contact.number}'),
-        radius: 20,
+        radius: NwRadius.cardMedium,
         onTap: call,
         onLongPress: details,
         child: Column(
@@ -481,7 +481,7 @@ class StartTab extends StatelessWidget {
         excludeSemantics: true,
         child: NwCard(
           key: const Key('start-voicemail'),
-          radius: 18,
+          radius: NwRadius.cardSmall,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           onTap: () => _nav.openHistory(TimelineFilter.voicemail),
           child: Row(

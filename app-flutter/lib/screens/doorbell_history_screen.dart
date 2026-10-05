@@ -94,13 +94,13 @@ class _EventRow extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         key: ValueKey('doorbell-${event.id}'),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(NwRadius.cardSmall),
         onTap: event.hasImage ? () => _showFull(context) : null,
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: c.surface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(NwRadius.cardSmall),
             border: Border.all(color: c.stroke),
           ),
           child: Row(

@@ -54,7 +54,7 @@ class _CallFlipCardState extends State<CallFlipCard> {
         padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
         decoration: BoxDecoration(
           color: c.okSurface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(NwRadius.cardSmall),
           border: Border.all(color: c.okStroke),
         ),
         child: Wrap(

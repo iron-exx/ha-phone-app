@@ -215,7 +215,12 @@ class PageHeader extends StatelessWidget {
           Expanded(
             child: Semantics(
               header: true,
-              child: NwGradientText(title, style: NwType.pageTitle, overflow: TextOverflow.ellipsis),
+              // Align loosens the Expanded's tight width, so the gradient mask
+              // spans the text, not the whole row (short titles keep the fade).
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: NwGradientText(title, style: NwType.pageTitle, overflow: TextOverflow.ellipsis),
+              ),
             ),
           ),
           for (final a in actions) ...[const SizedBox(width: 8), a],

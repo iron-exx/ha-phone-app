@@ -285,7 +285,7 @@ class _MeTabState extends State<MeTab> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: NwCard(
         padding: EdgeInsets.zero,
-        radius: 20,
+        radius: NwRadius.cardMedium,
         clip: true,
         child: Column(
           children: [

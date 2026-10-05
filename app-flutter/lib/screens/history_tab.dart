@@ -225,7 +225,7 @@ class _HistoryTabState extends State<HistoryTab> {
         height: kMinTap,
         decoration: BoxDecoration(
           color: c.raised,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(NwRadius.button),
           border: Border.all(color: c.stroke),
         ),
         child: Icon(Icons.more_horiz, color: c.text, size: 20),

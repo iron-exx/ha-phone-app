@@ -115,7 +115,7 @@ class ReachabilityLinkCard extends StatelessWidget {
       excludeSemantics: true,
       child: NwCard(
         key: const Key('status-reachability'),
-        radius: 18,
+        radius: NwRadius.cardSmall,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         onTap: onTap,
         child: Row(

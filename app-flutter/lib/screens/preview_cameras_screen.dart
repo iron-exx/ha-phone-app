@@ -59,7 +59,7 @@ class _PreviewCamerasScreenState extends State<PreviewCamerasScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: NwCard(
                     padding: EdgeInsets.zero,
-                    radius: 20,
+                    radius: NwRadius.cardMedium,
                     clip: true,
                     child: Column(
                       children: [

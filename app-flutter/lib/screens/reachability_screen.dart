@@ -274,7 +274,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: ok ? c.okSurface : c.doorSoft,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(NwRadius.card),
         border: Border.all(color: ok ? c.okStroke : c.door.withOpacity(0.5)),
       ),
       child: Row(
@@ -314,7 +314,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(NwRadius.cardSmall),
         border: Border.all(color: check.ok ? c.stroke : c.door.withOpacity(0.45)),
       ),
       child: Row(
@@ -375,7 +375,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: c.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(NwRadius.cardSmall),
         border: Border.all(color: t.ok ? c.stroke : c.door.withOpacity(0.45)),
       ),
       child: Row(
@@ -434,7 +434,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
     final c = context.nw;
     return NwCard(
       key: const Key('reach-oem'),
-      radius: 20,
+      radius: NwRadius.cardMedium,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

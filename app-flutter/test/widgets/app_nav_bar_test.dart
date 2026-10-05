@@ -39,10 +39,18 @@ void main() {
     group('$name theme', () {
       testWidgets('bar is a floating stadium pill on surface', (tester) async {
         await pumpBar(tester, theme: theme);
-        final pill = tester.widget<DecoratedBox>(find.byKey(const ValueKey('nav-pill')));
-        final deco = pill.decoration as ShapeDecoration;
-        expect(deco.shape, isA<StadiumBorder>());
-        expect(deco.color, c.surface);
+        final pill = tester.widget<Material>(find.byKey(const ValueKey('nav-pill')));
+        expect(pill.shape, isA<StadiumBorder>());
+        expect(pill.color, c.surface);
+      });
+
+      testWidgets('tabs are InkWells inside the pill Material (ripple and focus are visible)', (tester) async {
+        await pumpBar(tester, theme: theme);
+        final tab = find.byKey(const ValueKey('tab-start'));
+        expect(tester.widget(tab), isA<InkWell>());
+        expect(find.ancestor(of: tab, matching: find.byKey(const ValueKey('nav-pill'))), findsOneWidget);
+        expect(tester.widget<Material>(find.ancestor(of: tab, matching: find.byType(Material)).first).key,
+            const ValueKey('nav-pill'));
       });
 
       testWidgets('dial button is the brand gradient with brandInk icon, no blue glow', (tester) async {

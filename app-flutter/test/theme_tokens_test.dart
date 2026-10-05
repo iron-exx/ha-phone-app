@@ -44,6 +44,8 @@ void main() {
 
   test('radii follow the rounder step of the 2026-10-05 spec', () {
     expect(NwRadius.card, 26);
+    expect(NwRadius.cardMedium, 24);
+    expect(NwRadius.cardSmall, 22);
     expect(NwRadius.cardLarge, 30);
     expect(NwRadius.control, 26);
     expect(NwRadius.dialKey, 26);
