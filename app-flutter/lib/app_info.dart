@@ -1,3 +1,3 @@
 /// App version shown in the Ich tab and reported to the PBX on pairing.
 /// Keep in sync with `version:` in pubspec.yaml.
-const kAppVersion = '1.7.4';
+const kAppVersion = '1.8.0';

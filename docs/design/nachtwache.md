@@ -39,8 +39,15 @@ verfügbar grün ✓ · abwesend bernstein ☾ · nicht stören rot ⊖ · telef
 
 ## Formen
 
-Karten Radius 22 (große 26), Tasten 16–22, Chips voll rund (Höhe 32), Anruf-Tasten rund 76 dp (Auflegen im Gespräch 80),
-Steuertasten 72 dp hoch, Radius 22. Touch-Ziele ≥ 48 dp. Keine Schatten außer der Wählen-Taste (blauer Schein).
+Karten Radius 26 (große 30), Knöpfe 20, Wähltasten 26 (kompakt 22), Chips voll rund (Höhe 32), Anruf-Tasten rund 76 dp
+(Auflegen im Gespräch 80), Steuertasten 72 dp hoch, Radius 26. Untere Leiste als schwebende Pille. Alle Radien in
+`lib/theme/nw_shapes.dart` (`NwRadius`). Touch-Ziele ≥ 48 dp. Keine Schatten außer der Wählen-Taste (leichter grüner Schein).
+
+Verlauf (Markenakzent, nie Statusfarbe): hell `#008BCF → #5FA92E`, dunkel `#0EA5E9 → #89C940`, 135°
+(`NwColors.brandGradient`). Nur an Wählen-Taste, aktivem Reiter (Balken), Hauptknöpfen (`FilledButton`-Theme,
+Text `brandInk` #0B0F14, weil Weiß nur 2–3,75:1 erreicht) und Seitentiteln ≥ 24 px (`NwGradientText`, hell mit
+dunkleren Stopps `#0077B3 → #4A8A22` für 3:1). FilledButtons in Annehmen-, Auflegen-, Tür- oder OK-Farbe
+setzen `backgroundBuilder: NwButtons.solid`.
 
 ## Navigation
 
