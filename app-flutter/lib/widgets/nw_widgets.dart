@@ -169,7 +169,37 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// Page title row: Bricolage 32/800 plus optional round actions.
+/// Smallest font size that may use [NwGradientText]: below it a gradient
+/// hurts legibility (spec 2026-10-05 §3, AA large text).
+const double kMinGradientTextSize = 24;
+
+/// Text in the brand title gradient (`context.nw.brandTitle`) via a
+/// ShaderMask. Only for page titles ≥ [kMinGradientTextSize].
+class NwGradientText extends StatelessWidget {
+  NwGradientText(this.text, {super.key, required this.style, this.maxLines, this.overflow})
+      : assert(
+          (style.fontSize ?? 0) >= kMinGradientTextSize,
+          'NwGradientText is for titles ≥ $kMinGradientTextSize px',
+        );
+
+  final String text;
+  final TextStyle style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  @override
+  Widget build(BuildContext context) {
+    final gradient = context.nw.brandTitle;
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => gradient.createShader(Offset.zero & bounds.size),
+      child: Text(text, style: style.copyWith(color: Colors.white), maxLines: maxLines, overflow: overflow),
+    );
+  }
+}
+
+/// Page title row: Bricolage 32/800 in the brand gradient plus optional
+/// round actions.
 class PageHeader extends StatelessWidget {
   const PageHeader(this.title, {super.key, this.actions = const []});
 
@@ -178,7 +208,6 @@ class PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.nw;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 16, 6),
       child: Row(
@@ -186,7 +215,7 @@ class PageHeader extends StatelessWidget {
           Expanded(
             child: Semantics(
               header: true,
-              child: Text(title, style: NwType.pageTitle.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
+              child: NwGradientText(title, style: NwType.pageTitle, overflow: TextOverflow.ellipsis),
             ),
           ),
           for (final a in actions) ...[const SizedBox(width: 8), a],
