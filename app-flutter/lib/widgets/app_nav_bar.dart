@@ -5,9 +5,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'nw_widgets.dart';
 
-/// Nachtwache bottom bar: Start · Verlauf · (Wählen, raised blue 68 dp
-/// button with a soft glow) · Kontakte · Ich. [historyBadge] is the red
-/// count on Verlauf (missed calls + new voicemails).
+/// Nachtwache bottom bar as a floating pill: Start · Verlauf · (Wählen,
+/// 64 dp button in the brand gradient with a light green glow) · Kontakte ·
+/// Ich. The active tab shows a tinted icon pill plus a short gradient bar.
+/// [historyBadge] is the red count on Verlauf (missed calls + new voicemails).
 class AppNavBar extends StatelessWidget {
   const AppNavBar({
     super.key,
@@ -43,16 +44,25 @@ class AppNavBar extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _tab(context, AppTab.start, 'Start', Icons.home_outlined, Icons.home_rounded),
-                _tab(context, AppTab.history, 'Verlauf', Icons.history, Icons.history, badge: historyBadge),
-                _dialButton(context),
-                _tab(context, AppTab.contacts, 'Kontakte', Icons.people_outline, Icons.people_rounded),
-                _tab(context, AppTab.me, 'Ich', Icons.person_outline, Icons.person_rounded, warning: meWarning),
-              ],
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+            child: DecoratedBox(
+              key: const ValueKey('nav-pill'),
+              decoration: ShapeDecoration(
+                color: c.surface,
+                shape: StadiumBorder(side: BorderSide(color: c.stroke)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Row(
+                  children: [
+                    _tab(context, AppTab.start, 'Start', Icons.home_outlined, Icons.home_rounded),
+                    _tab(context, AppTab.history, 'Verlauf', Icons.history, Icons.history, badge: historyBadge),
+                    _dialButton(context),
+                    _tab(context, AppTab.contacts, 'Kontakte', Icons.people_outline, Icons.people_rounded),
+                    _tab(context, AppTab.me, 'Ich', Icons.person_outline, Icons.person_rounded, warning: meWarning),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -79,7 +89,7 @@ class AppNavBar extends StatelessWidget {
         excludeSemantics: true,
         child: InkWell(
           key: ValueKey('tab-${tab.name}'),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(NwRadius.row),
           onTap: () => onSelect(tab),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 56),
@@ -87,7 +97,7 @@ class AppNavBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -136,6 +146,18 @@ class AppNavBar extends StatelessWidget {
                     color: on ? c.text : c.faint,
                   ),
                 ),
+                const SizedBox(height: 3),
+                on
+                    ? Container(
+                        key: ValueKey('tab-indicator-${tab.name}'),
+                        width: 18,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          gradient: c.brandGradient,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      )
+                    : const SizedBox(height: 3),
               ],
             ),
           ),
@@ -147,31 +169,40 @@ class AppNavBar extends StatelessWidget {
   Widget _dialButton(BuildContext context) {
     final c = context.nw;
     final on = selected == AppTab.dial;
+    final radius = BorderRadius.circular(NwRadius.dialButton);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Semantics(
         button: true,
         selected: on,
         label: 'Wählen',
         onTap: () => onSelect(AppTab.dial),
         excludeSemantics: true,
-        child: Container(
+        child: DecoratedBox(
           key: const ValueKey('tab-dial'),
-          margin: const EdgeInsets.only(bottom: 4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [BoxShadow(color: c.blue.withOpacity(0.28), blurRadius: 30, offset: const Offset(0, 10))],
+            borderRadius: radius,
+            // Light green glow (spec §2), replaces the blue one.
+            boxShadow: [
+              BoxShadow(
+                color: c.brandGradient.colors.last.withOpacity(0.25),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Material(
-            color: c.blue,
-            borderRadius: BorderRadius.circular(24),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () => onSelect(AppTab.dial),
-              child: SizedBox(
-                width: 68,
-                height: 68,
-                child: Icon(Icons.dialpad_rounded, size: 28, color: c.blueInk),
+            type: MaterialType.transparency,
+            child: Ink(
+              decoration: BoxDecoration(gradient: c.brandGradient, borderRadius: radius),
+              child: InkWell(
+                borderRadius: radius,
+                onTap: () => onSelect(AppTab.dial),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: Icon(Icons.dialpad_rounded, size: 28, color: c.brandInk),
+                ),
               ),
             ),
           ),
