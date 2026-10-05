@@ -120,6 +120,7 @@ class ContactTile extends StatelessWidget {
                 FilledButton.tonalIcon(
                   key: Key('pickup-${contact.number}'),
                   style: FilledButton.styleFrom(
+                    backgroundBuilder: NwButtons.solid,
                     backgroundColor: c.okSurface,
                     foregroundColor: c.okText,
                     minimumSize: const Size(48, 44),

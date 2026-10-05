@@ -248,14 +248,9 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
         FilledButton.icon(
           key: const Key('reach-test-call'),
           onPressed: _testCallBusy ? null : _requestTestCall,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(56),
-            backgroundColor: c.blue,
-            foregroundColor: c.blueInk,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
           icon: _testCallBusy
-              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: c.blueInk))
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: c.faint))
               : const Icon(Icons.call_outlined),
           label: const Text('Test-Anruf an mich'),
         ),
@@ -356,6 +351,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
             FilledButton(
               key: ValueKey('reach-fix-${check.id.name}'),
               style: FilledButton.styleFrom(
+                backgroundBuilder: NwButtons.solid,
                 backgroundColor: c.door,
                 foregroundColor: c.doorInk,
                 minimumSize: const Size(kMinTap, kMinTap),
@@ -418,6 +414,7 @@ class _ReachabilityScreenState extends State<ReachabilityScreen> with WidgetsBin
             FilledButton(
               key: const Key('reach-tailnet-action'),
               style: FilledButton.styleFrom(
+                backgroundBuilder: NwButtons.solid,
                 backgroundColor: c.door,
                 foregroundColor: c.doorInk,
                 minimumSize: const Size(kMinTap, kMinTap),

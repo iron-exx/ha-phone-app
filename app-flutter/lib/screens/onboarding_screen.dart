@@ -45,10 +45,7 @@ class OnboardingScreen extends StatelessWidget {
               ),
               const Spacer(flex: 3),
               FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                ),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
                 icon: const Icon(Icons.qr_code_scanner),
                 label: const Text('QR-Code scannen'),
                 onPressed: onScanQr,

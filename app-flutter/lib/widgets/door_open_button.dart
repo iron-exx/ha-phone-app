@@ -112,6 +112,7 @@ class _DoorOpenButtonState extends State<DoorOpenButton> {
       button = FilledButton.icon(
         key: key,
         style: FilledButton.styleFrom(
+          backgroundBuilder: NwButtons.solid,
           backgroundColor: bg,
           foregroundColor: fg,
           minimumSize: const Size(kMinTap, kMinTap),
@@ -127,6 +128,7 @@ class _DoorOpenButtonState extends State<DoorOpenButton> {
       button = FilledButton(
         key: key,
         style: FilledButton.styleFrom(
+          backgroundBuilder: NwButtons.solid,
           backgroundColor: bg,
           foregroundColor: fg,
           minimumSize: const Size(kMinTap, 52),

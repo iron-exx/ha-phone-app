@@ -314,6 +314,7 @@ class NwPillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FilledButton(
       style: FilledButton.styleFrom(
+        backgroundBuilder: NwButtons.solid,
         backgroundColor: background,
         foregroundColor: foreground,
         minimumSize: Size(kMinTap, height),

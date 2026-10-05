@@ -355,7 +355,7 @@ class _HistoryTabState extends State<HistoryTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: c.endStrong, foregroundColor: c.endInk),
+            style: FilledButton.styleFrom(backgroundColor: c.endStrong, foregroundColor: c.endInk, backgroundBuilder: NwButtons.solid),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Löschen'),
           ),
@@ -403,7 +403,7 @@ class _HistoryTabState extends State<HistoryTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: c.endStrong, foregroundColor: c.endInk),
+            style: FilledButton.styleFrom(backgroundColor: c.endStrong, foregroundColor: c.endInk, backgroundBuilder: NwButtons.solid),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Löschen'),
           ),

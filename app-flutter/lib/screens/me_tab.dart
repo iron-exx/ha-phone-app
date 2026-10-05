@@ -164,7 +164,7 @@ class _MeTabState extends State<MeTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ctx.nw.endStrong, foregroundColor: ctx.nw.endInk),
+            style: FilledButton.styleFrom(backgroundColor: ctx.nw.endStrong, foregroundColor: ctx.nw.endInk, backgroundBuilder: NwButtons.solid),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Entkoppeln'),
           ),

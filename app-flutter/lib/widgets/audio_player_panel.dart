@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../services/pbx_audio.dart';
 import '../theme/app_colors.dart';
+import '../theme/nw_buttons.dart';
 import '../utils/formatters.dart';
 
 /// Inline player under an expanded voicemail or recording row: play/pause,
@@ -151,7 +152,7 @@ class _AudioPlayerPanelState extends State<AudioPlayerPanel> {
               ),
               const SizedBox(width: 8),
               FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.answer),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.answer, backgroundBuilder: NwButtons.solid),
                 icon: const Icon(Icons.call),
                 label: const Text('Zurückrufen'),
                 onPressed: widget.onCallBack,

@@ -87,6 +87,7 @@ class ContactDetailsSheet extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
+                      backgroundBuilder: NwButtons.solid,
                       backgroundColor: c.answer,
                       foregroundColor: c.answerInk,
                       minimumSize: const Size.fromHeight(52),

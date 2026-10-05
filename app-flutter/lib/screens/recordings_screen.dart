@@ -9,6 +9,7 @@ import '../services/directory_repository.dart';
 import '../services/pbx_audio.dart';
 import '../services/recordings_repository.dart';
 import '../theme/app_colors.dart';
+import '../theme/nw_buttons.dart';
 import '../utils/formatters.dart';
 import '../widgets/audio_player_panel.dart';
 import '../widgets/presence_avatar.dart';
@@ -66,7 +67,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ctx.nw.endStrong, foregroundColor: ctx.nw.endInk),
+            style: FilledButton.styleFrom(backgroundColor: ctx.nw.endStrong, foregroundColor: ctx.nw.endInk, backgroundBuilder: NwButtons.solid),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Löschen'),
           ),

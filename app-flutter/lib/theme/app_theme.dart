@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'nw_buttons.dart';
 import 'nw_shapes.dart';
 
+export 'nw_buttons.dart';
 export 'nw_shapes.dart';
 
 /// Bundled font families (assets/fonts, OFL).
@@ -199,14 +201,15 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: c.blue,
-          foregroundColor: c.blueInk,
+          backgroundColor: c.brandGradient.colors.first,
+          foregroundColor: c.brandInk,
           disabledBackgroundColor: c.raised,
           disabledForegroundColor: c.faint,
           minimumSize: const Size(48, 48),
           textStyle: NwType.button,
           shape: RoundedRectangleBorder(borderRadius: button),
           padding: const EdgeInsets.symmetric(horizontal: 18),
+          backgroundBuilder: NwButtons.brand(c.brandGradient),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(

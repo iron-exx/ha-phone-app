@@ -83,6 +83,7 @@ class _CallFlipCardState extends State<CallFlipCard> {
             FilledButton(
               key: const Key('call-flip-take'),
               style: FilledButton.styleFrom(
+                backgroundBuilder: NwButtons.solid,
                 backgroundColor: c.answer,
                 foregroundColor: c.answerInk,
                 minimumSize: const Size(48, 48),
