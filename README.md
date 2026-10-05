@@ -5,8 +5,8 @@ Dein Handy wird zur Nebenstelle: Es klingelt wie ein normales Telefon, zeigt an 
 
 ![HA-Phone App: Türstation klingelt bei gesperrtem Handy, Türgespräch, Start, Klingel-Verlauf](docs/screenshots/hero.png)
 
-> Aktueller Stand: **Android, Version 1.6** (Test-Phase). iOS folgt.
-> Voraussetzung: Home Assistant mit dem Add-on **HA-Phone**, empfohlen **ab 0.7.140** (der Schalter „Türstation“ kam mit 0.7.138).
+> Aktueller Stand: **Android, Version 1.8** (Test-Phase). iOS folgt.
+> Voraussetzung: Home Assistant mit dem Add-on **HA-Phone**, empfohlen **ab 0.7.140** (der Schalter „Türstation“ kam mit 0.7.138), am besten die aktuelle Version (0.7.158).
 > Alle Screenshots zeigen Beispieldaten.
 
 ---
@@ -86,7 +86,7 @@ Dein Handy wird zur Nebenstelle: Es klingelt wie ein normales Telefon, zeigt an 
 - Google lässt Telefonie-Apps in Android Auto derzeit nur als Beta zu. Für eine selbst installierte App in Android Auto die Entwickleroptionen öffnen (10× auf „Version“ tippen) und **„Unbekannte Quellen“** einschalten. Im Auto noch nicht getestet.
 
 ### 🌗 Erscheinungsbild
-Dunkel (Standard), Hell oder wie das System, einstellbar im Reiter „Ich“. Die App ist für große Systemschrift ausgelegt (bis 200 %).
+Das Design heißt „Nachtwache“: runde Karten, ein Blau-Grün-Verlauf und eine **schwebende Navigationsleiste** mit *Start*, *Verlauf*, *Wählen* (großer Knopf in der Mitte), *Kontakte* und *Ich*. Dunkel (Standard), Hell oder wie das System, einstellbar im Reiter „Ich“. Die App ist für große Systemschrift ausgelegt (bis 200 %).
 
 ---
 
