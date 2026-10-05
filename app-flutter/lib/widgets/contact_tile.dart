@@ -23,7 +23,7 @@ class RowCallButton extends StatelessWidget {
       icon: Icons.call,
       label: label,
       onPressed: onPressed,
-      radius: 14,
+      radius: NwRadius.row,
       color: c.raised,
       iconColor: c.answer,
       iconSize: 19,
@@ -79,6 +79,7 @@ class ContactTile extends StatelessWidget {
           );
     final ringing = live.line == LineState.ringing && contact.isExtension;
     return InkWell(
+      borderRadius: BorderRadius.circular(NwRadius.row),
       onTap: onTap,
       onLongPress: onLongPress,
       child: ConstrainedBox(

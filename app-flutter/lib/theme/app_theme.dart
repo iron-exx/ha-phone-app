@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
+import 'nw_shapes.dart';
 
 export 'nw_shapes.dart';
 
@@ -127,7 +128,8 @@ abstract final class AppTheme {
       surfaceTint: Colors.transparent,
     );
     final text = _textTheme(c);
-    final radius16 = BorderRadius.circular(16);
+    final field = BorderRadius.circular(NwRadius.field);
+    final button = BorderRadius.circular(NwRadius.button);
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -155,7 +157,7 @@ abstract final class AppTheme {
         margin: EdgeInsets.zero,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(NwRadius.card),
           side: BorderSide(color: c.stroke),
         ),
       ),
@@ -189,11 +191,11 @@ abstract final class AppTheme {
         prefixIconColor: c.faint,
         suffixIconColor: c.faint,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(borderRadius: radius16, borderSide: BorderSide(color: c.stroke)),
-        enabledBorder: OutlineInputBorder(borderRadius: radius16, borderSide: BorderSide(color: c.stroke)),
-        focusedBorder: OutlineInputBorder(borderRadius: radius16, borderSide: BorderSide(color: c.blue, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: radius16, borderSide: BorderSide(color: c.end)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: radius16, borderSide: BorderSide(color: c.end, width: 1.5)),
+        border: OutlineInputBorder(borderRadius: field, borderSide: BorderSide(color: c.stroke)),
+        enabledBorder: OutlineInputBorder(borderRadius: field, borderSide: BorderSide(color: c.stroke)),
+        focusedBorder: OutlineInputBorder(borderRadius: field, borderSide: BorderSide(color: c.blue, width: 1.5)),
+        errorBorder: OutlineInputBorder(borderRadius: field, borderSide: BorderSide(color: c.end)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: field, borderSide: BorderSide(color: c.end, width: 1.5)),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -203,7 +205,7 @@ abstract final class AppTheme {
           disabledForegroundColor: c.faint,
           minimumSize: const Size(48, 48),
           textStyle: NwType.button,
-          shape: RoundedRectangleBorder(borderRadius: radius16),
+          shape: RoundedRectangleBorder(borderRadius: button),
           padding: const EdgeInsets.symmetric(horizontal: 18),
         ),
       ),
@@ -213,7 +215,7 @@ abstract final class AppTheme {
           minimumSize: const Size(48, 48),
           side: BorderSide(color: c.stroke),
           textStyle: NwType.button,
-          shape: RoundedRectangleBorder(borderRadius: radius16),
+          shape: RoundedRectangleBorder(borderRadius: button),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -221,7 +223,7 @@ abstract final class AppTheme {
           foregroundColor: c.blue,
           minimumSize: const Size(48, 48),
           textStyle: NwType.button.copyWith(fontSize: 14),
-          shape: RoundedRectangleBorder(borderRadius: radius16),
+          shape: RoundedRectangleBorder(borderRadius: button),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -240,7 +242,7 @@ abstract final class AppTheme {
       dialogTheme: DialogTheme(
         backgroundColor: c.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NwRadius.cardLarge)),
         titleTextStyle: NwType.display(22).copyWith(color: c.text),
         contentTextStyle: text.bodyMedium?.copyWith(color: c.muted),
       ),
@@ -249,14 +251,14 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         modalBackgroundColor: c.surface,
         dragHandleColor: c.stroke,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(NwRadius.sheet))),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: c.text,
         contentTextStyle: text.bodyMedium?.copyWith(color: c.ground, fontWeight: FontWeight.w600),
         actionTextColor: c.blueSoft,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: radius16),
+        shape: RoundedRectangleBorder(borderRadius: field),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : c.muted),
@@ -283,7 +285,7 @@ abstract final class AppTheme {
       popupMenuTheme: PopupMenuThemeData(
         color: c.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: radius16, side: BorderSide(color: c.stroke)),
+        shape: RoundedRectangleBorder(borderRadius: field, side: BorderSide(color: c.stroke)),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(color: c.text, borderRadius: BorderRadius.circular(10)),

@@ -6,13 +6,13 @@ import '../theme/app_theme.dart';
 /// Minimum touch target of every tappable element (Nachtwache: ≥ 48 dp).
 const kMinTap = 48.0;
 
-/// Card: `surface` fill, 1 px `stroke`, radius 22 (large cards 26), no shadow.
+/// Card: `surface` fill, 1 px `stroke`, radius [NwRadius.card] (large cards [NwRadius.cardLarge]), no shadow.
 class NwCard extends StatelessWidget {
   const NwCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(14),
-    this.radius = 22,
+    this.radius = NwRadius.card,
     this.onTap,
     this.onLongPress,
     this.color,
@@ -204,7 +204,7 @@ class NwIconButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.size = kMinTap,
-    this.radius = 16,
+    this.radius = NwRadius.button,
     this.color,
     this.iconColor,
     this.iconSize = 20,
@@ -291,7 +291,7 @@ class CountBadge extends StatelessWidget {
   }
 }
 
-/// Wide pill button (door amber, answer green, blue): 52 dp, radius 16.
+/// Wide pill button (door amber, answer green, blue): 52 dp, radius [NwRadius.button].
 class NwPillButton extends StatelessWidget {
   const NwPillButton({
     super.key,
@@ -318,7 +318,7 @@ class NwPillButton extends StatelessWidget {
         foregroundColor: foreground,
         minimumSize: Size(kMinTap, height),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NwRadius.button)),
         textStyle: NwType.button,
       ),
       onPressed: onPressed,

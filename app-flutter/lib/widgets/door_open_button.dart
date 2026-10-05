@@ -131,7 +131,7 @@ class _DoorOpenButtonState extends State<DoorOpenButton> {
           foregroundColor: fg,
           minimumSize: const Size(kMinTap, 52),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(NwRadius.button)),
           textStyle: NwType.button,
         ),
         onPressed: onPressed,

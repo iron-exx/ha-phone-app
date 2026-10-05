@@ -20,7 +20,7 @@ enum CallControlTone {
   done,
 }
 
-/// Nachtwache in-call control: 72 dp tonal tile (radius 22) with the label
+/// Nachtwache in-call control: 72 dp tonal tile (radius [NwRadius.control]) with the label
 /// underneath; the tile and label together are one touch target and one
 /// TalkBack node. A null [onPressed] renders it disabled.
 class CallControlButton extends StatelessWidget {
@@ -78,7 +78,7 @@ class CallControlButton extends StatelessWidget {
       child: Opacity(
         opacity: enabled ? 1 : 0.4,
         child: InkWell(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(NwRadius.control),
           onTap: onPressed,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: kMinTap, minHeight: kMinTap),
@@ -90,7 +90,7 @@ class CallControlButton extends StatelessWidget {
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: bg,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(NwRadius.control),
                     border: tone == CallControlTone.done ? Border.all(color: c.okStroke) : null,
                   ),
                   child: busy

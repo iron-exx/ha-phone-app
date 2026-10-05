@@ -42,6 +42,7 @@ class TimelineRow extends StatelessWidget {
     final (icon, meta, accent) = _meta(c);
     final metaColor = item.isMissedCall || isDoor ? accent : c.muted;
     return InkWell(
+      borderRadius: BorderRadius.circular(NwRadius.row),
       onTap: onTap,
       child: Stack(
         children: [

@@ -101,7 +101,7 @@ class _DoorCardState extends State<DoorCard> {
     final shown = actions.length > 3 ? 3 : actions.length;
     return NwCard(
       key: ValueKey('door-card-${door.number}'),
-      radius: 26,
+      radius: NwRadius.cardLarge,
       padding: EdgeInsets.zero,
       clip: true,
       child: Column(

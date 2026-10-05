@@ -31,7 +31,7 @@ class CallVideoCard extends StatelessWidget {
       height: height,
       width: double.infinity,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(NwRadius.cardLarge),
         child: Stack(
           fit: StackFit.expand,
           children: [

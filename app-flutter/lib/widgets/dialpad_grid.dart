@@ -28,7 +28,7 @@ const _kSpoken = {'*': 'Stern', '#': 'Raute'};
 
 /// One reusable dialpad for all call sites (Wählen, in-call DTMF keypad,
 /// transfer target). Nachtwache keys: 3 columns, `surface` tiles with
-/// radius 22, digit in Bricolage 28/700, letters 10/800 with wide tracking.
+/// radius [NwRadius.dialKey] (compact [NwRadius.dialKeyCompact]), digit in Bricolage 28/700, letters 10/800 with wide tracking.
 /// [keySize] is the key height; keys share the width. Digits scale down
 /// instead of overflowing at large system font sizes.
 class DialpadGrid extends StatelessWidget {
@@ -77,7 +77,7 @@ class _DialpadKey extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.nw;
     final letters = _kLetters[label];
-    final radius = BorderRadius.circular(height >= 60 ? 22 : 18);
+    final radius = BorderRadius.circular(height >= 60 ? NwRadius.dialKey : NwRadius.dialKeyCompact);
     return Semantics(
       button: true,
       label: _kSpoken[label] ?? label,
