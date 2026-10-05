@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 
+export 'nw_shapes.dart';
+
 /// Bundled font families (assets/fonts, OFL).
 abstract final class NwFonts {
   /// Titles, big names, numbers (700/800).

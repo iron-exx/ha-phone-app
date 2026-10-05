@@ -40,6 +40,22 @@ void main() {
         expect(contrast(c.blueOnSoft, c.blueSoft), greaterThanOrEqualTo(kTextContrast));
         expect(contrast(c.okText, c.okSurface), greaterThanOrEqualTo(kTextContrast));
       });
+
+      test('brandInk on both brand gradient stops and the midpoint reaches 4.5:1', () {
+        final g = c.brandGradient.colors;
+        for (final fill in [g.first, g.last, Color.lerp(g.first, g.last, 0.5)!]) {
+          expect(contrast(c.brandInk, fill), greaterThanOrEqualTo(kTextContrast), reason: '$fill');
+        }
+      });
+
+      test('title gradient reaches 3:1 (AA large text) on ground, surface and raised', () {
+        final g = c.brandTitle.colors;
+        for (final stop in [g.first, g.last, Color.lerp(g.first, g.last, 0.5)!]) {
+          for (final (bgName, bg) in [('ground', c.ground), ('surface', c.surface), ('raised', c.raised)]) {
+            expect(contrast(stop, bg), greaterThanOrEqualTo(3.0), reason: '$stop on $bgName');
+          }
+        }
+      });
     });
   }
 

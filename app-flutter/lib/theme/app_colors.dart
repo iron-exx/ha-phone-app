@@ -32,6 +32,9 @@ class NwColors extends ThemeExtension<NwColors> {
     required this.okStroke,
     required this.okText,
     required this.offline,
+    required this.brandGradient,
+    required this.brandTitle,
+    required this.brandInk,
   });
 
   /// Background of every screen.
@@ -85,6 +88,25 @@ class NwColors extends ThemeExtension<NwColors> {
   /// Offline presence (grey, no ring).
   final Color offline;
 
+  /// Brand accent (nouma.biz blue → green, 135°): dial button, primary
+  /// buttons, active-tab bar. Never a status colour.
+  final LinearGradient brandGradient;
+
+  /// Text version of [brandGradient] for page titles ≥ 24 px (ShaderMask).
+  /// Dark: same as [brandGradient]. Light: darker stops, because the spec's
+  /// light stops only reach 2.9:1 on `ground` (AA large text needs 3:1).
+  final LinearGradient brandTitle;
+
+  /// Text and icons on [brandGradient]. Near-black in both themes: white
+  /// only reaches 2.0–3.75:1 on the spec stops.
+  final Color brandInk;
+
+  static const _darkBrand = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF0EA5E9), Color(0xFF89C940)],
+  );
+
   static const dark = NwColors(
     ground: Color(0xFF0B0F14),
     surface: Color(0xFF131A22),
@@ -110,6 +132,9 @@ class NwColors extends ThemeExtension<NwColors> {
     okStroke: Color(0xFF1E4D33),
     okText: Color(0xFF7EE2A8),
     offline: Color(0xFF6B7787),
+    brandGradient: _darkBrand,
+    brandTitle: _darkBrand,
+    brandInk: Color(0xFF0B0F14),
   );
 
   static const light = NwColors(
@@ -137,6 +162,17 @@ class NwColors extends ThemeExtension<NwColors> {
     okStroke: Color(0xFFB7E4C9),
     okText: Color(0xFF166534),
     offline: Color(0xFF94A3B8),
+    brandGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF008BCF), Color(0xFF5FA92E)],
+    ),
+    brandTitle: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF0077B3), Color(0xFF4A8A22)],
+    ),
+    brandInk: Color(0xFF0B0F14),
   );
 
   @override
@@ -165,6 +201,9 @@ class NwColors extends ThemeExtension<NwColors> {
     Color? okStroke,
     Color? okText,
     Color? offline,
+    LinearGradient? brandGradient,
+    LinearGradient? brandTitle,
+    Color? brandInk,
   }) =>
       NwColors(
         ground: ground ?? this.ground,
@@ -191,6 +230,9 @@ class NwColors extends ThemeExtension<NwColors> {
         okStroke: okStroke ?? this.okStroke,
         okText: okText ?? this.okText,
         offline: offline ?? this.offline,
+        brandGradient: brandGradient ?? this.brandGradient,
+        brandTitle: brandTitle ?? this.brandTitle,
+        brandInk: brandInk ?? this.brandInk,
       );
 
   @override
@@ -222,6 +264,9 @@ class NwColors extends ThemeExtension<NwColors> {
       okStroke: l(okStroke, other.okStroke),
       okText: l(okText, other.okText),
       offline: l(offline, other.offline),
+      brandGradient: LinearGradient.lerp(brandGradient, other.brandGradient, t)!,
+      brandTitle: LinearGradient.lerp(brandTitle, other.brandTitle, t)!,
+      brandInk: l(brandInk, other.brandInk),
     );
   }
 }
