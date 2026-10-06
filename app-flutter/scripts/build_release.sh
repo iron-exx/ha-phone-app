@@ -6,8 +6,8 @@ FLUTTER=/home/roto/flutter/flutter/bin/flutter
 $FLUTTER build apk --release --split-per-abi --target-platform android-arm64,android-x64
 $FLUTTER build appbundle --release --target-platform android-arm64,android-x64
 ls -l build/app/outputs/flutter-apk/*-release.apk build/app/outputs/bundle/release/*.aab
-grep -q "no-git/release" android/key.properties 2>/dev/null \
-  && echo "signiert mit Upload-Key" || echo "WARNUNG: debug-signiert (kein key.properties)"
+grep -q "^storeFile=" android/key.properties 2>/dev/null \
+  && echo "signiert mit Release-Key aus key.properties" || echo "WARNUNG: debug-signiert (kein key.properties)"
 # Handy-APK mit Version im Namen ablegen (Freigabe Z:\ha-phone-app\no-git\apk).
 # Flutter selbst braucht die festen Namen unter build/, darum eine Kopie.
 VERSION=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
